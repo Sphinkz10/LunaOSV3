@@ -1,3 +1,4 @@
+import { computeSessionSummary, parseTargetLoadKg, parseTargetReps } from '../api/live';
 import { clampLimit, MAX_LIMIT, DEFAULT_LIMIT } from '../api/coachQuery';
 import { createLunaClient } from '../api/client';
 import { summarizeAthleteDocs } from '../api/athletes';
@@ -49,5 +50,23 @@ describe('coachQuery — tipos', () => {
     const bad: import('../api/coachQuery').CoachTables = 'profiles';
     const ok: import('../api/coachQuery').CoachTables = 'bookings';
     expect(ok).toBe('bookings'); expect(bad).toBeDefined();
+  });
+});
+describe('live — prescrição e resumo', () => {
+  it('lê reps e carga da prescrição', () => {
+    expect(parseTargetReps('8-10')).toBe(8);
+    expect(parseTargetReps(null)).toBeNull();
+    expect(parseTargetLoadKg('62,5 kg')).toBe(62.5);
+    expect(parseTargetLoadKg('75% 1RM')).toBeNull();
+    expect(parseTargetLoadKg('RPE 8')).toBeNull();
+  });
+  it('resumo conta só séries concluídas', () => {
+    const s = computeSessionSummary([
+      { reps: 10, loadKg: 60, rpe: 7, completed: true },
+      { reps: 8, loadKg: 65, rpe: 8, completed: true },
+      { reps: 3, loadKg: 70, rpe: 10, completed: false },
+    ]);
+    expect(s).toEqual({ sets: 2, failed: 1, volumeKg: 1120, avgRpe: 7.5 });
+    expect(computeSessionSummary([]).avgRpe).toBeNull();
   });
 });

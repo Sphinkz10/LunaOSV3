@@ -98,7 +98,7 @@ No dashboard Supabase ([supabase.com/dashboard](https://supabase.com/dashboard) 
 
 Falta esta decisão para o próximo passo:
 
-1. **Live (treino ao vivo)**: avanço já para timer + registo de sets + RPE, ou preferes primeiro polish visual (Atletas/Grupos conforme o HTML de referência)?
+1. ~~**Live (treino ao vivo)**~~ ✅ **feito** (2026-10-15). Testa: menu ➕ → **Iniciar treino**, ou Calendário → marcação confirmada → **Iniciar treino**. Escolhe atleta + treino → regista séries (reps/kg/RPE) → **Finalizar**. Dá sign-off visual a 320/768/1440.
 2. **Vista por defeito** do calendário: **Mês** (atual) ou **Agenda** (lista) ao abrir?
 
 ---

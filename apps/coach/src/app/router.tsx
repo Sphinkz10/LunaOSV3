@@ -12,6 +12,7 @@ import { Athletes } from '../pages/Athletes';
 import { Athlete360 } from '../pages/Athlete360';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
+import { Live } from '../pages/Live';
 
 const Soon = ({ name }: { name: string }) => (
   <CoachShell headStrong={name} headSub="Módulo em construção — entra na fase própria do roadmap.">
@@ -37,7 +38,7 @@ export const router = createBrowserRouter([
   { path: '/calendar', element: <Protected><ModuleLayout module="calendar" /></Protected>,
     children: [{ index: true, element: <Calendar /> }] },
   { path: '/live/:bookingId?', element: <Protected><ModuleLayout module="live" /></Protected>,
-    children: [{ index: true, element: <Soon name="Live" /> }] },
+    children: [{ index: true, element: <Live /> }] },
   { path: '/dataos', element: <Protected><ModuleLayout module="dataos" /></Protected>,
     children: [{ index: true, element: <Soon name="Data.OS" /> }] },
   { path: '/studio', element: <Protected><ModuleLayout module="studio" /></Protected>,

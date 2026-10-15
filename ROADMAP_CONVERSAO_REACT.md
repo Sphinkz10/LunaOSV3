@@ -23,7 +23,7 @@
 | `renderCalendarView` / `renderCalBoard` | `/calendar` | ◐ feito, falta **Live** ligado |
 | `renderAthletesShell` / `renderAthlete360Page` / `renderQA` (pesquisa avançada 360) | `/athletes` | ✅ feito |
 | `renderGroupsView` / `renderGroup360Page` / `renderGroupCompareView` | `/groups` | ◐ feito; falta **comparar grupos** |
-| `renderLiveView` / `renderLiveBoard` / `renderSet` | `/live` | 🔲 stub `<Soon>` |
+| `renderLiveView` / `renderLiveBoard` / `renderSet` | `/live` | ✅ feito (dados reais; sign-off visual pendente) |
 | `renderStudioView` / `renderStudioBoard` / `renderFB` (formula builder) | `/studio` | 🔲 stub |
 | `renderDataosView` / `renderData` | `/dataos` | 🔲 stub |
 | `renderFormsView` / `renderFormsBoard` | `/forms` | 🔲 stub |
@@ -54,8 +54,8 @@ comportamento/a11y** (focus-trap, ESC, aria), **estilizada pelas classes do prot
 
 ## 🟢 Fase 3 (fechar) — Calendário + **Live**
 > Live é o último item da F3 e desbloqueia o fluxo "Iniciar treino" do FAB.
-- [ ] `/live/:bookingId` — `renderLiveView/Board`: **timer** sobre timestamps (spike já provado), **registo de sets** (peso/reps/RPE — `renderSet`), descanso, anotações.
-- [ ] Core: `liveService` (sessão, sets, RPE) + tabelas/seed; `LiveButton` (já em `@luna/ui`) ligado.
+- [x] `/live/:bookingId` — `renderLiveView/Board`: **timer** sobre timestamps (spike já provado), **registo de sets** (peso/reps/RPE — `renderSet`), descanso, anotações.
+- [x] Core: `liveService` (sessão, sets, RPE) + tabelas/seed; `LiveButton` (já em `@luna/ui`) ligado.
 - [ ] Ligar **lista de espera ↔ `class_booking_id`** concreto; modal dedicado de **conflito**.
 - [ ] **Comparar grupos** (`renderGroupCompareView`) — fecha o resto de Grupos.
 - **Gate G3:** Calendário+Live fiéis, dados reais, 320/768/1440 OK.

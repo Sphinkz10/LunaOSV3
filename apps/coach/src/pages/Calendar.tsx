@@ -6,6 +6,7 @@ import {
   type AthleteLite, type AvailabilitySlot, type Booking, type BookingType, type DayMarker, type DayMarkerType,
   type DayState, type NewBookingInput, type WaitlistEntry,
 } from '@luna/core';
+import { Link } from 'react-router-dom';
 import { CoachShell } from '../app/CoachShell';
 import { ProtoModal } from '../app/ProtoModal';
 import { Svg } from '../app/Svg';
@@ -645,6 +646,9 @@ function WaitlistAddModal({ open, onClose, onSaved, athletes }: {
   );
 }
 
+/** Tipos de marcação que abrem uma sessão Live. */
+const LIVE_TYPES = new Set<string>(['training', 'class', 'assessment']);
+
 function BookingDetailModal({ booking, athleteName, onClose, onConfirm, onCancel }: {
   booking: Booking | null; athleteName: Map<string, string>;
   onClose: () => void; onConfirm: (id: string) => void; onCancel: (id: string) => void;
@@ -665,6 +669,9 @@ function BookingDetailModal({ booking, athleteName, onClose, onConfirm, onCancel
         )}
         {booking.status === 'pending' && (
           <button type="button" className="btn primary" onClick={() => onConfirm(booking.id)}>Confirmar</button>
+        )}
+        {booking.status === 'confirmed' && LIVE_TYPES.has(booking.type) && (
+          <Link className="btn primary" to={`/live/${booking.id}`}>Iniciar treino</Link>
         )}
       </>}
     >

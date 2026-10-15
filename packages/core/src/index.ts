@@ -4,6 +4,7 @@ export * from './api/coachQuery';
 export * from './api/dashboard';
 export * from './api/calendar';
 export * from './api/athletes';
+export * from './api/live';
 export * from './auth';
 export * from './authStore';
 export type { Database, Booking, Athlete, Profile } from './types/database';
