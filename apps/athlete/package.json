@@ -1,0 +1,2 @@
+{ "name": "@luna/athlete", "version": "0.0.0", "private": true,
+  "description": "App do Atleta — arranca na F10 reutilizando tokens+ui+core." }

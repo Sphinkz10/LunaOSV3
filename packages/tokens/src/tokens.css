@@ -1,0 +1,67 @@
+/* LUNA.OS tokens — GERADO/curado a partir do Guia Definitivo §3. ÚNICO ficheiro com hex. */
+:root, [data-theme="luna-dark"] {
+  /* fundo & superfícies */
+  --color-bg-app:#06142a; --color-bg-deep:#0a2442;
+  --surface:linear-gradient(170deg,rgba(31,74,110,.985),rgba(8,23,46,.99));
+  --surface-2:linear-gradient(170deg,rgba(38,88,130,.985),rgba(11,31,60,.99));
+  --glass:rgba(255,255,255,.055);
+  /* texto */
+  --text-primary:#F4F7F9; --text-secondary:#B6D7E7; --text-muted:#8FB3C6;
+  /* bordas */
+  --border:rgba(255,255,255,.085); --border-strong:rgba(255,255,255,.145); --border-black:rgba(0,0,0,.45);
+  /* estados */
+  --status-success:#4CAF50; --status-danger:#E05555; --status-warning:#FC8500; --status-info:#8ECAE6;
+  /* acento por módulo */
+  --gold:#FFB701; --sky:#8ECAE6; --orange:#FC8500; --lime:#B5F44A; --teal:#209EBB;
+  --violet:#9B7CFF; --steel:#6A9DB8; --navy:#023047;
+  --accent:var(--accent-module,#FFB701);
+  /* sombras (identidade 4 camadas) */
+  --shadow-card:inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 5px rgba(0,0,0,.34),0 10px 26px rgba(0,0,0,.42),0 18px 52px rgba(0,0,0,.36);
+  --shadow-inset:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.24);
+  /* motion */
+  --t-fast:.15s cubic-bezier(.2,.9,.35,1); --t-base:.22s cubic-bezier(.2,.9,.35,1); --t-slow:.3s cubic-bezier(.2,.9,.35,1);
+  /* tipografia */
+  --font-display:"Space Grotesk",system-ui,sans-serif; --font-body:"Plus Jakarta Sans",system-ui,sans-serif;
+  --fs-xs:clamp(.72rem,.68rem + .2vw,.78rem); --fs-sm:clamp(.82rem,.78rem + .25vw,.9rem);
+  --fs-base:clamp(.95rem,.9rem + .3vw,1.05rem); --fs-lg:clamp(1.05rem,1rem + .4vw,1.2rem);
+  --fs-xl:clamp(1.2rem,1.1rem + .6vw,1.45rem); --fs-2xl:clamp(1.45rem,1.3rem + .9vw,1.8rem);
+  --fs-3xl:clamp(1.8rem,1.6rem + 1.2vw,2.3rem);
+  /* forma & espaço */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+  --ctl-sm:32px; --ctl-md:40px; --ctl-lg:48px; --touch-min:44px;
+  /* chrome do layout */
+  --header-h:66px; --side-w:222px; --side-w-narrow:190px; --board-w:330px; --board-w-narrow:300px;
+  /* z-index */
+  --z-dropdown:100; --z-sticky:200; --z-drawer:300; --z-modal:400; --z-toast:500; --z-tooltip:600;
+  /* domínio: 9 estados de dia */
+  --cal-available:#4CAF50; --cal-booked:#3E8FE0; --cal-pending:#FC8500; --cal-blocked:#E05555;
+  --cal-holiday:#9B7CFF; --cal-dayoff:#6A9DB8; --cal-vacation:#FF5DA2; --cal-competition:#18C2D6; --cal-travel:#209EBB;
+  /* entidades do Studio */
+  --entity-exercise:#209EBB; --entity-workout:#FFB701; --entity-plan:#FC8500; --entity-class:#8ECAE6;
+  /* === Ponte do protótipo (nomes curtos usados em luna-proto.css) — fonte única de hex === */
+  --white:#fff; --black:#000;
+  --ink:#07182f; --bg:var(--color-bg-app); --bg2:var(--color-bg-deep);
+  --muted:var(--steel); --muted-hi:var(--text-secondary); --pink:#FF5DA2;
+  --line:var(--border); --line2:var(--border-strong); --blackline:var(--border-black);
+  --panel:var(--surface); --panel2:var(--surface-2);
+  --shadow:var(--shadow-card); --inset:var(--shadow-inset);
+  --display:var(--font-display); --font:var(--font-body);
+  --r8:var(--r-sm); --r10:10px; --r12:var(--r-md); --r14:14px; --r18:18px; --r22:var(--r-xl); --pill:var(--r-pill);
+  --t:var(--t-base); --header:var(--header-h); --side:var(--side-w); --board:var(--board-w);
+  /* tints/badges do protótipo (light variants) */
+  --c-green-200:#9fe0a2; --c-green-300:#a5f0a8; --c-green-600:#3a9e3e;
+  --c-red-200:#ffd1d1; --c-red-300:#ff9a9a;
+  --c-blue-200:#9cc3ee; --c-blue-400:#5ba8e8; --c-blue-500:#3e8fe0;
+  --c-violet-200:#cdbcff; --c-violet-300:#d9d0ff;
+  --c-pink-200:#ffc0dd; --c-gold-200:#ffe6ad; --c-orange-200:#ffc183;
+  --c-cyan-200:#8ee6f0; --c-cyan-500:#18c2d6; --c-teal-500:#14b8a6;
+}
+[data-density="compact"]{ --sp-4:12px; --sp-6:16px; --ctl-md:36px; }
+/* Espelha o protótipo HTML: a <1220px a sidebar/board encolhem (mantendo a estrutura). */
+@media (max-width:1220px){ :root, [data-theme="luna-dark"]{ --side-w:var(--side-w-narrow); --board-w:var(--board-w-narrow); } }
+[data-text-scale="large"]{ font-size:112.5%; }
+@media (prefers-reduced-motion: reduce){ :root{ --t-fast:0s; --t-base:0s; --t-slow:0s; } }
+@keyframes luna-pulse { 0%,100% { opacity:.45 } 50% { opacity:.9 } }
+@keyframes luna-livepulse { 0%,100% { box-shadow:0 0 0 0 var(--glass) } 50% { box-shadow:0 0 0 8px transparent } }
+@media (prefers-reduced-motion: reduce){ *{ animation-duration:.01ms !important; animation-iteration-count:1 !important } }

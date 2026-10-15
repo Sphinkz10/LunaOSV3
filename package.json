@@ -1,0 +1,19 @@
+{
+  "name": "luna-os",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "audit:tokens": "bash scripts/audit-tokens.sh",
+    "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/db-setup.ps1",
+    "db:cloud": "powershell -ExecutionPolicy Bypass -File scripts/supabase-cloud.ps1",
+    "validate:g1": "pnpm --filter @luna/coach test"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}

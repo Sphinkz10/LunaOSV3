@@ -1,0 +1,20 @@
+{
+  "name": "@luna/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@luna/config": "workspace:*",
+    "vitest": "^2.1.5",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "zustand": "^5.0.1",
+    "@supabase/supabase-js": "^2.46.1"
+  }
+}

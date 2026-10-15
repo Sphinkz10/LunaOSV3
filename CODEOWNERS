@@ -1,0 +1,6 @@
+# Governança por package (P0.3) — substituir pelos handles reais da equipa
+/packages/tokens/   @sphinkz @tech-lead
+/packages/ui/       @sphinkz @tech-lead
+/packages/core/     @tech-lead
+/packages/config/   @tech-lead
+/supabase/          @sphinkz @tech-lead

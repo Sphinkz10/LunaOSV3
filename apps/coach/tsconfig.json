@@ -1,0 +1,3 @@
+{ "extends": "../../packages/config/tsconfig.base.json",
+  "include": ["src", "vite.config.ts", "capacitor.config.ts"],
+  "exclude": ["src/**/__tests__/**"] }

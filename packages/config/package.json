@@ -1,0 +1,11 @@
+{
+  "name": "@luna/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.cjs",
+  "exports": {
+    "./eslint": "./src/eslint.config.cjs",
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./stylelint": "./src/stylelint.config.cjs"
+  }
+}
