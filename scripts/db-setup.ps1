@@ -53,6 +53,8 @@ Invoke-Psql "insert into auth.users (id,email) values ('00000000-0000-0000-0000-
 
 Write-Host "==> Migração 0002_hardening.sql"
 Invoke-PsqlFile "supabase/migrations/0002_hardening.sql"
+Write-Host "==> Migração 0003_security_fixes.sql"
+Invoke-PsqlFile "supabase/migrations/0003_security_fixes.sql"
 
 Write-Host "==> Seeds"
 Invoke-PsqlFile "supabase/seed_base.sql"

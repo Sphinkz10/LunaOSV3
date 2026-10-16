@@ -28,6 +28,7 @@ SQL
 psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/migrations/0001_luna_os.sql
 psql -h "$HOST" -p "$PORT" -U "$USER" -c "insert into auth.users (id,email) values ('00000000-0000-0000-0000-00000000c0a0','coach@luna.os') on conflict (id) do nothing;"
 psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/migrations/0002_hardening.sql
+psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/migrations/0003_security_fixes.sql
 psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/seed_base.sql
 psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/seed_extended.sql
 psql -h "$HOST" -p "$PORT" -U "$USER" -v ON_ERROR_STOP=1 -f supabase/tests/gdb_asserts.sql

@@ -171,4 +171,42 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------- PROVA 10: ninguém se promove a admin (0003) ----------
+set role authenticated;
+select set_config('app.uid', '00000000-0000-0000-0000-0000000000a1', false);
+do $$ begin
+  begin
+    update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-0000000000a1';
+    raise exception 'PROVA 10 FALHOU: coach A promoveu-se a admin';
+  exception when insufficient_privilege then null; -- esperado
+  end;
+  -- editar o resto do próprio perfil continua a funcionar
+  update public.profiles set full_name = 'Coach A' where id = '00000000-0000-0000-0000-0000000000a1';
+  if (select full_name from public.profiles where id = '00000000-0000-0000-0000-0000000000a1') <> 'Coach A' then
+    raise exception 'PROVA 10 FALHOU: edição normal do perfil bloqueada';
+  end if;
+end $$;
+reset role;
+do $$ begin
+  if (select role from public.profiles where id = '00000000-0000-0000-0000-0000000000a1') <> 'coach' then
+    raise exception 'PROVA 10 FALHOU: papel alterado';
+  end if;
+end $$;
+
+-- ---------- PROVA 11: _export_all não é chamável pelo cliente (0003) ----------
+set role authenticated;
+select set_config('app.uid', '00000000-0000-0000-0000-0000000000a1', false);
+do $$ begin
+  begin
+    perform public._export_all('00000000-0000-0000-0000-0000000000b2');
+    raise exception 'PROVA 11 FALHOU: coach A exportou os dados do coach B';
+  exception when insufficient_privilege then null; -- esperado
+  end;
+  -- o caminho legítimo continua aberto
+  if (public.export_my_data())->'profile'->>'id' <> '00000000-0000-0000-0000-0000000000a1' then
+    raise exception 'PROVA 11 FALHOU: export_my_data deixou de funcionar';
+  end if;
+end $$;
+reset role;
+
 select '✅ G-DB: TODAS AS PROVAS PASSARAM' as resultado;
