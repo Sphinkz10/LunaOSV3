@@ -1,7 +1,12 @@
 import type { LunaClient } from './client';
+import type { OrgScope } from '../authStore';
 import type { EnumOf } from '../types/database';
 
-/** Live (F3): sessão real, série a série. Tabelas: sessions / session_exercises / session_sets. */
+/**
+ * Live: sessão real, série a série (sessions / session_exercises / session_sets).
+ * O treino feito é dado da pessoa (person_id); a organização escreve e lê-o só com
+ * ligação ativa e partilha de treino. Dono e organização das séries vêm da sessão.
+ */
 export type SessionPhase = EnumOf<'session_phase'>;
 
 export interface ExerciseLite { id: string; name: string; category: string }
@@ -49,7 +54,7 @@ export interface LiveSessionExercise {
 
 export interface LiveSession {
   id: string;
-  athleteId: string | null;
+  clientId: string | null;
   bookingId: string | null;
   workoutId: string | null;
   phase: SessionPhase;
@@ -88,10 +93,10 @@ export function computeSessionSummary(sets: Pick<LiveSet, 'reps' | 'loadKg' | 'r
 
 const num = (v: number | string | null): number | null => (v == null ? null : Number(v));
 
-export async function fetchExercisesLite(client: LunaClient, coachId: string): Promise<ExerciseLite[]> {
+export async function fetchExercisesLite(client: LunaClient, scope: OrgScope): Promise<ExerciseLite[]> {
   const { data, error } = await client.from('exercises')
     .select('id,name,category')
-    .eq('coach_id', coachId)
+    .eq('org_id', scope.orgId)
     .is('archived_at', null)
     .order('name', { ascending: true })
     .limit(500);
@@ -100,10 +105,10 @@ export async function fetchExercisesLite(client: LunaClient, coachId: string): P
 }
 
 /** Treinos do Studio com os exercícios prescritos (ordem do treino). */
-export async function fetchLiveWorkouts(client: LunaClient, coachId: string): Promise<LiveWorkout[]> {
+export async function fetchLiveWorkouts(client: LunaClient, scope: OrgScope): Promise<LiveWorkout[]> {
   const { data: wks, error } = await client.from('workouts')
     .select('id,name,est_duration_min')
-    .eq('coach_id', coachId)
+    .eq('org_id', scope.orgId)
     .is('archived_at', null)
     .order('name', { ascending: true })
     .limit(200);
@@ -112,11 +117,11 @@ export async function fetchLiveWorkouts(client: LunaClient, coachId: string): Pr
   const [{ data: wex, error: e2 }, exercises] = await Promise.all([
     client.from('workout_exercises')
       .select('workout_id,exercise_id,position,target_sets,target_reps,target_load,rest_seconds')
-      .eq('coach_id', coachId)
+      .eq('org_id', scope.orgId)
       .in('workout_id', wks.map((w) => w.id))
       .order('position', { ascending: true })
       .limit(1000),
-    fetchExercisesLite(client, coachId),
+    fetchExercisesLite(client, scope),
   ]);
   if (e2) throw e2;
   const exById = new Map(exercises.map((e) => [e.id, e]));
@@ -138,18 +143,18 @@ export async function fetchLiveWorkouts(client: LunaClient, coachId: string): Pr
 }
 
 /** Sessão completa (exercícios + séries) por id. */
-export async function fetchLiveSession(client: LunaClient, coachId: string, sessionId: string): Promise<LiveSession> {
+export async function fetchLiveSession(client: LunaClient, scope: OrgScope, sessionId: string): Promise<LiveSession> {
   const [{ data: s, error }, { data: sex, error: e2 }, { data: sets, error: e3 }] = await Promise.all([
     client.from('sessions')
-      .select('id,athlete_id,booking_id,workout_id,phase,started_at,ended_at,elapsed_seconds,notes')
-      .eq('coach_id', coachId).eq('id', sessionId).single(),
+      .select('id,link_id,booking_id,workout_id,phase,started_at,ended_at,elapsed_seconds,notes')
+      .eq('org_id', scope.orgId).eq('id', sessionId).single(),
     client.from('session_exercises')
       .select('id,exercise_id,position,target_sets,rest_seconds,notes')
-      .eq('coach_id', coachId).eq('session_id', sessionId)
+      .eq('org_id', scope.orgId).eq('session_id', sessionId)
       .order('position', { ascending: true }).limit(200),
     client.from('session_sets')
       .select('id,session_exercise_id,set_index,reps,load_kg,rpe,completed,rest_taken_seconds,recorded_at')
-      .eq('coach_id', coachId).eq('session_id', sessionId)
+      .eq('org_id', scope.orgId).eq('session_id', sessionId)
       .order('set_index', { ascending: true }).limit(1000),
   ]);
   if (error) throw error;
@@ -158,13 +163,13 @@ export async function fetchLiveSession(client: LunaClient, coachId: string, sess
   const exIds = [...new Set((sex ?? []).map((x) => x.exercise_id).filter((v): v is string => !!v))];
   const names = new Map<string, string>();
   if (exIds.length) {
-    const { data: exs, error: e4 } = await client.from('exercises').select('id,name').in('id', exIds);
+    const { data: exs, error: e4 } = await client.from('exercises').select('id,name').eq('org_id', scope.orgId).in('id', exIds);
     if (e4) throw e4;
     (exs ?? []).forEach((e) => names.set(e.id, e.name));
   }
   return {
     id: s.id,
-    athleteId: s.athlete_id,
+    clientId: s.link_id,
     bookingId: s.booking_id,
     workoutId: s.workout_id,
     phase: s.phase,
@@ -202,11 +207,12 @@ function toLiveSet(st: {
   };
 }
 
-/** Sessão em curso (live/pausada) mais recente, para retomar. */
-export async function fetchActiveSessionId(client: LunaClient, coachId: string): Promise<string | null> {
+/** Sessão em curso (live/pausada) mais recente deste membro, para retomar. */
+export async function fetchActiveSessionId(client: LunaClient, scope: OrgScope): Promise<string | null> {
   const { data, error } = await client.from('sessions')
     .select('id')
-    .eq('coach_id', coachId)
+    .eq('org_id', scope.orgId)
+    .eq('membership_id', scope.membershipId)
     .in('phase', ['live', 'paused'])
     .order('started_at', { ascending: false })
     .limit(1);
@@ -215,45 +221,71 @@ export async function fetchActiveSessionId(client: LunaClient, coachId: string):
 }
 
 export interface StartSessionInput {
-  athleteId: string | null;
+  clientId: string;
   workout: LiveWorkout | null;
   bookingId?: string | null;
 }
 
-/** Cria a sessão em fase 'live' e copia a prescrição do treino para session_exercises. */
-export async function startLiveSession(client: LunaClient, coachId: string, input: StartSessionInput): Promise<string> {
+export class NoTrainingShareError extends Error {
+  constructor() {
+    super('Este cliente não partilha o treino com a organização: não é possível registar a sessão.');
+    this.name = 'NoTrainingShareError';
+  }
+}
+
+/**
+ * Cria a sessão em 'live' e copia a prescrição. Se já houver uma sessão aberta
+ * para este cliente, devolve-a (não se acumulam sessões órfãs). Se a cópia dos
+ * exercícios falhar, a sessão é cancelada em vez de ficar órfã.
+ */
+export async function startLiveSession(client: LunaClient, scope: OrgScope, input: StartSessionInput): Promise<string> {
+  const { data: c, error: ce } = await client.from('clients').select('person_id')
+    .eq('org_id', scope.orgId).eq('id', input.clientId).single();
+  if (ce) throw ce;
+
+  const { data: open, error: oe } = await client.from('sessions').select('id')
+    .eq('org_id', scope.orgId).eq('person_id', c.person_id).in('phase', ['setup', 'live', 'paused']).limit(1);
+  if (oe) throw oe;
+  if (open?.length) return open[0].id;
+
   const { data: s, error } = await client.from('sessions').insert({
-    coach_id: coachId,
-    athlete_id: input.athleteId,
+    person_id: c.person_id,
+    org_id: scope.orgId,
+    link_id: input.clientId,
+    membership_id: scope.membershipId,
     workout_id: input.workout?.id ?? null,
     booking_id: input.bookingId ?? null,
     phase: 'live',
     started_at: new Date().toISOString(),
   }).select('id').single();
-  if (error) throw error;
+  if (error) {
+    if ((error as { code?: string }).code === '42501') throw new NoTrainingShareError();
+    throw error;
+  }
   const rows = (input.workout?.exercises ?? []).map((e, i) => ({
     session_id: s.id,
     exercise_id: e.exerciseId,
-    coach_id: coachId,
     position: i,
     target_sets: e.targetSets,
     rest_seconds: e.restSeconds,
   }));
   if (rows.length) {
     const { error: e2 } = await client.from('session_exercises').insert(rows);
-    if (e2) throw e2;
+    if (e2) {
+      await client.from('sessions').update({ phase: 'cancelled', ended_at: new Date().toISOString() }).eq('id', s.id);
+      throw e2;
+    }
   }
   return s.id;
 }
 
 export async function addLiveExercise(
-  client: LunaClient, coachId: string, sessionId: string,
+  client: LunaClient, _scope: OrgScope, sessionId: string,
   input: { exerciseId: string; position: number; targetSets?: number | null; restSeconds?: number | null },
 ): Promise<void> {
   const { error } = await client.from('session_exercises').insert({
     session_id: sessionId,
     exercise_id: input.exerciseId,
-    coach_id: coachId,
     position: input.position,
     target_sets: input.targetSets ?? 3,
     rest_seconds: input.restSeconds ?? 90,
@@ -261,10 +293,10 @@ export async function addLiveExercise(
   if (error) throw error;
 }
 
-export async function setLiveExerciseNote(client: LunaClient, coachId: string, sessionExerciseId: string, notes: string): Promise<void> {
+export async function setLiveExerciseNote(client: LunaClient, scope: OrgScope, sessionExerciseId: string, notes: string): Promise<void> {
   const { error } = await client.from('session_exercises')
     .update({ notes: notes || null })
-    .eq('coach_id', coachId).eq('id', sessionExerciseId);
+    .eq('org_id', scope.orgId).eq('id', sessionExerciseId);
   if (error) throw error;
 }
 
@@ -280,11 +312,10 @@ export interface RecordSetInput {
 }
 
 /** Grava a série logo que é marcada (nada se perde se a app fechar). */
-export async function recordLiveSet(client: LunaClient, coachId: string, input: RecordSetInput): Promise<LiveSet> {
+export async function recordLiveSet(client: LunaClient, _scope: OrgScope, input: RecordSetInput): Promise<LiveSet> {
   const { data, error } = await client.from('session_sets').insert({
     session_id: input.sessionId,
     session_exercise_id: input.sessionExerciseId,
-    coach_id: coachId,
     set_index: input.setIndex,
     reps: input.reps,
     load_kg: input.loadKg,
@@ -297,17 +328,17 @@ export async function recordLiveSet(client: LunaClient, coachId: string, input: 
 }
 
 export async function setLiveSessionPhase(
-  client: LunaClient, coachId: string, sessionId: string, phase: SessionPhase, elapsedSeconds: number,
+  client: LunaClient, scope: OrgScope, sessionId: string, phase: SessionPhase, elapsedSeconds: number,
 ): Promise<void> {
   const { error } = await client.from('sessions')
     .update({ phase, elapsed_seconds: Math.max(0, Math.round(elapsedSeconds)) })
-    .eq('coach_id', coachId).eq('id', sessionId);
+    .eq('org_id', scope.orgId).eq('id', sessionId);
   if (error) throw error;
 }
 
 /** Fecha a sessão: fase 'done', duração, nota e totais reais em summary. */
 export async function finishLiveSession(
-  client: LunaClient, coachId: string, sessionId: string,
+  client: LunaClient, scope: OrgScope, sessionId: string,
   input: { elapsedSeconds: number; notes: string | null; summary: SessionSummary },
 ): Promise<void> {
   const { error } = await client.from('sessions').update({
@@ -316,17 +347,17 @@ export async function finishLiveSession(
     elapsed_seconds: Math.max(0, Math.round(input.elapsedSeconds)),
     notes: input.notes || null,
     summary: { volume_kg: input.summary.volumeKg, sets: input.summary.sets, failed: input.summary.failed, avg_rpe: input.summary.avgRpe },
-  }).eq('coach_id', coachId).eq('id', sessionId);
+  }).eq('org_id', scope.orgId).eq('id', sessionId);
   if (error) throw error;
 }
 
-/** Última série concluída de cada exercício deste atleta, em sessões anteriores. */
+/** Última série concluída de cada exercício deste cliente, em sessões anteriores. */
 export async function fetchLastPerformance(
-  client: LunaClient, coachId: string, athleteId: string, exerciseIds: string[], excludeSessionId?: string,
+  client: LunaClient, scope: OrgScope, clientId: string, exerciseIds: string[], excludeSessionId?: string,
 ): Promise<Map<string, LastPerformance>> {
   const out = new Map<string, LastPerformance>();
   if (!exerciseIds.length) return out;
-  let sq = client.from('sessions').select('id').eq('coach_id', coachId).eq('athlete_id', athleteId)
+  let sq = client.from('sessions').select('id').eq('org_id', scope.orgId).eq('link_id', clientId)
     .order('started_at', { ascending: false }).limit(50);
   if (excludeSessionId) sq = sq.neq('id', excludeSessionId);
   const { data: sessions, error } = await sq;
@@ -334,7 +365,6 @@ export async function fetchLastPerformance(
   if (!sessions?.length) return out;
   const { data: sex, error: e2 } = await client.from('session_exercises')
     .select('id,exercise_id')
-    .eq('coach_id', coachId)
     .in('session_id', sessions.map((s) => s.id))
     .in('exercise_id', exerciseIds)
     .limit(500);
@@ -343,7 +373,6 @@ export async function fetchLastPerformance(
   const exOf = new Map(sex.map((x) => [x.id, x.exercise_id as string]));
   const { data: sets, error: e3 } = await client.from('session_sets')
     .select('session_exercise_id,reps,load_kg,rpe,recorded_at')
-    .eq('coach_id', coachId)
     .eq('completed', true)
     .in('session_exercise_id', sex.map((x) => x.id))
     .order('recorded_at', { ascending: false })
@@ -358,10 +387,10 @@ export async function fetchLastPerformance(
   return out;
 }
 
-/** Atleta da marcação de origem (fluxo Calendário → Iniciar treino). */
-export async function fetchBookingAthleteId(client: LunaClient, coachId: string, bookingId: string): Promise<string | null> {
-  const { data, error } = await client.from('bookings').select('athlete_id')
-    .eq('coach_id', coachId).eq('id', bookingId).maybeSingle();
+/** Cliente da marcação de origem (fluxo Horário → Iniciar treino). */
+export async function fetchBookingClientId(client: LunaClient, scope: OrgScope, bookingId: string): Promise<string | null> {
+  const { data, error } = await client.from('bookings').select('link_id')
+    .eq('org_id', scope.orgId).eq('id', bookingId).maybeSingle();
   if (error) throw error;
-  return data?.athlete_id ?? null;
+  return data?.link_id ?? null;
 }

@@ -2,8 +2,8 @@
 export const qk = {
   bookings: { all: ['bookings'] as const, month: (iso: string) => ['bookings', { month: iso }] as const,
               day: (iso: string) => ['bookings', { day: iso }] as const, upcoming: ['bookings', 'upcoming'] as const },
-  athletes: { all: ['athletes'] as const, detail: (id: string) => ['athletes', id] as const,
-              summary: ['athletes', 'summary'] as const },
+  clients: { all: ['clients'] as const, detail: (id: string) => ['clients', id] as const,
+              summary: ['clients', 'summary'] as const },
   kpis: { today: ['kpis', 'today'] as const },
   notifications: { unread: ['notifications', 'unread'] as const },
   waitlist: { all: ['waitlist'] as const },

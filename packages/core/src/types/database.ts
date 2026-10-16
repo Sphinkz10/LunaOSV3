@@ -1,1735 +1,271 @@
 // ============================================================================
-// LUNA.OS — Tipos TypeScript da base de dados (Supabase / PostgREST)
-// Para usar com @supabase/supabase-js: createClient<Database>(url, key)
-// Podes regenerar com:  supabase gen types typescript --project-id <id> > database.types.ts
+// LUNA.OS v3 — Tipos da base de dados (Supabase / PostgREST)
+// Espelham supabase/migrations/0001..0005. Regenerar com:
+//   supabase gen types typescript --local > packages/core/src/types/database.ts
 // ============================================================================
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+type Ts = string;
+type Uuid = string;
+
+/** Linha → Insert (colunas com valor por omissão ficam opcionais). */
+type Ins<Row, Required extends keyof Row> = Pick<Row, Required> & Partial<Omit<Row, Required>>;
+type Table<Row, Required extends keyof Row> = {
+  Row: Row;
+  Insert: Ins<Row, Required>;
+  Update: Partial<Row>;
+  Relationships: [];
+};
+
+export type Enums = {
+  org_type: 'solo_coach' | 'studio' | 'box' | 'gym' | 'club' | 'online';
+  membership_status: 'invited' | 'active' | 'left';
+  link_type: 'member' | 'pt_client' | 'online' | 'athlete';
+  link_origin: 'manual' | 'invite' | 'athlete_code' | 'signup';
+  link_status: 'pending' | 'active' | 'paused' | 'ended';
+  client_status: 'active' | 'blocked' | 'return_to_play' | 'injured' | 'inactive';
+  share_category: 'training' | 'measurements' | 'photos' | 'checkins' | 'health';
+  guardianship_status: 'pending' | 'active' | 'ended';
+  subscription_status: 'trial' | 'active' | 'grace' | 'read_only' | 'cancelled';
+  entitlement_source: 'plan' | 'extra';
+  group_type: 'class' | 'portfolio' | 'program' | 'age_group' | 'squad' | 'team';
+  allergy_severity: 'mild' | 'moderate' | 'severe' | 'critical';
+  document_status: 'valid' | 'expiring' | 'expired' | 'missing' | 'pending';
+  booking_type: 'training' | 'consultation' | 'class' | 'assessment' | 'other';
+  booking_status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show' | 'waitlisted';
+  day_marker_type: 'unavailable' | 'holiday' | 'off' | 'vacation' | 'competition' | 'travel';
+  waitlist_status: 'waiting' | 'promoted' | 'expired' | 'cancelled';
+  session_phase: 'setup' | 'live' | 'paused' | 'done' | 'cancelled';
+  workout_type: 'standard' | 'superset' | 'circuit' | 'emom' | 'amrap' | 'interval' | 'custom';
+  assignment_status: 'active' | 'scheduled' | 'completed' | 'cancelled';
+  assignment_target: 'client' | 'group';
+};
+
+/* ── Identidade ─────────────────────────────────────────────────────────── */
+export type PersonRow = {
+  id: Uuid; user_id: Uuid | null; managed_by_org: Uuid | null; full_name: string; email: string | null;
+  phone: string | null; birth_date: string | null; avatar_url: string | null; locale: string; timezone: string;
+  created_at: Ts; updated_at: Ts;
+};
+export type OrganizationRow = {
+  id: Uuid; type: Enums['org_type']; name: string; slug: string | null; brand: Json; theme: string;
+  timezone: string; created_by: Uuid | null; created_at: Ts; updated_at: Ts;
+};
+export type UnitRow = {
+  id: Uuid; org_id: Uuid; name: string; address: string | null; timezone: string; opening_hours: Json;
+  technical_director: Uuid | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type RoomRow = {
+  id: Uuid; org_id: Uuid; unit_id: Uuid; name: string; capacity: number | null; archived_at: Ts | null;
+  created_at: Ts; updated_at: Ts;
+};
+export type RoleRow = {
+  id: Uuid; org_id: Uuid | null; key: string; name: string; permissions: string[]; occupies_seat: boolean;
+  created_at: Ts; updated_at: Ts;
+};
+export type MembershipRow = {
+  id: Uuid; org_id: Uuid; person_id: Uuid; status: Enums['membership_status']; title: string | null;
+  title_valid_until: string | null; joined_at: Ts | null; left_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type MembershipRoleRow = { org_id: Uuid; membership_id: Uuid; role_id: Uuid; created_at: Ts };
+export type LinkRow = {
+  id: Uuid; org_id: Uuid; person_id: Uuid; type: Enums['link_type']; origin: Enums['link_origin'];
+  status: Enums['link_status']; responsible_membership_id: Uuid | null; client_status: Enums['client_status'];
+  status_note: string | null; current_plan_id: Uuid | null; started_at: Ts; ended_at: Ts | null;
+  archived_at: Ts | null; archived_reason: string | null; created_at: Ts; updated_at: Ts;
+};
+export type LinkShareRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; person_id: Uuid; category: Enums['share_category'];
+  granted_at: Ts; revoked_at: Ts | null;
+};
+export type SubscriptionRow = {
+  id: Uuid; org_id: Uuid; plan: string; seats: number; status: Enums['subscription_status'];
+  trial_ends_at: Ts | null; provider_ref: string | null; created_at: Ts; updated_at: Ts;
+};
+export type EntitlementRow = {
+  id: Uuid; org_id: Uuid | null; person_id: Uuid | null; module: string; limit_value: number | null;
+  source: Enums['entitlement_source']; created_at: Ts;
+};
+export type OrgSportRow = { org_id: Uuid; sport_id: string; sport_version: number; vocabulary_override: Json; created_at: Ts }
+export type UserSettingsRow = {
+  user_id: Uuid; theme_mode: string; density: string; text_size: number; reduced_motion: boolean;
+  date_format: string; time_format: string; live_timer_enabled: boolean; live_sound_enabled: boolean;
+  notif_push: boolean; notif_email: boolean; notif_sms: boolean; quiet_hours_start: string; quiet_hours_end: string;
+  last_org_id: Uuid | null; created_at: Ts; updated_at: Ts;
+};
+export type NotificationRow = {
+  id: Uuid; user_id: Uuid; org_id: Uuid | null; type: string; title: string; body: string | null; data: Json;
+  action_url: string | null; read_at: Ts | null; created_at: Ts;
+};
+
+/* ── Organização ────────────────────────────────────────────────────────── */
+export type GroupRowDb = {
+  id: Uuid; org_id: Uuid; type: Enums['group_type']; sport_id: string | null; name: string; color: string | null;
+  description: string | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type GroupMemberRowDb = { org_id: Uuid; group_id: Uuid; link_id: Uuid; added_at: Ts }
+export type ExerciseRow = {
+  id: Uuid; org_id: Uuid; name: string; category: string; description: string | null; video_url: string | null;
+  muscles: string[]; equipment: string[]; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type WorkoutRow = {
+  id: Uuid; org_id: Uuid; name: string; description: string | null; type: Enums['workout_type'];
+  est_duration_min: number | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type WorkoutExerciseRow = {
+  id: Uuid; org_id: Uuid; workout_id: Uuid; exercise_id: Uuid; position: number; superset_group: number | null;
+  target_sets: number | null; target_reps: string | null; target_load: string | null; rest_seconds: number | null;
+  notes: string | null;
+};
+export type PlanRow = {
+  id: Uuid; org_id: Uuid; name: string; description: string | null; duration_weeks: number | null; goals: string | null;
+  archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type ClassRow = {
+  id: Uuid; org_id: Uuid; unit_id: Uuid | null; name: string; description: string | null; session_type: string | null;
+  capacity: number; default_duration_min: number; instructor_membership_id: Uuid | null; archived_at: Ts | null;
+  created_at: Ts; updated_at: Ts;
+};
+export type AssignmentRow = {
+  id: Uuid; org_id: Uuid; target: Enums['assignment_target']; link_id: Uuid | null; group_id: Uuid | null;
+  workout_id: Uuid | null; plan_id: Uuid | null; status: Enums['assignment_status']; starts_on: string | null;
+  ends_on: string | null; schedule: Json; notes: string | null; assigned_by: Uuid | null; created_at: Ts; updated_at: Ts;
+};
+export type AvailabilityRow = {
+  id: Uuid; org_id: Uuid; membership_id: Uuid; unit_id: Uuid | null; weekday: number; start_time: string;
+  end_time: string; is_available: boolean; created_at: Ts; updated_at: Ts;
+};
+export type DayMarkerRow = {
+  id: Uuid; org_id: Uuid; membership_id: Uuid | null; link_id: Uuid | null; date: string;
+  marker: Enums['day_marker_type']; title: string | null; created_at: Ts;
+};
+export type BookingRow = {
+  id: Uuid; org_id: Uuid; unit_id: Uuid | null; room_id: Uuid | null; membership_id: Uuid | null; link_id: Uuid | null;
+  class_id: Uuid | null; assignment_id: Uuid | null; type: Enums['booking_type']; session_type: string | null;
+  status: Enums['booking_status']; title: string | null; starts_at: Ts; ends_at: Ts; location: string | null;
+  notes: string | null; capacity: number | null; source: string; cancel_reason: string | null; created_at: Ts; updated_at: Ts;
+};
+export type WaitlistRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; class_id: Uuid | null; membership_id: Uuid | null;
+  requested_starts_at: Ts; priority: number; status: Enums['waitlist_status']; promoted_booking_id: Uuid | null;
+  created_at: Ts; updated_at: Ts;
+};
+export type ClientNoteRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; author_membership_id: Uuid | null; body: string; created_at: Ts; updated_at: Ts;
+};
+export type ClientDocumentRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; name: string; doc_type: string | null; status: Enums['document_status'];
+  issued_on: string | null; expires_on: string | null; file_path: string | null; created_at: Ts; updated_at: Ts;
+};
+
+/* ── Pessoa ─────────────────────────────────────────────────────────────── */
+export type MeasurementRow = {
+  id: Uuid; person_id: Uuid; org_id: Uuid | null; metric_key: string; value: number | null; text_value: string | null;
+  unit: string | null; source: string; recorded_by: Uuid | null; recorded_at: Ts; created_at: Ts;
+};
+export type AllergyRowDb = {
+  id: Uuid; person_id: Uuid; org_id: Uuid | null; allergen: string; severity: Enums['allergy_severity'];
+  reaction: string | null; notes: string | null; created_at: Ts; updated_at: Ts;
+};
+export type SessionRow = {
+  id: Uuid; person_id: Uuid; org_id: Uuid | null; link_id: Uuid | null; membership_id: Uuid | null;
+  booking_id: Uuid | null; workout_id: Uuid | null; phase: Enums['session_phase']; started_at: Ts | null;
+  ended_at: Ts | null; elapsed_seconds: number; paused_seconds: number; summary: Json; notes: string | null;
+  created_at: Ts; updated_at: Ts;
+};
+export type SessionExerciseRow = {
+  id: Uuid; session_id: Uuid; person_id: Uuid; org_id: Uuid | null; exercise_id: Uuid | null; position: number;
+  target_sets: number | null; rest_seconds: number | null; notes: string | null;
+};
+export type SessionSetRow = {
+  id: Uuid; session_id: Uuid; session_exercise_id: Uuid; person_id: Uuid; org_id: Uuid | null; set_index: number;
+  reps: number | null; load_kg: number | null; rpe: number | null; completed: boolean;
+  rest_taken_seconds: number | null; recorded_at: Ts;
+};
+
+/* ── Vistas ─────────────────────────────────────────────────────────────── */
+export type ClientViewRow = {
+  id: Uuid; org_id: Uuid; person_id: Uuid; full_name: string; email: string | null; phone: string | null;
+  birth_date: string | null; avatar_url: string | null; has_account: boolean; type: Enums['link_type'];
+  origin: Enums['link_origin']; status: Enums['link_status']; client_status: Enums['client_status'];
+  status_note: string | null; responsible_membership_id: Uuid | null; current_plan_id: Uuid | null;
+  started_at: Ts; archived_at: Ts | null; archived_reason: string | null; created_at: Ts; updated_at: Ts;
+};
+export type StaffViewRow = {
+  id: Uuid; org_id: Uuid; person_id: Uuid; full_name: string; email: string | null; avatar_url: string | null;
+  status: Enums['membership_status']; title: string | null; title_valid_until: string | null; joined_at: Ts | null;
+};
+
+export type MyOrgRow = {
+  org_id: Uuid; name: string; type: Enums['org_type']; theme: string; timezone: string; membership_id: Uuid;
+  roles: string[]; permissions: string[]; subscription_status: Enums['subscription_status'] | null;
+};
+
 export interface Database {
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string
-          role: Enums["user_role"]
-          full_name: string
-          email: string | null
-          avatar_url: string | null
-          phone: string | null
-          title: string | null
-          locale: string
-          timezone: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          role?: Enums["user_role"]
-          full_name?: string
-          email?: string | null
-          avatar_url?: string | null
-          phone?: string | null
-          title?: string | null
-          locale?: string
-          timezone?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          role?: Enums["user_role"]
-          full_name?: string
-          email?: string | null
-          avatar_url?: string | null
-          phone?: string | null
-          title?: string | null
-          locale?: string
-          timezone?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      organizations: {
-        Row: {
-          id: string
-          name: string
-          slug: string | null
-          logo_url: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          slug?: string | null
-          logo_url?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          slug?: string | null
-          logo_url?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      organization_members: {
-        Row: {
-          id: string
-          organization_id: string
-          user_id: string
-          role: Enums["org_member_role"]
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          organization_id: string
-          user_id: string
-          role?: Enums["org_member_role"]
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          organization_id?: string
-          user_id?: string
-          role?: Enums["org_member_role"]
-          created_at?: string
-        }
-        Relationships: []
-      }
-      athletes: {
-        Row: {
-          id: string
-          coach_id: string
-          user_id: string | null
-          organization_id: string | null
-          name: string
-          email: string | null
-          phone: string | null
-          birth_date: string | null
-          sex: string | null
-          sport: string | null
-          status: Enums["athlete_status"]
-          status_note: string | null
-          avatar_url: string | null
-          height_cm: number | null
-          weight_kg: number | null
-          current_plan_id: string | null
-          notes: string | null
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          user_id?: string | null
-          organization_id?: string | null
-          name: string
-          email?: string | null
-          phone?: string | null
-          birth_date?: string | null
-          sex?: string | null
-          sport?: string | null
-          status?: Enums["athlete_status"]
-          status_note?: string | null
-          avatar_url?: string | null
-          height_cm?: number | null
-          weight_kg?: number | null
-          current_plan_id?: string | null
-          notes?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          user_id?: string | null
-          organization_id?: string | null
-          name?: string
-          email?: string | null
-          phone?: string | null
-          birth_date?: string | null
-          sex?: string | null
-          sport?: string | null
-          status?: Enums["athlete_status"]
-          status_note?: string | null
-          avatar_url?: string | null
-          height_cm?: number | null
-          weight_kg?: number | null
-          current_plan_id?: string | null
-          notes?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      groups: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          color: string | null
-          description: string | null
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          color?: string | null
-          description?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          color?: string | null
-          description?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      group_members: {
-        Row: {
-          group_id: string
-          athlete_id: string
-          coach_id: string
-          added_at: string
-        }
-        Insert: {
-          group_id: string
-          athlete_id: string
-          coach_id?: string
-          added_at?: string
-        }
-        Update: {
-          group_id?: string
-          athlete_id?: string
-          coach_id?: string
-          added_at?: string
-        }
-        Relationships: []
-      }
-      athlete_allergies: {
-        Row: {
-          id: string
-          athlete_id: string
-          coach_id: string
-          allergen: string
-          severity: Enums["allergy_severity"]
-          reaction: string | null
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          athlete_id: string
-          coach_id?: string
-          allergen: string
-          severity?: Enums["allergy_severity"]
-          reaction?: string | null
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          athlete_id?: string
-          coach_id?: string
-          allergen?: string
-          severity?: Enums["allergy_severity"]
-          reaction?: string | null
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      athlete_documents: {
-        Row: {
-          id: string
-          athlete_id: string
-          coach_id: string
-          name: string
-          doc_type: string | null
-          status: Enums["document_status"]
-          issued_on: string | null
-          expires_on: string | null
-          file_path: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          athlete_id: string
-          coach_id?: string
-          name: string
-          doc_type?: string | null
-          status?: Enums["document_status"]
-          issued_on?: string | null
-          expires_on?: string | null
-          file_path?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          athlete_id?: string
-          coach_id?: string
-          name?: string
-          doc_type?: string | null
-          status?: Enums["document_status"]
-          issued_on?: string | null
-          expires_on?: string | null
-          file_path?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      athlete_metrics: {
-        Row: {
-          id: string
-          athlete_id: string
-          coach_id: string
-          metric_key: string
-          value: number | null
-          text_value: string | null
-          unit: string | null
-          source: Enums["metric_source"]
-          recorded_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          athlete_id: string
-          coach_id?: string
-          metric_key: string
-          value?: number | null
-          text_value?: string | null
-          unit?: string | null
-          source?: Enums["metric_source"]
-          recorded_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          athlete_id?: string
-          coach_id?: string
-          metric_key?: string
-          value?: number | null
-          text_value?: string | null
-          unit?: string | null
-          source?: Enums["metric_source"]
-          recorded_at?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      exercises: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          category: Enums["exercise_category"]
-          description: string | null
-          video_url: string | null
-          muscles: string[]
-          equipment: string[]
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          category?: Enums["exercise_category"]
-          description?: string | null
-          video_url?: string | null
-          muscles?: string[]
-          equipment?: string[]
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          category?: Enums["exercise_category"]
-          description?: string | null
-          video_url?: string | null
-          muscles?: string[]
-          equipment?: string[]
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      workouts: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          type: Enums["workout_type"]
-          est_duration_min: number | null
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          type?: Enums["workout_type"]
-          est_duration_min?: number | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          type?: Enums["workout_type"]
-          est_duration_min?: number | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      workout_exercises: {
-        Row: {
-          id: string
-          workout_id: string
-          exercise_id: string
-          coach_id: string
-          position: number
-          superset_group: number | null
-          target_sets: number | null
-          target_reps: string | null
-          target_load: string | null
-          rest_seconds: number | null
-          notes: string | null
-        }
-        Insert: {
-          id?: string
-          workout_id: string
-          exercise_id: string
-          coach_id?: string
-          position?: number
-          superset_group?: number | null
-          target_sets?: number | null
-          target_reps?: string | null
-          target_load?: string | null
-          rest_seconds?: number | null
-          notes?: string | null
-        }
-        Update: {
-          id?: string
-          workout_id?: string
-          exercise_id?: string
-          coach_id?: string
-          position?: number
-          superset_group?: number | null
-          target_sets?: number | null
-          target_reps?: string | null
-          target_load?: string | null
-          rest_seconds?: number | null
-          notes?: string | null
-        }
-        Relationships: []
-      }
-      plans: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          duration_weeks: number | null
-          goals: string | null
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          duration_weeks?: number | null
-          goals?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          duration_weeks?: number | null
-          goals?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      plan_workouts: {
-        Row: {
-          id: string
-          plan_id: string
-          workout_id: string
-          coach_id: string
-          week: number | null
-          weekday: number | null
-          position: number
-        }
-        Insert: {
-          id?: string
-          plan_id: string
-          workout_id: string
-          coach_id?: string
-          week?: number | null
-          weekday?: number | null
-          position?: number
-        }
-        Update: {
-          id?: string
-          plan_id?: string
-          workout_id?: string
-          coach_id?: string
-          week?: number | null
-          weekday?: number | null
-          position?: number
-        }
-        Relationships: []
-      }
-      classes: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          capacity: number
-          default_duration_min: number
-          instructor: string | null
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          capacity?: number
-          default_duration_min?: number
-          instructor?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          capacity?: number
-          default_duration_min?: number
-          instructor?: string | null
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      assignments: {
-        Row: {
-          id: string
-          coach_id: string
-          target: Enums["assignment_target"]
-          athlete_id: string | null
-          group_id: string | null
-          workout_id: string | null
-          plan_id: string | null
-          status: Enums["assignment_status"]
-          starts_on: string | null
-          ends_on: string | null
-          schedule: Json
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          target: Enums["assignment_target"]
-          athlete_id?: string | null
-          group_id?: string | null
-          workout_id?: string | null
-          plan_id?: string | null
-          status?: Enums["assignment_status"]
-          starts_on?: string | null
-          ends_on?: string | null
-          schedule?: Json
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          target?: Enums["assignment_target"]
-          athlete_id?: string | null
-          group_id?: string | null
-          workout_id?: string | null
-          plan_id?: string | null
-          status?: Enums["assignment_status"]
-          starts_on?: string | null
-          ends_on?: string | null
-          schedule?: Json
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      availability: {
-        Row: {
-          id: string
-          coach_id: string
-          weekday: number
-          start_time: string
-          end_time: string
-          is_available: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          weekday: number
-          start_time: string
-          end_time: string
-          is_available?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          weekday?: number
-          start_time?: string
-          end_time?: string
-          is_available?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      day_markers: {
-        Row: {
-          id: string
-          coach_id: string
-          athlete_id: string | null
-          date: string
-          marker: Enums["day_marker_type"]
-          title: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          date: string
-          marker: Enums["day_marker_type"]
-          title?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          date?: string
-          marker?: Enums["day_marker_type"]
-          title?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      bookings: {
-        Row: {
-          id: string
-          coach_id: string
-          athlete_id: string | null
-          class_id: string | null
-          assignment_id: string | null
-          type: Enums["booking_type"]
-          status: Enums["booking_status"]
-          title: string | null
-          starts_at: string
-          ends_at: string
-          location: string | null
-          notes: string | null
-          capacity: number | null
-          source: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          class_id?: string | null
-          assignment_id?: string | null
-          type?: Enums["booking_type"]
-          status?: Enums["booking_status"]
-          title?: string | null
-          starts_at: string
-          ends_at: string
-          location?: string | null
-          notes?: string | null
-          capacity?: number | null
-          source?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          class_id?: string | null
-          assignment_id?: string | null
-          type?: Enums["booking_type"]
-          status?: Enums["booking_status"]
-          title?: string | null
-          starts_at?: string
-          ends_at?: string
-          location?: string | null
-          notes?: string | null
-          capacity?: number | null
-          source?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      waitlist: {
-        Row: {
-          id: string
-          coach_id: string
-          athlete_id: string
-          class_id: string | null
-          class_booking_id: string | null
-          requested_starts_at: string | null
-          priority: number
-          status: Enums["waitlist_status"]
-          promoted_booking_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          athlete_id: string
-          class_id?: string | null
-          class_booking_id?: string | null
-          requested_starts_at?: string | null
-          priority?: number
-          status?: Enums["waitlist_status"]
-          promoted_booking_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string
-          class_id?: string | null
-          class_booking_id?: string | null
-          requested_starts_at?: string | null
-          priority?: number
-          status?: Enums["waitlist_status"]
-          promoted_booking_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      sessions: {
-        Row: {
-          id: string
-          coach_id: string
-          athlete_id: string | null
-          booking_id: string | null
-          workout_id: string | null
-          phase: Enums["session_phase"]
-          started_at: string | null
-          ended_at: string | null
-          elapsed_seconds: number
-          summary: Json
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          booking_id?: string | null
-          workout_id?: string | null
-          phase?: Enums["session_phase"]
-          started_at?: string | null
-          ended_at?: string | null
-          elapsed_seconds?: number
-          summary?: Json
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          athlete_id?: string | null
-          booking_id?: string | null
-          workout_id?: string | null
-          phase?: Enums["session_phase"]
-          started_at?: string | null
-          ended_at?: string | null
-          elapsed_seconds?: number
-          summary?: Json
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      session_exercises: {
-        Row: {
-          id: string
-          session_id: string
-          exercise_id: string | null
-          coach_id: string
-          position: number
-          target_sets: number | null
-          rest_seconds: number | null
-          notes: string | null
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          exercise_id?: string | null
-          coach_id?: string
-          position?: number
-          target_sets?: number | null
-          rest_seconds?: number | null
-          notes?: string | null
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          exercise_id?: string | null
-          coach_id?: string
-          position?: number
-          target_sets?: number | null
-          rest_seconds?: number | null
-          notes?: string | null
-        }
-        Relationships: []
-      }
-      session_sets: {
-        Row: {
-          id: string
-          session_id: string
-          session_exercise_id: string
-          coach_id: string
-          set_index: number
-          reps: number | null
-          load_kg: number | null
-          rpe: number | null
-          completed: boolean
-          rest_taken_seconds: number | null
-          recorded_at: string
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          session_exercise_id: string
-          coach_id?: string
-          set_index?: number
-          reps?: number | null
-          load_kg?: number | null
-          rpe?: number | null
-          completed?: boolean
-          rest_taken_seconds?: number | null
-          recorded_at?: string
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          session_exercise_id?: string
-          coach_id?: string
-          set_index?: number
-          reps?: number | null
-          load_kg?: number | null
-          rpe?: number | null
-          completed?: boolean
-          rest_taken_seconds?: number | null
-          recorded_at?: string
-        }
-        Relationships: []
-      }
-      variables: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          key: string
-          type: Enums["variable_type"]
-          source: Enums["variable_source"]
-          unit: string | null
-          description: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          key: string
-          type?: Enums["variable_type"]
-          source?: Enums["variable_source"]
-          unit?: string | null
-          description?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          key?: string
-          type?: Enums["variable_type"]
-          source?: Enums["variable_source"]
-          unit?: string | null
-          description?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      formulas: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          condition: Json
-          action: Json
-          priority: number
-          is_active: boolean
-          applies_to: Enums["assignment_target"] | null
-          athlete_id: string | null
-          group_id: string | null
-          schedule: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          condition?: Json
-          action?: Json
-          priority?: number
-          is_active?: boolean
-          applies_to?: Enums["assignment_target"] | null
-          athlete_id?: string | null
-          group_id?: string | null
-          schedule?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          condition?: Json
-          action?: Json
-          priority?: number
-          is_active?: boolean
-          applies_to?: Enums["assignment_target"] | null
-          athlete_id?: string | null
-          group_id?: string | null
-          schedule?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      formula_variables: {
-        Row: {
-          formula_id: string
-          variable_id: string
-          coach_id: string
-        }
-        Insert: {
-          formula_id: string
-          variable_id: string
-          coach_id?: string
-        }
-        Update: {
-          formula_id?: string
-          variable_id?: string
-          coach_id?: string
-        }
-        Relationships: []
-      }
-      formula_logs: {
-        Row: {
-          id: string
-          coach_id: string
-          formula_id: string | null
-          athlete_id: string | null
-          status: Enums["formula_log_status"]
-          input: Json
-          result: Json
-          message: string | null
-          executed_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          formula_id?: string | null
-          athlete_id?: string | null
-          status?: Enums["formula_log_status"]
-          input?: Json
-          result?: Json
-          message?: string | null
-          executed_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          formula_id?: string | null
-          athlete_id?: string | null
-          status?: Enums["formula_log_status"]
-          input?: Json
-          result?: Json
-          message?: string | null
-          executed_at?: string
-        }
-        Relationships: []
-      }
-      forms: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          status: Enums["form_status"]
-          archived_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          status?: Enums["form_status"]
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          status?: Enums["form_status"]
-          archived_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      form_fields: {
-        Row: {
-          id: string
-          form_id: string
-          coach_id: string
-          type: Enums["form_field_type"]
-          label: string
-          placeholder: string | null
-          help_text: string | null
-          required: boolean
-          position: number
-          options: Json
-          validation: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          form_id: string
-          coach_id?: string
-          type?: Enums["form_field_type"]
-          label: string
-          placeholder?: string | null
-          help_text?: string | null
-          required?: boolean
-          position?: number
-          options?: Json
-          validation?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          form_id?: string
-          coach_id?: string
-          type?: Enums["form_field_type"]
-          label?: string
-          placeholder?: string | null
-          help_text?: string | null
-          required?: boolean
-          position?: number
-          options?: Json
-          validation?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      form_packages: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      package_forms: {
-        Row: {
-          package_id: string
-          form_id: string
-          coach_id: string
-          position: number
-        }
-        Insert: {
-          package_id: string
-          form_id: string
-          coach_id?: string
-          position?: number
-        }
-        Update: {
-          package_id?: string
-          form_id?: string
-          coach_id?: string
-          position?: number
-        }
-        Relationships: []
-      }
-      form_assignments: {
-        Row: {
-          id: string
-          coach_id: string
-          form_id: string | null
-          package_id: string | null
-          target: Enums["form_target"]
-          athlete_id: string | null
-          group_id: string | null
-          due_on: string | null
-          status: Enums["assignment_status"]
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          form_id?: string | null
-          package_id?: string | null
-          target: Enums["form_target"]
-          athlete_id?: string | null
-          group_id?: string | null
-          due_on?: string | null
-          status?: Enums["assignment_status"]
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          form_id?: string | null
-          package_id?: string | null
-          target?: Enums["form_target"]
-          athlete_id?: string | null
-          group_id?: string | null
-          due_on?: string | null
-          status?: Enums["assignment_status"]
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      form_responses: {
-        Row: {
-          id: string
-          coach_id: string
-          form_id: string
-          athlete_id: string
-          status: Enums["response_status"]
-          answers: Json
-          submitted_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          form_id: string
-          athlete_id: string
-          status?: Enums["response_status"]
-          answers?: Json
-          submitted_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          form_id?: string
-          athlete_id?: string
-          status?: Enums["response_status"]
-          answers?: Json
-          submitted_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      queries: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          chart_type: Enums["chart_type"]
-          config: Json
-          filters: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          chart_type?: Enums["chart_type"]
-          config?: Json
-          filters?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          chart_type?: Enums["chart_type"]
-          config?: Json
-          filters?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      report_templates: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          description: string | null
-          chart_type: Enums["chart_type"]
-          query_config: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          description?: string | null
-          chart_type?: Enums["chart_type"]
-          query_config?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          description?: string | null
-          chart_type?: Enums["chart_type"]
-          query_config?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      reports: {
-        Row: {
-          id: string
-          coach_id: string
-          name: string
-          query_id: string | null
-          template_id: string | null
-          data: Json
-          format: Enums["report_format"]
-          generated_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          name: string
-          query_id?: string | null
-          template_id?: string | null
-          data?: Json
-          format?: Enums["report_format"]
-          generated_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          name?: string
-          query_id?: string | null
-          template_id?: string | null
-          data?: Json
-          format?: Enums["report_format"]
-          generated_at?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      user_settings: {
-        Row: {
-          user_id: string
-          theme: Enums["theme_pref"]
-          accent_color: string
-          density: Enums["density_pref"]
-          text_size: number
-          reduced_motion: boolean
-          language: string
-          timezone: string
-          date_format: string
-          time_format: string
-          live_units: string
-          live_timer_enabled: boolean
-          live_sound_enabled: boolean
-          notif_push: boolean
-          notif_email: boolean
-          notif_sms: boolean
-          quiet_hours_start: string
-          quiet_hours_end: string
-          updated_at: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          theme?: Enums["theme_pref"]
-          accent_color?: string
-          density?: Enums["density_pref"]
-          text_size?: number
-          reduced_motion?: boolean
-          language?: string
-          timezone?: string
-          date_format?: string
-          time_format?: string
-          live_units?: string
-          live_timer_enabled?: boolean
-          live_sound_enabled?: boolean
-          notif_push?: boolean
-          notif_email?: boolean
-          notif_sms?: boolean
-          quiet_hours_start?: string
-          quiet_hours_end?: string
-          updated_at?: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          theme?: Enums["theme_pref"]
-          accent_color?: string
-          density?: Enums["density_pref"]
-          text_size?: number
-          reduced_motion?: boolean
-          language?: string
-          timezone?: string
-          date_format?: string
-          time_format?: string
-          live_units?: string
-          live_timer_enabled?: boolean
-          live_sound_enabled?: boolean
-          notif_push?: boolean
-          notif_email?: boolean
-          notif_sms?: boolean
-          quiet_hours_start?: string
-          quiet_hours_end?: string
-          updated_at?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          type: Enums["notification_type"]
-          title: string
-          body: string | null
-          data: Json
-          action_url: string | null
-          read_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          type?: Enums["notification_type"]
-          title: string
-          body?: string | null
-          data?: Json
-          action_url?: string | null
-          read_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          type?: Enums["notification_type"]
-          title?: string
-          body?: string | null
-          data?: Json
-          action_url?: string | null
-          read_at?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      integrations: {
-        Row: {
-          id: string
-          coach_id: string
-          provider: Enums["integration_provider"]
-          status: Enums["integration_status"]
-          config: Json
-          access_token: string | null
-          refresh_token: string | null
-          expires_at: string | null
-          last_sync_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          provider: Enums["integration_provider"]
-          status?: Enums["integration_status"]
-          config?: Json
-          access_token?: string | null
-          refresh_token?: string | null
-          expires_at?: string | null
-          last_sync_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          provider?: Enums["integration_provider"]
-          status?: Enums["integration_status"]
-          config?: Json
-          access_token?: string | null
-          refresh_token?: string | null
-          expires_at?: string | null
-          last_sync_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      security_settings: {
-        Row: {
-          user_id: string
-          two_factor_enabled: boolean
-          two_factor_method: string | null
-          biometric_enabled: boolean
-          backup_codes_generated: boolean
-          last_password_change: string | null
-          updated_at: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          two_factor_enabled?: boolean
-          two_factor_method?: string | null
-          biometric_enabled?: boolean
-          backup_codes_generated?: boolean
-          last_password_change?: string | null
-          updated_at?: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          two_factor_enabled?: boolean
-          two_factor_method?: string | null
-          biometric_enabled?: boolean
-          backup_codes_generated?: boolean
-          last_password_change?: string | null
-          updated_at?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      backup_codes: {
-        Row: {
-          id: string
-          user_id: string
-          code_hash: string
-          used_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          code_hash: string
-          used_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          code_hash?: string
-          used_at?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      login_history: {
-        Row: {
-          id: string
-          user_id: string
-          ip: string | null
-          device: string | null
-          location: string | null
-          user_agent: string | null
-          success: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          ip?: string | null
-          device?: string | null
-          location?: string | null
-          user_agent?: string | null
-          success?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          ip?: string | null
-          device?: string | null
-          location?: string | null
-          user_agent?: string | null
-          success?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      audit_log: {
-        Row: {
-          id: string
-          coach_id: string
-          action: string
-          entity: string | null
-          entity_id: string | null
-          diff: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          coach_id?: string
-          action: string
-          entity?: string | null
-          entity_id?: string | null
-          diff?: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          coach_id?: string
-          action?: string
-          entity?: string | null
-          entity_id?: string | null
-          diff?: Json
-          created_at?: string
-        }
-        Relationships: []
-      }
-    }
+      persons: Table<PersonRow, 'full_name'>;
+      organizations: Table<OrganizationRow, 'type' | 'name'>;
+      units: Table<UnitRow, 'org_id' | 'name'>;
+      rooms: Table<RoomRow, 'org_id' | 'unit_id' | 'name'>;
+      roles: Table<RoleRow, 'key' | 'name'>;
+      memberships: Table<MembershipRow, 'org_id' | 'person_id'>;
+      membership_roles: Table<MembershipRoleRow, 'org_id' | 'membership_id' | 'role_id'>;
+      links: Table<LinkRow, 'org_id' | 'person_id'>;
+      link_shares: Table<LinkShareRow, 'org_id' | 'link_id' | 'person_id' | 'category'>;
+      subscriptions: Table<SubscriptionRow, 'org_id'>;
+      entitlements: Table<EntitlementRow, 'module'>;
+      org_sports: Table<OrgSportRow, 'org_id' | 'sport_id' | 'sport_version'>;
+      user_settings: Table<UserSettingsRow, 'user_id'>;
+      notifications: Table<NotificationRow, 'user_id' | 'title'>;
+      groups: Table<GroupRowDb, 'org_id' | 'name'>;
+      group_members: Table<GroupMemberRowDb, 'org_id' | 'group_id' | 'link_id'>;
+      exercises: Table<ExerciseRow, 'org_id' | 'name'>;
+      workouts: Table<WorkoutRow, 'org_id' | 'name'>;
+      workout_exercises: Table<WorkoutExerciseRow, 'org_id' | 'workout_id' | 'exercise_id'>;
+      plans: Table<PlanRow, 'org_id' | 'name'>;
+      classes: Table<ClassRow, 'org_id' | 'name'>;
+      assignments: Table<AssignmentRow, 'org_id' | 'target'>;
+      availability: Table<AvailabilityRow, 'org_id' | 'membership_id' | 'weekday' | 'start_time' | 'end_time'>;
+      day_markers: Table<DayMarkerRow, 'org_id' | 'date' | 'marker'>;
+      bookings: Table<BookingRow, 'org_id' | 'starts_at' | 'ends_at'>;
+      waitlist: Table<WaitlistRow, 'org_id' | 'link_id' | 'requested_starts_at'>;
+      client_notes: Table<ClientNoteRow, 'org_id' | 'link_id' | 'body'>;
+      client_documents: Table<ClientDocumentRow, 'org_id' | 'link_id' | 'name'>;
+      measurements: Table<MeasurementRow, 'person_id' | 'metric_key'>;
+      allergies: Table<AllergyRowDb, 'person_id' | 'allergen'>;
+      sessions: Table<SessionRow, 'person_id'>;
+      session_exercises: Table<SessionExerciseRow, 'session_id'>;
+      session_sets: Table<SessionSetRow, 'session_id' | 'session_exercise_id'>;
+    };
     Views: {
-      athlete_summary: {
-        Row: {
-          id: string | null
-          coach_id: string | null
-          name: string | null
-          sport: string | null
-          status: Enums["athlete_status"] | null
-          avatar_url: string | null
-          current_plan_id: string | null
-          current_plan_name: string | null
-          allergy_count: number | null
-          upcoming_bookings: number | null
-          last_session_at: string | null
-          pending_forms: number | null
-        }
-        Relationships: []
-      }
-      upcoming_bookings: {
-        Row: {
-          id: string | null
-          coach_id: string | null
-          athlete_id: string | null
-          athlete_name: string | null
-          avatar_url: string | null
-          type: Enums["booking_type"] | null
-          status: Enums["booking_status"] | null
-          title: string | null
-          starts_at: string | null
-          ends_at: string | null
-          location: string | null
-          class_id: string | null
-        }
-        Relationships: []
-      }
-    }
+      clients: { Row: ClientViewRow; Relationships: [] };
+      staff: { Row: StaffViewRow; Relationships: [] };
+    };
     Functions: {
-      get_security_score: { Args: { _user?: string }; Returns: number }
-      has_booking_conflict: { Args: { _coach: string; _starts: string; _ends: string; _ignore?: string }; Returns: boolean }
-    }
-    Enums: {
-      user_role: "admin" | "coach" | "athlete" | "staff"
-      org_member_role: "owner" | "admin" | "coach" | "member"
-      athlete_status: "active" | "blocked" | "return_to_play" | "injured" | "inactive" | "archived"
-      allergy_severity: "mild" | "moderate" | "severe" | "critical"
-      document_status: "valid" | "expiring" | "expired" | "missing" | "pending"
-      booking_type: "training" | "consultation" | "competition" | "class" | "assessment" | "other"
-      booking_status: "pending" | "confirmed" | "cancelled" | "completed" | "no_show" | "waitlisted"
-      day_marker_type: "unavailable" | "holiday" | "off" | "vacation" | "competition" | "travel"
-      waitlist_status: "waiting" | "promoted" | "expired" | "cancelled"
-      session_phase: "setup" | "live" | "paused" | "done" | "cancelled"
-      exercise_category: "strength" | "cardio" | "mobility" | "plyometric" | "balance" | "rehab" | "skill" | "other"
-      workout_type: "standard" | "superset" | "circuit" | "emom" | "amrap" | "interval" | "custom"
-      assignment_status: "active" | "scheduled" | "completed" | "cancelled"
-      assignment_target: "athlete" | "group"
-      variable_type: "number" | "boolean" | "duration" | "percentage" | "scale" | "text"
-      variable_source: "manual" | "wearable" | "form" | "session" | "computed"
-      formula_log_status: "success" | "no_match" | "error" | "skipped"
-      form_field_type: "text" | "textarea" | "number" | "scale" | "rpe" | "select" | "multiselect" | "boolean" | "date" | "time" | "rating" | "signature"
-      form_status: "draft" | "published" | "archived"
-      response_status: "pending" | "partial" | "submitted"
-      form_target: "athlete" | "group"
-      chart_type: "line" | "bar" | "area" | "scatter" | "pie" | "radar" | "table" | "number"
-      report_format: "screen" | "pdf" | "csv" | "xlsx"
-      metric_source: "manual" | "wearable" | "form" | "session" | "formula"
-      notification_type: "booking" | "session" | "formula" | "conflict" | "athlete" | "form" | "report" | "integration" | "message" | "security" | "system"
-      notification_channel: "in_app" | "push" | "email" | "sms"
-      integration_provider: "google_calendar" | "outlook" | "apple_calendar" | "calendly" | "apple_health" | "garmin" | "whoop" | "strava" | "polar" | "stripe" | "whatsapp" | "slack"
-      integration_status: "connected" | "disconnected" | "error" | "pending"
-      theme_pref: "dark" | "light" | "auto"
-      density_pref: "compact" | "comfortable" | "spacious"
-    }
-    CompositeTypes: {}
-  }
+      create_organization: { Args: { _name: string; _type: Enums['org_type']; _sport?: string; _timezone?: string }; Returns: string };
+      create_invite: { Args: { _org: string; _email: string; _role_key: string; _unit?: string | null; _confirm_over_seats?: boolean }; Returns: string };
+      accept_invite: { Args: { _token: string }; Returns: string };
+      add_client: { Args: { _org: string; _full_name: string; _email?: string | null; _phone?: string | null; _birth_date?: string | null; _responsible?: string | null; _type?: Enums['link_type'] }; Returns: string };
+      end_link: { Args: { _link: string }; Returns: undefined };
+      get_person_health: { Args: { _link: string }; Returns: Json };
+      has_module: { Args: { _org: string; _module: string }; Returns: boolean };
+      my_modules: { Args: { _org: string }; Returns: string[] };
+      my_orgs: { Args: Record<string, never>; Returns: MyOrgRow[] };
+      seats_summary: { Args: { _org: string }; Returns: Json };
+      export_my_data: { Args: Record<string, never>; Returns: Json };
+      export_org_data: { Args: { _org: string }; Returns: Json };
+      has_booking_conflict: { Args: { _org: string; _membership: string; _starts: string; _ends: string; _ignore?: string | null }; Returns: boolean };
+      get_security_score: { Args: Record<string, never>; Returns: number };
+    };
+    Enums: Enums;
+    CompositeTypes: Record<string, never>;
+  };
 }
 
-// ---- Atalhos de conveniência ----
-type PublicSchema = Database['public']
-export type Tables<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Row']
-export type InsertDto<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Insert']
-export type UpdateDto<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Update']
-export type EnumOf<T extends keyof PublicSchema['Enums']> = PublicSchema['Enums'][T]
-type Enums = Database['public']['Enums']
-
-export type Profile = Tables<'profiles'>
-export type Athlete = Tables<'athletes'>
-export type Group = Tables<'groups'>
-export type Booking = Tables<'bookings'>
-export type Session = Tables<'sessions'>
-export type Exercise = Tables<'exercises'>
-export type Workout = Tables<'workouts'>
-export type Plan = Tables<'plans'>
-export type Class = Tables<'classes'>
-export type Assignment = Tables<'assignments'>
-export type Variable = Tables<'variables'>
-export type Formula = Tables<'formulas'>
-export type Form = Tables<'forms'>
-export type FormField = Tables<'form_fields'>
-export type FormResponse = Tables<'form_responses'>
-export type Query = Tables<'queries'>
-export type Report = Tables<'reports'>
-export type Notification = Tables<'notifications'>
-export type Integration = Tables<'integrations'>
-export type UserSettings = Tables<'user_settings'>
-export type AthleteAllergy = Tables<'athlete_allergies'>
-export type AthleteMetric = Tables<'athlete_metrics'>
+type PublicSchema = Database['public'];
+export type Tables<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Row'];
+export type InsertDto<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Insert'];
+export type UpdateDto<T extends keyof PublicSchema['Tables']> = PublicSchema['Tables'][T]['Update'];
+export type EnumOf<T extends keyof Enums> = Enums[T];

@@ -1,30 +1,65 @@
 import type { LunaClient } from './api/client';
-import type { Role } from './authStore';
+import type { MyOrgRow } from './types/database';
 import { useAuthStore } from './authStore';
 
-/** Mapeia role da BD para o store (fallback coach). */
-export function mapProfileRole(role: string | null | undefined): Role {
-  if (role === 'admin' || role === 'coach' || role === 'athlete' || role === 'staff') return role;
-  return 'coach';
+/** Organizações onde a pessoa trabalha, com papéis e permissões (my_orgs). */
+export async function fetchMyOrgs(client: LunaClient): Promise<MyOrgRow[]> {
+  const { data, error } = await client.rpc('my_orgs');
+  if (error) throw error;
+  return (data ?? []) as MyOrgRow[];
 }
 
-/** P2.8 — liga supabase.auth ao authStore (onAuthStateChange + sessão inicial). */
-export function bootstrapAuth(client: LunaClient): () => void {
-  const applySession = async (userId: string | null) => {
-    if (!userId) {
-      useAuthStore.getState().signOut();
-      return;
-    }
-    const { data } = await client.from('profiles').select('role').eq('id', userId).maybeSingle();
-    useAuthStore.getState().signIn(userId, mapProfileRole(data?.role));
+export async function fetchMyModules(client: LunaClient, orgId: string): Promise<string[]> {
+  const { data, error } = await client.rpc('my_modules', { _org: orgId });
+  if (error) throw error;
+  return (data ?? []) as string[];
+}
+
+async function lastOrgId(client: LunaClient, userId: string): Promise<string | null> {
+  const { data, error } = await client.from('user_settings').select('last_org_id').eq('user_id', userId).maybeSingle();
+  if (error) return null; // é só uma preferência: não bloqueia a entrada
+  return (data as { last_org_id: string | null } | null)?.last_org_id ?? null;
+}
+
+/** Carrega a sessão: organizações, a última escolhida e os módulos ligados. */
+export async function loadSession(client: LunaClient, userId: string): Promise<void> {
+  try {
+    const [orgs, last] = await Promise.all([fetchMyOrgs(client), lastOrgId(client, userId)]);
+    useAuthStore.getState().signIn(userId, orgs, last);
+    const scope = useAuthStore.getState().scope;
+    if (scope) useAuthStore.getState().setModules(await fetchMyModules(client, scope.orgId));
+  } catch (e) {
+    useAuthStore.getState().setError(e instanceof Error ? e.message : 'Não foi possível carregar a sessão.');
+  }
+}
+
+/** Troca de organização no seletor (G-00) e guarda a escolha. */
+export async function switchOrg(client: LunaClient, orgId: string): Promise<void> {
+  const { userId } = useAuthStore.getState();
+  useAuthStore.getState().selectOrg(orgId);
+  const [modules] = await Promise.all([
+    fetchMyModules(client, orgId),
+    userId ? client.from('user_settings').update({ last_org_id: orgId }).eq('user_id', userId) : Promise.resolve(null),
+  ]);
+  useAuthStore.getState().setModules(modules);
+}
+
+/** P2.8 — liga supabase.auth ao authStore. Sem cliente (.env em falta) → 'notConfigured'. */
+export function bootstrapAuth(client: LunaClient | null): () => void {
+  if (!client) {
+    useAuthStore.getState().setNotConfigured();
+    return () => {};
+  }
+  let current: string | null | undefined;
+  const apply = (userId: string | null) => {
+    if (userId === current) return;
+    current = userId;
+    if (!userId) useAuthStore.getState().signOut();
+    else void loadSession(client, userId);
   };
 
-  void client.auth.getSession().then(({ data: { session } }) => applySession(session?.user?.id ?? null));
-
-  const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
-    void applySession(session?.user?.id ?? null);
-  });
-
+  void client.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
+  const { data: sub } = client.auth.onAuthStateChange((_event, session) => apply(session?.user?.id ?? null));
   return () => sub.subscription.unsubscribe();
 }
 
