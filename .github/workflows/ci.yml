@@ -11,11 +11,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      # Camada de segredos: bloquear service_role no repo
-      - name: Secret scan (service_role)
-        run: "! grep -rn 'service_role' apps packages --include='*.ts' --include='*.tsx' --include='*.env*' || (echo '❌ service_role no cliente!' && exit 1)"
-      # Affected: só o que mudou face a main (P0.6)
-      - run: pnpm turbo run lint typecheck build test --filter="...[origin/main]"
+      # Camada de segredos: procura chaves reais, não a palavra service_role (AUD-74)
+      - name: Secret scan
+        run: node scripts/secret-scan.mjs
+      # PR: só o afetado face ao ramo base (P0.6). Push para main: tudo.
+      - name: Lint, typecheck, build, test
+        run: pnpm turbo run lint typecheck build test ${{ github.event_name == 'pull_request' && format('--filter=...[origin/{0}]', github.base_ref) || '' }}
       - run: pnpm audit:tokens
       - name: Chromatic (UI snapshots)
         if: env.CHROMATIC_PROJECT_TOKEN != ''
@@ -25,7 +26,6 @@ jobs:
       # pgTAP corre quando há migrações (ativa-se em P2.5)
   db:
     runs-on: ubuntu-latest
-    if: contains(join(github.event.pull_request.changed_files, ' '), 'supabase/') || github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:16

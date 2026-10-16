@@ -9,6 +9,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "audit:tokens": "bash scripts/audit-tokens.sh",
+    "secret-scan": "node scripts/secret-scan.mjs",
     "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/db-setup.ps1",
     "db:cloud": "powershell -ExecutionPolicy Bypass -File scripts/supabase-cloud.ps1",
     "validate:g1": "pnpm --filter @luna/coach test"
