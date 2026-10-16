@@ -1,0 +1,42 @@
+{
+  "espaco": {
+    "4": { "$type": "dimension", "$value": "4px" },
+    "8": { "$type": "dimension", "$value": "8px" },
+    "12": { "$type": "dimension", "$value": "12px" },
+    "16": { "$type": "dimension", "$value": "16px" },
+    "20": { "$type": "dimension", "$value": "20px" },
+    "24": { "$type": "dimension", "$value": "24px" },
+    "32": { "$type": "dimension", "$value": "32px" }
+  },
+  "raio": {
+    "cartao": { "$type": "dimension", "$value": "24px" },
+    "linha": { "$type": "dimension", "$value": "16px" },
+    "nota": { "$type": "dimension", "$value": "14px" },
+    "pilula": { "$type": "dimension", "$value": "999px" }
+  },
+  "altura": {
+    "cabecalho": { "$type": "dimension", "$value": "48px" },
+    "botao-redondo": { "$type": "dimension", "$value": "44px" },
+    "atalho": { "$type": "dimension", "$value": "56px" },
+    "linha-lista": { "$type": "dimension", "$value": "64px" },
+    "chip": { "$type": "dimension", "$value": "34px" },
+    "navegacao": { "$type": "dimension", "$value": "64px" },
+    "botao-principal": { "$type": "dimension", "$value": "56px" }
+  },
+  "margem": {
+    "telemovel": { "$type": "dimension", "$value": "20px" },
+    "computador": { "$type": "dimension", "$value": "32px" }
+  },
+  "fonte": {
+    "titulo": { "$type": "fontFamily", "$value": ["Outfit", "system-ui", "sans-serif"] },
+    "texto": { "$type": "fontFamily", "$value": ["DM Sans", "system-ui", "sans-serif"] }
+  },
+  "tipo": {
+    "titulo-ecra": { "$type": "typography", "$value": { "fontFamily": "{fonte.titulo}", "fontWeight": 600, "fontSize": "28px", "lineHeight": 1.05, "letterSpacing": "-0.02em" } },
+    "numero-grande": { "$type": "typography", "$value": { "fontFamily": "{fonte.titulo}", "fontWeight": 600, "fontSize": "40px", "lineHeight": 1, "letterSpacing": "-0.03em" } },
+    "titulo-cartao": { "$type": "typography", "$value": { "fontFamily": "{fonte.titulo}", "fontWeight": 600, "fontSize": "20px", "lineHeight": 1.15, "letterSpacing": "-0.01em" } },
+    "texto": { "$type": "typography", "$value": { "fontFamily": "{fonte.texto}", "fontWeight": 400, "fontSize": "14px", "lineHeight": 1.4, "letterSpacing": "0" } },
+    "legenda": { "$type": "typography", "$value": { "fontFamily": "{fonte.texto}", "fontWeight": 400, "fontSize": "12px", "lineHeight": 1.4, "letterSpacing": "0" } },
+    "sobretitulo": { "$type": "typography", "$value": { "fontFamily": "{fonte.texto}", "fontWeight": 700, "fontSize": "11px", "lineHeight": 1.4, "letterSpacing": "0.08em" } }
+  }
+}

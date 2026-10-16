@@ -1,0 +1,136 @@
+{
+  "cor": {
+    "fundo": {
+      "$type": "color",
+      "$value": "#F3F8FA"
+    },
+    "superficie": {
+      "$type": "color",
+      "$value": "#FFFFFF"
+    },
+    "superficie-2": {
+      "$type": "color",
+      "$value": "#F7FBFC"
+    },
+    "texto": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "texto-secundario": {
+      "$type": "color",
+      "$value": "#4F6B7B"
+    },
+    "linha": {
+      "$type": "color",
+      "$value": "#E1ECF1"
+    },
+    "selecao": {
+      "$type": "color",
+      "$value": "#E6F7FC"
+    },
+    "principal": {
+      "$type": "color",
+      "$value": "#00537A"
+    },
+    "sobre-principal": {
+      "$type": "color",
+      "$value": "#FFFFFF"
+    },
+    "acao": {
+      "$type": "color",
+      "$value": "#F5A201"
+    },
+    "sobre-acao": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "destaque": {
+      "$type": "color",
+      "$value": "#A8E8F9"
+    },
+    "sobre-destaque": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "acao-no-destaque": {
+      "$type": "color",
+      "$value": "#F5A201"
+    },
+    "sobre-acao-no-destaque": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "cartao-suave": {
+      "$type": "color",
+      "$value": "#D9F4FC"
+    },
+    "sobre-cartao-suave": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "cartao-numero": {
+      "$type": "color",
+      "$value": "#FFF0C7"
+    },
+    "sobre-cartao-numero": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "navegacao": {
+      "$type": "color",
+      "$value": "#013C58"
+    },
+    "sobre-navegacao": {
+      "$type": "color",
+      "$value": "#FFFFFF"
+    },
+    "avatar": {
+      "$type": "color",
+      "$value": "#FFD35B"
+    },
+    "sobre-avatar": {
+      "$type": "color",
+      "$value": "#013C58"
+    }
+  },
+  "estado": {
+    "ok": {
+      "$type": "color",
+      "$value": "#0F7A5A"
+    },
+    "aviso": {
+      "$type": "color",
+      "$value": "#A35F00"
+    },
+    "erro": {
+      "$type": "color",
+      "$value": "#C2410C"
+    }
+  },
+  "dado": {
+    "destaque": {
+      "$type": "color",
+      "$value": "#00537A"
+    },
+    "fundo": {
+      "$type": "color",
+      "$value": "#BFE9F5"
+    },
+    "k1": {
+      "$type": "color",
+      "$value": "#A8E8F9"
+    },
+    "k2": {
+      "$type": "color",
+      "$value": "#FFD35B"
+    },
+    "k3": {
+      "$type": "color",
+      "$value": "#00537A"
+    },
+    "k4": {
+      "$type": "color",
+      "$value": "#FFBA42"
+    }
+  }
+}

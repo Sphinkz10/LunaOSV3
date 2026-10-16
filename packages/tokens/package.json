@@ -7,11 +7,26 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
-    "./tailwind-preset": "./src/tailwind-preset.cjs"
+    "./tailwind-preset": "./src/tailwind-preset.cjs",
+    "./v3": "./src/v3/index.ts",
+    "./v3/tokens.css": "./src/v3/tokens.css",
+    "./v3/fonts.css": "./src/v3/fonts.css",
+    "./v3/native": "./src/v3/tokens.native.ts"
   },
-  "scripts": { "lint": "echo tokens:lint-skip", "typecheck": "tsc --noEmit -p ." },
+  "scripts": {
+    "build": "node scripts/build-tokens.mjs",
+    "lint": "node scripts/build-tokens.mjs --check",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
   "devDependencies": {
     "@luna/config": "workspace:*",
-    "typescript": "^5.6.3"
+    "style-dictionary": "^4.3.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.1.0",
+    "@fontsource/outfit": "^5.1.0"
   }
 }
