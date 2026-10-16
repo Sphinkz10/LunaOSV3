@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { signOut, useAuthStore } from '@luna/core';
+import { switchOrg, toast, useAuthStore } from '@luna/core';
 import { getSupabaseClient } from '../lib/supabase';
+import { signOutEverywhere } from './session';
 import { CoachNav } from './CoachNav';
 import { MobileNav } from './MobileNav';
 
@@ -27,7 +28,7 @@ export function CoachShell({
   board?: ReactNode;
   pageActions?: ReactNode;
   mainClassName?: string;
-  /** Ex.: athlete-mode no Atleta 360 */
+  /** Ex.: athlete-mode na ficha do cliente */
   layoutClassName?: string;
 }) {
   const [navOpen, setNavOpen] = useState(false);
@@ -48,10 +49,13 @@ export function CoachShell({
     };
   }, [navOpen]);
 
-  const onLogout = async () => {
+  const orgs = useAuthStore((s) => s.orgs);
+  const scope = useAuthStore((s) => s.scope);
+  const onSwitchOrg = (orgId: string) => {
     const client = getSupabaseClient();
-    if (client) await signOut(client);
-    useAuthStore.getState().signOut();
+    if (!client) return;
+    void switchOrg(client, orgId).catch((e) =>
+      toast({ variant: 'danger', title: 'Não foi possível mudar de organização', description: e instanceof Error ? e.message : undefined }));
   };
 
   return (
@@ -67,7 +71,7 @@ export function CoachShell({
           >
             ☰
           </button>
-          <Link to="/dashboard" className="brand-badge" aria-label="Voltar ao Início">
+          <Link to="/today" className="brand-badge" aria-label="Voltar a Hoje">
             <div className="brand-i">L</div>
             <div className="brand-t">LUNA.OS</div>
           </Link>
@@ -78,8 +82,16 @@ export function CoachShell({
           </div>
         </div>
         <div className="top-actions">
+          {orgs.length > 1 && scope && (
+            <label className="org-switch">
+              <span className="sr-only">Organização</span>
+              <select value={scope.orgId} onChange={(e) => onSwitchOrg(e.target.value)} aria-label="Organização">
+                {orgs.map((o) => <option key={o.org_id} value={o.org_id}>{o.name}</option>)}
+              </select>
+            </label>
+          )}
           {topActions}
-          <button type="button" className="btn ghost small hide-mobile" onClick={() => void onLogout()}>Sair</button>
+          <button type="button" className="btn ghost small hide-mobile" onClick={() => void signOutEverywhere(getSupabaseClient())}>Sair</button>
         </div>
       </header>
 

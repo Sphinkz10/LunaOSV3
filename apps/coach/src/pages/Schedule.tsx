@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   addToWaitlist, BookingConflictError, computeDayStates, createAvailabilitySlot, createBooking, createDayMarker,
-  deleteAvailabilitySlot, deleteDayMarker, fetchAthletesLite, fetchAvailability, fetchMonthBookings,
-  fetchMonthMarkers, fetchWaitlist, setBookingStatus, setWaitlistStatus, toast, useAuthStore,
-  type AthleteLite, type AvailabilitySlot, type Booking, type BookingType, type DayMarker, type DayMarkerType,
+  dayInZone, deleteAvailabilitySlot, deleteDayMarker, fetchClientsLite, fetchAvailability, fetchMonthBookings,
+  fetchMonthMarkers, fetchWaitlist, setBookingStatus, setWaitlistStatus, timeInZone, toast, wallClock, zonedToUtc,
+  type ClientLite, type AvailabilitySlot, type Booking, type BookingType, type DayMarker, type DayMarkerType,
   type DayState, type NewBookingInput, type WaitlistEntry,
 } from '@luna/core';
 import { Link } from 'react-router-dom';
 import { CoachShell } from '../app/CoachShell';
+import { useScope } from '../app/ModuleLayout';
+import { t, vocab } from '../lib/vocab';
+
+const P1 = vocab.pessoa({ maiuscula: true });
+const p1 = vocab.pessoa();
 import { ProtoModal } from '../app/ProtoModal';
 import { Svg } from '../app/Svg';
 import { getSupabaseClient } from '../lib/supabase';
@@ -17,16 +22,16 @@ const WEEKDAY_DB = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const TYPE_LABELS: Record<BookingType, string> = {
-  training: 'Treino', consultation: 'Consulta', competition: 'Competição',
-  class: 'Aula', assessment: 'Avaliação', other: 'Outro',
+  training: t('sessao', { maiuscula: true }), consultation: 'Consulta',
+  class: t('aula', { maiuscula: true }), assessment: 'Avaliação', other: 'Outro',
 };
 const MARKER_LABELS: Record<DayMarkerType, string> = {
   unavailable: 'Indisponível', holiday: 'Feriado', off: 'Folga',
   vacation: 'Férias', competition: 'Competição', travel: 'Viagem',
 };
 const BOOKING_STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendente', confirmed: 'Confirmado', completed: 'Concluído',
-  cancelled: 'Cancelado', no_show: 'Faltou', waitlisted: 'Em espera',
+  pending: 'Por confirmar', confirmed: 'Confirmada', completed: 'Concluída',
+  cancelled: 'Cancelada', no_show: 'Faltou', waitlisted: 'Em espera',
 };
 
 const STATE_META: Record<DayState, { label: string; color: string }> = {
@@ -47,20 +52,33 @@ const STATE_CLASS: Record<DayState, string> = {
 const TYPE_CAL: Record<string, { cls: string; icon: string }> = {
   training: { cls: 'training', icon: 'play' },
   consultation: { cls: 'consult', icon: 'user' },
-  competition: { cls: 'competition', icon: 'trophy' },
   class: { cls: 'training', icon: 'users' },
   assessment: { cls: 'evaluation', icon: 'clipboard' },
   other: { cls: 'training', icon: 'cal' },
 };
 const typeCal = (t: string) => TYPE_CAL[t] ?? TYPE_CAL.other;
 const TYPE_FILTERS: [string, string][] = [
-  ['all', 'Todos'], ['training', 'Treinos'], ['consultation', 'Consultas'],
-  ['competition', 'Comp.'], ['class', 'Aulas'], ['assessment', 'Aval.'],
+  ['all', 'Todos'], ['training', t('sessao', { plural: true, maiuscula: true })], ['consultation', 'Consultas'],
+  ['class', t('aula', { plural: true, maiuscula: true })], ['assessment', 'Aval.'],
 ];
 const VIEW_SEG: [string, string][] = [['month', 'Mês'], ['week', 'Semana'], ['day', 'Dia'], ['agenda', 'Agenda']];
 
+/** Datas sempre no fuso da organização, nunca no do aparelho. */
+let TZ = 'Europe/Lisbon';
 function hhmm(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  return timeInZone(iso, TZ);
+}
+function localDayNum(iso: string): number {
+  return Number(dayInZone(iso, TZ).slice(8, 10));
+}
+/** 'YYYY-MM-DD' + 'HH:MM' no fuso da organização → ISO UTC. */
+function zonedIso(date: string, time: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, mi] = time.split(':').map(Number);
+  return zonedToUtc(y, m, d, h, mi, TZ).toISOString();
+}
+function fmtLocal(iso: string, opts: Intl.DateTimeFormatOptions): string {
+  return new Date(iso).toLocaleString('pt-PT', { ...opts, timeZone: TZ });
 }
 function firstWeekdayOffset(year: number, month0: number): number {
   return (new Date(year, month0, 1).getDay() + 6) % 7;
@@ -69,17 +87,20 @@ function bookingLabel(b: Booking): string {
   return b.title ?? TYPE_LABELS[b.type as BookingType];
 }
 
-export function Calendar() {
-  const userId = useAuthStore((s) => s.userId);
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month0, setMonth0] = useState(now.getMonth());
+/** Horário (G-09): a minha agenda no fuso da organização. */
+export function Schedule() {
+  const scope = useScope();
+  TZ = scope.timezone;
+  const nowWall = wallClock(new Date(), scope.timezone);
+  const now = { getFullYear: () => nowWall.year, getMonth: () => nowWall.month - 1, getDate: () => nowWall.day };
+  const [year, setYear] = useState(nowWall.year);
+  const [month0, setMonth0] = useState(nowWall.month - 1);
   const [tab, setTab] = useState<'calendar' | 'availability' | 'waitlist'>('calendar');
   const [view, setView] = useState('month');
   const [typeFilter, setTypeFilter] = useState('all');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [markers, setMarkers] = useState<DayMarker[]>([]);
-  const [athletes, setAthletes] = useState<AthleteLite[]>([]);
+  const [athletes, setAthletes] = useState<ClientLite[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,29 +114,29 @@ export function Calendar() {
 
   const load = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setLoading(false); return; }
+    if (!client) return;
     let cancelled = false;
     setLoading(true);
     void Promise.all([
-      fetchMonthBookings(client, userId, year, month0),
-      fetchMonthMarkers(client, userId, year, month0),
-      fetchAthletesLite(client, userId),
-      fetchWaitlist(client, userId),
-      fetchAvailability(client, userId),
+      fetchMonthBookings(client, scope, year, month0),
+      fetchMonthMarkers(client, scope, year, month0),
+      fetchClientsLite(client, scope),
+      fetchWaitlist(client, scope),
+      fetchAvailability(client, scope),
     ]).then(([b, m, a, w, av]) => {
       if (cancelled) return;
       setBookings(b); setMarkers(m); setAthletes(a); setWaitlist(w); setAvailability(av); setError(null);
     }).catch((err) => {
-      if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar calendário');
+      if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar o horário');
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, year, month0]);
+  }, [scope, year, month0]);
 
   useEffect(() => load(), [load]);
 
   const dayStates = useMemo(
-    () => computeDayStates(year, month0, bookings, markers),
-    [year, month0, bookings, markers],
+    () => computeDayStates(year, month0, bookings, markers, scope.timezone),
+    [year, month0, bookings, markers, scope.timezone],
   );
   const daysInMonth = new Date(year, month0 + 1, 0).getDate();
   const offset = firstWeekdayOffset(year, month0);
@@ -130,7 +151,7 @@ export function Calendar() {
   const bookingsByDay = useMemo(() => {
     const map = new Map<number, Booking[]>();
     for (const b of bookings) {
-      const d = new Date(b.starts_at).getUTCDate();
+      const d = localDayNum(b.starts_at);
       (map.get(d) ?? map.set(d, []).get(d)!).push(b);
     }
     return map;
@@ -146,7 +167,7 @@ export function Calendar() {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await setBookingStatus(client, id, status);
+      await setBookingStatus(client, scope, id, status);
       toast({
         variant: status === 'confirmed' ? 'success' : 'info',
         title: status === 'confirmed' ? 'Marcação confirmada' : 'Marcação cancelada',
@@ -162,7 +183,7 @@ export function Calendar() {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await deleteDayMarker(client, id);
+      await deleteDayMarker(client, scope, id);
       toast({ variant: 'info', title: 'Marcador removido' });
       load();
     } catch (e) {
@@ -174,7 +195,7 @@ export function Calendar() {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await setWaitlistStatus(client, id, 'cancelled');
+      await setWaitlistStatus(client, scope, id, 'cancelled');
       toast({ variant: 'info', title: 'Removido da lista de espera' });
       load();
     } catch (e) {
@@ -186,7 +207,7 @@ export function Calendar() {
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await deleteAvailabilitySlot(client, id);
+      await deleteAvailabilitySlot(client, scope, id);
       toast({ variant: 'info', title: 'Horário removido' });
       load();
     } catch (e) {
@@ -203,7 +224,7 @@ export function Calendar() {
         onClick={() => setDetail(b)} onKeyDown={(e) => { if (e.key === 'Enter') setDetail(b); }}>
         <div className="cal-evcard-ic"><Svg name={tc.icon} /></div>
         <div className="cal-evcard-body">
-          <div className="cal-evcard-name">{b.athlete_id ? athleteName.get(b.athlete_id) ?? 'Atleta' : bookingLabel(b)}</div>
+          <div className="cal-evcard-name">{b.link_id ? athleteName.get(b.link_id) ?? P1 : bookingLabel(b)}</div>
           <div className="cal-evcard-meta">{TYPE_LABELS[b.type as BookingType]}{b.status === 'pending' ? ' · pendente' : b.status === 'cancelled' ? ' · cancelada' : ''}</div>
         </div>
         <div className="cal-evcard-time">{hhmm(b.starts_at)}</div>
@@ -265,7 +286,7 @@ export function Calendar() {
     const list = filterEvs([...bookings]).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
     const byDay = new Map<string, Booking[]>();
     for (const b of list) {
-      const key = new Date(b.starts_at).toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long' });
+      const key = fmtLocal(b.starts_at, { weekday: 'long', day: '2-digit', month: 'long' });
       (byDay.get(key) ?? byDay.set(key, []).get(key)!).push(b);
     }
     return (
@@ -349,7 +370,7 @@ export function Calendar() {
             {Array.from({ length: 13 }).map((_, i) => {
               const h = 8 + i;
               const hh = `${String(h).padStart(2, '0')}:00`;
-              const inHour = dayBookingsFiltered.filter((b) => new Date(b.starts_at).getHours() === h);
+              const inHour = dayBookingsFiltered.filter((b) => wallClock(b.starts_at, TZ).hour === h);
               return (
                 <div key={h} className="cal-tl-row">
                   <div className="cal-tl-time">{hh}</div>
@@ -406,16 +427,16 @@ export function Calendar() {
         <button className="btn primary small" onClick={() => setWaitlistOpen(true)}>+ Adicionar à lista</button>
       </div>
       {waitlist.length === 0
-        ? <div className="cal-empty"><div className="cal-empty-ico"><Svg name="users" /></div><h4>Lista de espera vazia</h4><p>Adiciona um atleta para um horário concorrido.</p></div>
+        ? <div className="cal-empty"><div className="cal-empty-ico"><Svg name="users" /></div><h4>Lista de espera vazia</h4><p>Adiciona um {p1} para um horário concorrido.</p></div>
         : <div style={{ display: 'grid', gap: 8 }}>
             {waitlist.map((w) => (
               <div key={w.id} className="cal-evcard" style={{ cursor: 'default' }}>
                 <div className="cal-evcard-ic"><Svg name="user" /></div>
                 <div className="cal-evcard-body">
-                  <div className="cal-evcard-name">{athleteName.get(w.athleteId) ?? 'Atleta'}</div>
+                  <div className="cal-evcard-name">{athleteName.get(w.clientId) ?? P1}</div>
                   <div className="cal-evcard-meta">
                     {w.requestedStartsAt
-                      ? new Date(w.requestedStartsAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                      ? fmtLocal(w.requestedStartsAt, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
                       : 'Qualquer horário'} · prioridade {w.priority}
                   </div>
                 </div>
@@ -445,20 +466,20 @@ export function Calendar() {
         <div className="cal-head-l">
           <div className="cal-head-icon"><Svg name="cal" /></div>
           <div style={{ minWidth: 0 }}>
-            <div className="cal-kicker">Calendário.OS</div>
+            <div className="cal-kicker">Horário</div>
             <div className="cal-title">Agenda &amp; Marcações</div>
             <div className="cal-head-sub">Sessões, consultas, férias e lista de espera — tudo num sítio.</div>
           </div>
         </div>
         <div className="cal-head-r">
-          <button className="cal-icob" title="Marcação do atleta" onClick={() => setModalOpen(true)}><Svg name="user" /></button>
+          <button className="cal-icob" title={`Marcação de ${p1}`} aria-label={`Marcação de ${p1}`} onClick={() => setModalOpen(true)}><Svg name="user" /></button>
           <button className="cal-icob" title="Notificações"><Svg name="bell" /></button>
           <button className="btn primary" onClick={() => setModalOpen(true)}>+ Novo evento</button>
         </div>
       </div>
 
       <div className="cal-tabs">
-        <button className={`cal-tab${tab === 'calendar' ? ' on' : ''}`} onClick={() => setTab('calendar')}><Svg name="grid" />Calendário</button>
+        <button className={`cal-tab${tab === 'calendar' ? ' on' : ''}`} onClick={() => setTab('calendar')}><Svg name="grid" />Agenda</button>
         <button className={`cal-tab${tab === 'availability' ? ' on' : ''}`} onClick={() => setTab('availability')}><Svg name="clock" />Disponibilidade</button>
         <button className={`cal-tab${tab === 'waitlist' ? ' on' : ''}`} onClick={() => setTab('waitlist')}><Svg name="users" />Lista de espera{waitingCount ? <span className="cnt">{waitingCount}</span> : null}</button>
       </div>
@@ -496,7 +517,7 @@ export function Calendar() {
   return (
     <>
       <CoachShell
-        headStrong="Calendário.OS · Agenda"
+        headStrong="Horário"
         headSub="Marcações, disponibilidade e lista de espera."
       >
         {content}
@@ -518,7 +539,7 @@ function DayMarkerModal({ open, onClose, onSaved, day, year, month0 }: {
   open: boolean; onClose: () => void; onSaved: () => void;
   day: number | null; year: number; month0: number;
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [marker, setMarker] = useState<DayMarkerType>('off');
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -530,10 +551,10 @@ function DayMarkerModal({ open, onClose, onSaved, day, year, month0 }: {
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId || !dateStr) { setErr('Seleciona um dia primeiro.'); return; }
+    if (!client || !dateStr) { setErr('Seleciona um dia primeiro.'); return; }
     setBusy(true); setErr(null);
     try {
-      await createDayMarker(client, userId, { date: dateStr, marker, title: title || null });
+      await createDayMarker(client, scope, { date: dateStr, marker, title: title || null });
       toast({ variant: 'success', title: 'Dia marcado', description: MARKER_LABELS[marker] });
       onSaved();
     } catch (e) {
@@ -577,9 +598,9 @@ function DayMarkerModal({ open, onClose, onSaved, day, year, month0 }: {
 }
 
 function WaitlistAddModal({ open, onClose, onSaved, athletes }: {
-  open: boolean; onClose: () => void; onSaved: () => void; athletes: AthleteLite[];
+  open: boolean; onClose: () => void; onSaved: () => void; athletes: ClientLite[];
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [athleteId, setAthleteId] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -591,12 +612,13 @@ function WaitlistAddModal({ open, onClose, onSaved, athletes }: {
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
-    if (!athleteId) { setErr('Escolhe um atleta.'); return; }
+    if (!client) { setErr('Sem sessão Supabase.'); return; }
+    if (!athleteId) { setErr(`Escolhe um ${p1}.`); return; }
+    if (!date || !time) { setErr('Escolhe o dia e a hora pretendidos.'); return; }
     setBusy(true); setErr(null);
     try {
-      const requestedStartsAt = date && time ? new Date(`${date}T${time}:00`).toISOString() : null;
-      await addToWaitlist(client, userId, { athleteId, requestedStartsAt, priority: Number(priority) || 100 });
+      const requestedStartsAt = zonedIso(date, time);
+      await addToWaitlist(client, scope, { clientId: athleteId, requestedStartsAt, priority: Number(priority) || 100 });
       toast({ variant: 'success', title: 'Adicionado à lista de espera' });
       onSaved();
     } catch (e) {
@@ -619,9 +641,9 @@ function WaitlistAddModal({ open, onClose, onSaved, athletes }: {
     >
       <div className="proto-form">
         <div className="field">
-          <label htmlFor="wl-athlete">Atleta</label>
+          <label htmlFor="wl-athlete">{P1}</label>
           <select id="wl-athlete" value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
-            <option value="">— Escolher atleta —</option>
+            <option value="">— Escolher {p1} —</option>
             {athletes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </div>
@@ -654,7 +676,7 @@ function BookingDetailModal({ booking, athleteName, onClose, onConfirm, onCancel
   onClose: () => void; onConfirm: (id: string) => void; onCancel: (id: string) => void;
 }) {
   if (!booking) return null;
-  const who = booking.athlete_id ? athleteName.get(booking.athlete_id) ?? 'Atleta' : (booking.title ?? '—');
+  const who = booking.link_id ? athleteName.get(booking.link_id) ?? P1 : (booking.title ?? '—');
   const statusLabel = BOOKING_STATUS_LABEL[booking.status] ?? booking.status;
   return (
     <ProtoModal
@@ -678,8 +700,8 @@ function BookingDetailModal({ booking, athleteName, onClose, onConfirm, onCancel
       <div className="proto-form">
         <div className="mini-row"><span>Quem</span><b>{who}</b></div>
         <div className="mini-row"><span>Tipo</span><b>{TYPE_LABELS[booking.type as BookingType]}</b></div>
-        <div className="mini-row"><span>Início</span><b>{new Date(booking.starts_at).toLocaleString('pt-PT')}</b></div>
-        <div className="mini-row"><span>Fim</span><b>{new Date(booking.ends_at).toLocaleString('pt-PT')}</b></div>
+        <div className="mini-row"><span>Início</span><b>{fmtLocal(booking.starts_at, { dateStyle: 'medium', timeStyle: 'short' })}</b></div>
+        <div className="mini-row"><span>Fim</span><b>{fmtLocal(booking.ends_at, { dateStyle: 'medium', timeStyle: 'short' })}</b></div>
         <div className="mini-row"><span>Estado</span><b>{statusLabel}</b></div>
         {booking.type === 'class' && booking.capacity != null && (
           <div className="mini-row"><span>Lotação</span><b>{booking.capacity} lugares</b></div>
@@ -691,9 +713,9 @@ function BookingDetailModal({ booking, athleteName, onClose, onConfirm, onCancel
 
 function NewBookingModal({ open, onClose, onCreated, defaultDay, year, month0, athletes }: {
   open: boolean; onClose: () => void; onCreated: () => void;
-  defaultDay: number | null; year: number; month0: number; athletes: AthleteLite[];
+  defaultDay: number | null; year: number; month0: number; athletes: ClientLite[];
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const day = defaultDay ?? 1;
   const dateStr = `${year}-${String(month0 + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const [date, setDate] = useState(dateStr);
@@ -710,16 +732,16 @@ function NewBookingModal({ open, onClose, onCreated, defaultDay, year, month0, a
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
+    if (!client) { setErr('Sem sessão Supabase.'); return; }
     setBusy(true); setErr(null);
     try {
-      const startsAt = new Date(`${date}T${time}:00`).toISOString();
+      const startsAt = zonedIso(date, time);
       const endsAt = new Date(new Date(startsAt).getTime() + Number(duration) * 60_000).toISOString();
       const input: NewBookingInput = {
-        athleteId: athleteId || null, type, title: title || null, startsAt, endsAt,
+        clientId: athleteId || null, type, title: title || null, startsAt, endsAt,
         capacity: type === 'class' ? Number(capacity) || null : null,
       };
-      await createBooking(client, userId, input);
+      await createBooking(client, scope, input);
       toast({ variant: 'success', title: 'Marcação criada', description: 'Fica pendente até confirmares.' });
       onCreated();
     } catch (e) {
@@ -765,9 +787,9 @@ function NewBookingModal({ open, onClose, onCreated, defaultDay, year, month0, a
             </select>
           </div>
           <div className="field">
-            <label htmlFor="bk-athlete">Atleta (opcional)</label>
+            <label htmlFor="bk-athlete">{P1} (opcional)</label>
             <select id="bk-athlete" value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
-              <option value="">— Sem atleta —</option>
+              <option value="">— Sem {p1} —</option>
               {athletes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
@@ -792,7 +814,7 @@ function NewBookingModal({ open, onClose, onCreated, defaultDay, year, month0, a
 function AvailabilityAddModal({ open, onClose, onSaved }: {
   open: boolean; onClose: () => void; onSaved: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [weekday, setWeekday] = useState('1');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('19:00');
@@ -803,11 +825,11 @@ function AvailabilityAddModal({ open, onClose, onSaved }: {
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
+    if (!client) { setErr('Sem sessão Supabase.'); return; }
     if (startTime >= endTime) { setErr('A hora de fim tem de ser depois do início.'); return; }
     setBusy(true); setErr(null);
     try {
-      await createAvailabilitySlot(client, userId, {
+      await createAvailabilitySlot(client, scope, {
         weekday: Number(weekday), startTime, endTime,
       });
       toast({ variant: 'success', title: 'Horário adicionado' });

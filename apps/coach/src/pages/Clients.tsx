@@ -1,27 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  archiveAthlete, assignPlanToAthletes, createAthlete, fetchAthletes, fetchPlans, toast, updateAthleteStatus, useAuthStore,
-  type AthleteRow, type AthleteStatus, type PlanLite,
+  archiveClient, assignPlanToClients, addClient, DuplicateClientError, fetchClients, fetchPlans, fetchStaff, toast, updateClientStatus,
+  type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
+import { useScope } from '../app/ModuleLayout';
+import { vocab } from '../lib/vocab';
+
+// Nomes da modalidade (regra 4): nunca "atleta" escrito à mão
+const P1 = vocab.pessoa({ maiuscula: true });
+const p1 = vocab.pessoa();
+const PP = vocab.pessoa({ plural: true, maiuscula: true });
+const pp = vocab.pessoa({ plural: true });
+const RESP = vocab.responsavel();
 import { ProtoDrawer } from '../app/ProtoDrawer';
 import { ProtoModal } from '../app/ProtoModal';
 import { useMediaQuery } from '../app/useMediaQuery';
 import { getSupabaseClient } from '../lib/supabase';
 
-const STATUS_META: Record<AthleteStatus, { label: string; tone: string }> = {
+const STATUS_META: Record<ClientStatus, { label: string; tone: string }> = {
   active: { label: 'Ativo', tone: 'bsuccess' },
   blocked: { label: 'Bloqueado', tone: 'bdanger' },
   return_to_play: { label: 'RTP', tone: 'bt' },
   injured: { label: 'Lesionado', tone: 'bwarn' },
   inactive: { label: 'Inativo', tone: 'bm' },
-  archived: { label: 'Arquivado', tone: 'bm' },
 };
 
-interface AdvFilters { status: 'all' | AthleteStatus; plan: 'all' | 'with' | 'without'; sport: string; group: string }
-const DEFAULT_ADV: AdvFilters = { status: 'all', plan: 'all', sport: '', group: '' };
-const SAVED_VIEWS_KEY = 'lunaSavedAthleteViews';
+interface AdvFilters { status: 'all' | ClientStatus; plan: 'all' | 'with' | 'without'; responsible: string; group: string }
+const DEFAULT_ADV: AdvFilters = { status: 'all', plan: 'all', responsible: '', group: '' };
+const SAVED_VIEWS_KEY = 'lunaSavedClientViews';
 
 interface SavedView {
   id: string;
@@ -68,7 +76,7 @@ function phase3ViewLabel(filter: string) {
   return map[filter] ?? 'Vista atual';
 }
 
-function phase3Counts(rows: AthleteRow[]) {
+function phase3Counts(rows: ClientRow[]) {
   return {
     total: rows.length,
     noplan: rows.filter((a) => !a.hasPlan).length,
@@ -80,7 +88,7 @@ function phase3Counts(rows: AthleteRow[]) {
   };
 }
 
-function phase3Problem(a: AthleteRow) {
+function phase3Problem(a: ClientRow) {
   if (a.status === 'blocked') {
     return { label: 'Bloqueio ativo', tone: 'bdanger', detail: a.statusNote || 'Impede novas atribuições.' };
   }
@@ -95,7 +103,7 @@ function phase3Problem(a: AthleteRow) {
   return { label: 'Operacional', tone: 'bsuccess', detail: 'Sem bloqueios críticos.' };
 }
 
-function phase3Content(a: AthleteRow) {
+function phase3Content(a: ClientRow) {
   if (!a.hasPlan) return { main: 'Sem plano', sub: 'Atribuição recomendada' };
   const parts: string[] = [];
   if (!a.docsOk) parts.push(`Docs ${a.docsLabel}`);
@@ -103,34 +111,34 @@ function phase3Content(a: AthleteRow) {
   return { main: a.planName ?? 'Plano ativo', sub: parts.length ? parts.join(' · ') : 'Conteúdo ativo' };
 }
 
-function phase3Action(a: AthleteRow) {
+function phase3Action(a: ClientRow) {
   if (a.status === 'blocked') return { label: 'Rever bloqueio', action: 'review-block' as const };
   if (!a.docsOk) return { label: 'Pedir doc', action: 'request-doc' as const };
   if (!a.hasPlan) return { label: 'Atribuir plano', action: 'assign' as const };
   return { label: 'Abrir 360', action: 'open-athlete' as const };
 }
 
-function rowIssueMain(a: AthleteRow, p: ReturnType<typeof phase3Problem>) {
+function rowIssueMain(a: ClientRow, p: ReturnType<typeof phase3Problem>) {
   if (a.statusNote) return a.statusNote;
   if (!a.docsOk) return `Documento ${a.docsLabel.toLowerCase()}`;
   return p.label;
 }
 
-function recommend(a: AthleteRow) {
-  if (a.status === 'blocked') return 'Resolver bloqueios antes de novas atribuições. Começa por documentos e coach responsável.';
+function recommend(a: ClientRow) {
+  if (a.status === 'blocked') return `Resolver bloqueios antes de novas atribuições. Começa por documentos e ${RESP} responsável.`;
   if (!a.docsOk) return 'Pedir renovação ou upload antes de novas atribuições.';
   if (a.status === 'return_to_play') return 'Rever aprovação do fisio antes de atribuir sessões RTP.';
-  if (a.status === 'inactive') return 'Enviar follow-up e reativar o atleta se necessário.';
+  if (a.status === 'inactive') return `Enviar follow-up e reativar o ${p1} se necessário.`;
   if (!a.hasPlan) return 'Atribuir conteúdo base antes de novas cargas.';
   return 'Tudo em dia. Podes atribuir novo conteúdo ou abrir perfil.';
 }
 
-function AthleteAvatar({ a }: { a: AthleteRow }) {
+function ClientAvatar({ a }: { a: ClientRow }) {
   if (a.avatarUrl) return <img className="avatar" src={a.avatarUrl} alt="" loading="lazy" />;
   return <div className="avatar initials">{initials(a.name)}</div>;
 }
 
-function mobileActionLabel(a: AthleteRow): string {
+function mobileActionLabel(a: ClientRow): string {
   const pa = phase3Action(a);
   if (pa.action === 'review-block') return 'Rever';
   if (pa.action === 'request-doc') return 'Doc';
@@ -138,12 +146,12 @@ function mobileActionLabel(a: AthleteRow): string {
   return 'Abrir';
 }
 
-function AthleteRowDetailModal({
+function ClientRowDetailModal({
   athlete, onClose, onPrimary,
 }: {
-  athlete: AthleteRow | null;
+  athlete: ClientRow | null;
   onClose: () => void;
-  onPrimary: (a: AthleteRow) => void;
+  onPrimary: (a: ClientRow) => void;
 }) {
   if (!athlete) return null;
   const p = phase3Problem(athlete);
@@ -155,7 +163,7 @@ function AthleteRowDetailModal({
       open={!!athlete}
       onClose={onClose}
       title={athlete.name}
-      sub={[athlete.groupName, athlete.sport].filter(Boolean).join(' · ') || '—'}
+      sub={[athlete.groupName, athlete.responsibleName].filter(Boolean).join(' · ') || '—'}
       size="sm"
       footer={(
         <>
@@ -176,22 +184,22 @@ function AthleteRowDetailModal({
   );
 }
 
-function AthletesBoardPanel({
+function ClientsBoardPanel({
   rows, selList, hasSelection, savedViews, onAssign, onClear, onFilter, onOpen360, onNavigateGroups, onSaveView, onLoadView, onRowAction, onArchive,
 }: {
-  rows: AthleteRow[];
-  selList: AthleteRow[];
+  rows: ClientRow[];
+  selList: ClientRow[];
   hasSelection: boolean;
   savedViews: SavedView[];
   onAssign: () => void;
   onClear: () => void;
   onFilter: (id: string) => void;
-  onOpen360: (a: AthleteRow) => void;
+  onOpen360: (a: ClientRow) => void;
   onNavigateGroups: () => void;
   onSaveView: () => void;
   onLoadView: (view: SavedView) => void;
-  onRowAction: (a: AthleteRow) => void;
-  onArchive: (targets: AthleteRow[]) => void;
+  onRowAction: (a: ClientRow) => void;
+  onArchive: (targets: ClientRow[]) => void;
 }) {
   const c = phase3Counts(rows);
 
@@ -257,10 +265,10 @@ function AthletesBoardPanel({
       <>
         <div className="board-card phase3-selected-athlete">
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <AthleteAvatar a={a} />
+            <ClientAvatar a={a} />
             <div style={{ minWidth: 0 }}>
               <div className="board-title">{a.name}</div>
-              <div className="board-sub">{[a.sport, a.groupName].filter(Boolean).join(' · ') || '—'}</div>
+              <div className="board-sub">{[a.responsibleName, a.groupName].filter(Boolean).join(' · ') || '—'}</div>
             </div>
           </div>
           <div className="phase3-selected-status"><span className={`badge ${p.tone}`}>{p.label}</span></div>
@@ -279,7 +287,7 @@ function AthletesBoardPanel({
             }}>
               {pa.label}
             </button>
-            <button type="button" className="btn secondary" onClick={() => onOpen360(a)}>Abrir Atleta 360</button>
+            <button type="button" className="btn secondary" onClick={() => onOpen360(a)}>Abrir ficha</button>
             <button type="button" className="btn ghost" onClick={onAssign}>Atribuir conteúdo</button>
           </div>
         </div>
@@ -296,9 +304,9 @@ function AthletesBoardPanel({
         </div>
         <div className="board-card board-danger">
           <div className="board-title">Zona de risco</div>
-          <p className="board-sub" style={{ marginTop: 6 }}>Arquivar remove o atleta da lista (reversível); os dados ficam guardados.</p>
+          <p className="board-sub" style={{ marginTop: 6 }}>Arquivar remove o {p1} da lista (reversível); os dados ficam guardados.</p>
           <div className="board-actions">
-            <button type="button" className="btn danger" onClick={() => onArchive([a])}>Arquivar atleta…</button>
+            <button type="button" className="btn danger" onClick={() => onArchive([a])}>Arquivar {p1}…</button>
           </div>
         </div>
       </>
@@ -316,7 +324,7 @@ function AthletesBoardPanel({
   return (
     <>
       <div className="board-card">
-        <div className="board-title">{selList.length} atletas selecionados</div>
+        <div className="board-title">{selList.length} {pp} selecionados</div>
         <div className="board-sub">Antes de publicar qualquer ação, revê impacto e exceções.</div>
         <div className="phase3-impact-grid">
           <div><b>{summary.noplan}</b><span>sem plano</span></div>
@@ -352,7 +360,7 @@ function AthletesBoardPanel({
       </div>
       <div className="board-card board-danger">
         <div className="board-title">Zona de risco</div>
-        <p className="board-sub" style={{ marginTop: 6 }}>Arquivar {selList.length} atleta(s) — saem da lista, reversível.</p>
+        <p className="board-sub" style={{ marginTop: 6 }}>Arquivar {selList.length} {pp}: saem da lista, reversível.</p>
         <div className="board-actions">
           <button type="button" className="btn danger" onClick={() => onArchive(selList)}>Arquivar selecionados…</button>
         </div>
@@ -361,30 +369,36 @@ function AthletesBoardPanel({
   );
 }
 
-export function Athletes() {
+/** Clientes (G-03): a carteira do PT ou da organização, conforme o papel. */
+export function Clients() {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 960px)');
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [boardOpen, setBoardOpen] = useState(false);
-  const [rows, setRows] = useState<AthleteRow[]>([]);
+  const [rows, setRows] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('priority');
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [createOpen, setCreateOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Botão + (G-00): /clients?novo=1 abre logo o novo cliente
+  const [createOpen, setCreateOpen] = useState(searchParams.get('novo') === '1');
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') { setCreateOpen(true); setSearchParams({}, { replace: true }); }
+  }, [searchParams, setSearchParams]);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [assignTargets, setAssignTargets] = useState<AthleteRow[]>([]);
+  const [assignTargets, setAssignTargets] = useState<ClientRow[]>([]);
   const [advOpen, setAdvOpen] = useState(false);
   const [adv, setAdv] = useState<AdvFilters>(DEFAULT_ADV);
-  const [rowAction, setRowAction] = useState<AthleteRow | null>(null);
-  const [detailAthlete, setDetailAthlete] = useState<AthleteRow | null>(null);
-  const [archiveTargets, setArchiveTargets] = useState<AthleteRow[] | null>(null);
+  const [rowAction, setRowAction] = useState<ClientRow | null>(null);
+  const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
+  const [archiveTargets, setArchiveTargets] = useState<ClientRow[] | null>(null);
   const [savedViews, setSavedViews] = useState<SavedView[]>(() => loadSavedViews());
   const [saveViewOpen, setSaveViewOpen] = useState(false);
 
-  const advActive = adv.status !== 'all' || adv.plan !== 'all' || adv.sport.trim() !== '' || adv.group.trim() !== '';
+  const advActive = adv.status !== 'all' || adv.plan !== 'all' || adv.responsible.trim() !== '' || adv.group.trim() !== '';
 
   useEffect(() => {
     document.body.classList.add('phase3-athletes-active');
@@ -393,15 +407,15 @@ export function Athletes() {
 
   const load = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setLoading(false); return; }
+    if (!client) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    void fetchAthletes(client, userId)
+    void fetchClients(client, scope)
       .then((a) => { if (!cancelled) { setRows(a); setError(null); } })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar atletas'); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : `Erro ao carregar ${pp}`); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [scope]);
 
   useEffect(() => load(), [load]);
 
@@ -441,7 +455,7 @@ export function Athletes() {
     const q = query.toLowerCase().trim();
     if (q) {
       list = list.filter((a) => [
-        a.name, a.sport, a.groupName, a.planName, STATUS_META[a.status].label, a.statusNote,
+        a.name, a.responsibleName, a.groupName, a.planName, STATUS_META[a.status].label, a.statusNote,
         a.hasPlan ? (a.planName ?? 'Plano ativo') : 'Sem plano',
         !a.docsOk ? `Docs ${a.docsLabel}` : 'Docs OK',
         '—',
@@ -462,10 +476,10 @@ export function Athletes() {
     if (adv.status !== 'all') list = list.filter((a) => a.status === adv.status);
     if (adv.plan === 'with') list = list.filter((a) => a.hasPlan);
     else if (adv.plan === 'without') list = list.filter((a) => !a.hasPlan);
-    if (adv.sport.trim()) list = list.filter((a) => (a.sport ?? '').toLowerCase().includes(adv.sport.toLowerCase().trim()));
+    if (adv.responsible.trim()) list = list.filter((a) => (a.responsibleName ?? '').toLowerCase().includes(adv.responsible.toLowerCase().trim()));
     if (adv.group.trim()) list = list.filter((a) => (a.groupName ?? '').toLowerCase().includes(adv.group.toLowerCase().trim()));
 
-    const rank = (a: AthleteRow) => (a.status === 'blocked' ? 0 : a.status === 'injured' ? 1 : a.status === 'return_to_play' ? 2 : !a.hasPlan ? 3 : 5);
+    const rank = (a: ClientRow) => (a.status === 'blocked' ? 0 : a.status === 'injured' ? 1 : a.status === 'return_to_play' ? 2 : !a.hasPlan ? 3 : 5);
     list.sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name);
       if (sort === 'activity') return b.updatedAt.localeCompare(a.updatedAt);
@@ -483,23 +497,23 @@ export function Athletes() {
 
   const selList = rows.filter((a) => selected.has(a.id));
 
-  const openAssign = (targets?: AthleteRow[]) => {
+  const openAssign = (targets?: ClientRow[]) => {
     const list = targets ?? selList;
     if (list.length === 0) {
-      toast({ variant: 'info', title: 'Seleciona atletas', description: 'Escolhe pelo menos um atleta para atribuir.' });
+      toast({ variant: 'info', title: `Seleciona ${pp}`, description: `Escolhe pelo menos um ${p1} para atribuir.` });
       return;
     }
     setAssignTargets(list);
     setAssignOpen(true);
   };
 
-  const handleRowAction = (a: AthleteRow) => {
+  const handleRowAction = (a: ClientRow) => {
     const pa = phase3Action(a);
-    if (pa.action === 'open-athlete') { navigate(`/athletes/${a.id}`); return; }
+    if (pa.action === 'open-athlete') { navigate(`/clients/${a.id}`); return; }
     if (pa.action === 'assign') { openAssign([a]); return; }
     if (pa.action === 'request-doc') {
-      navigate(`/athletes/${a.id}`);
-      toast({ variant: 'info', title: 'Documentos', description: 'Consulta e gere documentos na aba Saúde do Atleta 360.' });
+      navigate(`/clients/${a.id}`);
+      toast({ variant: 'info', title: 'Documentos', description: 'Consulta e gere documentos na ficha.' });
       return;
     }
     setRowAction(a);
@@ -542,7 +556,7 @@ export function Athletes() {
   };
 
   const boardPanel = (
-    <AthletesBoardPanel
+    <ClientsBoardPanel
       rows={rows}
       selList={selList}
       hasSelection={selList.length > 0}
@@ -550,7 +564,7 @@ export function Athletes() {
       onAssign={() => { setBoardOpen(false); openAssign(); }}
       onClear={() => setSelected(new Set())}
       onFilter={(id) => { setFilter(id); setBoardOpen(false); }}
-      onOpen360={(a) => { setBoardOpen(false); navigate(`/athletes/${a.id}`); }}
+      onOpen360={(a) => { setBoardOpen(false); navigate(`/clients/${a.id}`); }}
       onNavigateGroups={() => { setBoardOpen(false); navigate('/groups'); }}
       onSaveView={saveView}
       onLoadView={applySavedView}
@@ -562,7 +576,7 @@ export function Athletes() {
   const mobileAssign = () => {
     if (selList.length === 0) {
       setBoardOpen(true);
-      toast({ variant: 'info', title: 'Seleciona atletas', description: 'Marca atletas na lista ou usa o painel de ações.' });
+      toast({ variant: 'info', title: `Seleciona ${pp}`, description: `Marca ${pp} na lista ou usa o painel de ações.` });
       return;
     }
     openAssign();
@@ -572,9 +586,9 @@ export function Athletes() {
 
   return (
     <CoachShell
-      headStrong="Central de Atletas"
-      headSub="Gestão operacional · Ctrl/⌘K para comandar"
-      topActions={<button type="button" className="btn primary hide-mobile" onClick={() => setCreateOpen(true)}>+ Atleta</button>}
+      headStrong={PP}
+      headSub={scope.canSeeAllClients ? "A carteira da organização" : "A tua carteira"}
+      topActions={<button type="button" className="btn primary hide-mobile" onClick={() => setCreateOpen(true)}>+ {P1}</button>}
       board={boardPanel}
       mainClassName={isMobile ? 'has-page-actions' : undefined}
       pageActions={isMobile ? (
@@ -591,21 +605,21 @@ export function Athletes() {
       <div className="athletes-page" style={{ display: 'grid', gap: 12 }}>
         <div className="page-head phase3-athletes-head">
           <div>
-            <div className="kicker">Central de Atletas</div>
+            <div className="kicker">{PP}</div>
             <h1 className="phase3-head-title">
               Quem precisa de atenção?
               {isMobile && (
                 <span className="info-dot phase3-head-info" tabIndex={0} aria-label="Ajuda sobre esta área">
                   i
                   <span className="tip">
-                    Consulta, seleciona, atribui e resolve atletas sem sair da carteira. A criação de treinos, planos, forms e relatórios continua nos módulos próprios.
+                    Consulta, seleciona, atribui e resolve sem sair da carteira.
                     {' '}Esta página serve para decidir quem precisa de ação, gerir seleção e abrir o 360 quando é preciso profundidade.
                   </span>
                 </span>
               )}
             </h1>
             <p className="phase3-head-desc">
-              Consulta, seleciona, atribui e resolve atletas sem sair da carteira. A criação de treinos, planos, forms e relatórios continua nos módulos próprios.
+              Consulta, seleciona, atribui e resolve sem sair da carteira.
               {' '}
               <span className="info-dot phase3-head-desc-info" tabIndex={0} aria-label="Ajuda sobre esta área">
                 i
@@ -619,7 +633,7 @@ export function Athletes() {
           </div>
           <div className="head-actions">
             <button type="button" className="btn ghost" onClick={saveView}>Guardar vista</button>
-            <button type="button" className="btn primary" onClick={() => setCreateOpen(true)}>+ Atleta</button>
+            <button type="button" className="btn primary" onClick={() => setCreateOpen(true)}>+ {P1}</button>
             <button type="button" className="btn secondary" onClick={() => openAssign()}>Atribuir conteúdo</button>
           </div>
         </div>
@@ -650,7 +664,7 @@ export function Athletes() {
                 onChange={(e) => setQuery(e.target.value)}
                 type="search"
                 aria-label="Procurar"
-                placeholder="Pesquisar atleta, grupo, coach, estado ou conteúdo..."
+                placeholder={`Pesquisar ${p1}, grupo, ${RESP}, estado ou plano…`}
               />
             </label>
             <div className="phase3-toolbar-inline">
@@ -726,22 +740,22 @@ export function Athletes() {
         <div className="list-card phase3-list-card">
           {!isMobile && (
             <div className="list-head phase3-list-head">
-              <div /><div>Atleta</div><div>Estado</div><div className="phase3-col-narrow-hide">Problema principal</div><div className="phase3-col-narrow-hide">Conteúdo ativo</div><div>Ação</div>
+              <div /><div>{P1}</div><div>Estado</div><div className="phase3-col-narrow-hide">Problema principal</div><div className="phase3-col-narrow-hide">Conteúdo ativo</div><div>Ação</div>
             </div>
           )}
           <div className="phase3-list-summary">
-            <b>{loading ? '…' : filtered.length}</b> atleta(s) nesta vista <span>· {viewLabel}</span>
+            <b>{loading ? '…' : filtered.length}</b> {pp} nesta vista <span>· {viewLabel}</span>
           </div>
           <div className="ath-list">
             {loading ? (
               <div className="empty"><b>A carregar…</b></div>
             ) : filtered.length === 0 ? (
               <div className="empty">
-                <b>Nenhum atleta encontrado</b>
+                <b>Nenhum {p1} encontrado</b>
                 <p style={{ fontSize: '.78rem', marginTop: 5 }}>Ajusta a pesquisa ou os filtros.</p>
                 <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button type="button" className="btn secondary small" onClick={() => setFilter('all')}>Limpar filtros</button>
-                  <button type="button" className="btn primary small" onClick={() => setCreateOpen(true)}>+ Criar atleta</button>
+                  <button type="button" className="btn primary small" onClick={() => setCreateOpen(true)}>+ Criar {p1}</button>
                 </div>
               </div>
             ) : (
@@ -750,7 +764,7 @@ export function Athletes() {
                 const p = phase3Problem(a);
                 const content = phase3Content(a);
                 const pa = phase3Action(a);
-                const subLine = [a.groupName || '—', a.sport || '—', '—'].join(' · ');
+                const subLine = [a.groupName || '—', a.responsibleName || '—', '—'].join(' · ');
                 const issueMain = rowIssueMain(a, p);
                 return (
                   <div
@@ -770,11 +784,11 @@ export function Athletes() {
                       className="ath-main"
                       role="link"
                       tabIndex={0}
-                      onClick={() => navigate(`/athletes/${a.id}`)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/athletes/${a.id}`); } }}
+                      onClick={() => navigate(`/clients/${a.id}`)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/clients/${a.id}`); } }}
                       aria-label={`Abrir perfil de ${a.name}`}
                     >
-                      <AthleteAvatar a={a} />
+                      <ClientAvatar a={a} />
                       <div className="phase3-ath-ident">
                         <div className="ath-name">{a.name}</div>
                         <div className="ath-sub">{subLine}</div>
@@ -787,7 +801,7 @@ export function Athletes() {
                         type="button"
                         className="phase3-row-info-btn phase3-row-chip-btn"
                         aria-label={`Ver detalhes de ${a.name}`}
-                        onClick={(e) => { e.stopPropagation(); setDetailAthlete(a); }}
+                        onClick={(e) => { e.stopPropagation(); setDetailClient(a); }}
                       >
                         i
                       </button>
@@ -826,20 +840,20 @@ export function Athletes() {
         {boardPanel}
       </ProtoDrawer>
 
-      <NewAthleteModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); load(); }} />
+      <NewClientModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); load(); }} />
       <AssignModal open={assignOpen} onClose={() => setAssignOpen(false)} targets={assignTargets}
         onDone={() => { setAssignOpen(false); setSelected(new Set()); load(); }} />
       <AdvancedSearchModal open={advOpen} onClose={() => setAdvOpen(false)} value={adv} onApply={(v) => { setAdv(v); setAdvOpen(false); setFilter('advanced'); }} />
       <RowActionModal
         athlete={rowAction}
         onClose={() => setRowAction(null)}
-        onOpen360={(a) => { setRowAction(null); navigate(`/athletes/${a.id}`); }}
+        onOpen360={(a) => { setRowAction(null); navigate(`/clients/${a.id}`); }}
         onAssign={(a) => { setRowAction(null); openAssign([a]); }}
         onChanged={() => { setRowAction(null); load(); }}
       />
-      <AthleteRowDetailModal
-        athlete={detailAthlete}
-        onClose={() => setDetailAthlete(null)}
+      <ClientRowDetailModal
+        athlete={detailClient}
+        onClose={() => setDetailClient(null)}
         onPrimary={handleRowAction}
       />
       <SaveViewModal
@@ -914,7 +928,7 @@ function AdvancedSearchModal({ open, onClose, value, onApply }: {
           </div>
         </div>
         <div className="field-row">
-          <div className="field"><label>Modalidade contém</label><input className="input" value={draft.sport} onChange={(e) => setDraft({ ...draft, sport: e.target.value })} placeholder="Ex.: Futebol" /></div>
+          <div className="field"><label>{RESP} contém</label><input className="input" value={draft.responsible} onChange={(e) => setDraft({ ...draft, responsible: e.target.value })} placeholder="Nome" /></div>
           <div className="field"><label>Grupo contém</label><input className="input" value={draft.group} onChange={(e) => setDraft({ ...draft, group: e.target.value })} placeholder="Ex.: Reentrada" /></div>
         </div>
       </div>
@@ -923,11 +937,11 @@ function AdvancedSearchModal({ open, onClose, value, onApply }: {
 }
 
 function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
-  athlete: AthleteRow | null; onClose: () => void;
-  onOpen360: (a: AthleteRow) => void; onAssign: (a: AthleteRow) => void; onChanged: () => void;
+  athlete: ClientRow | null; onClose: () => void;
+  onOpen360: (a: ClientRow) => void; onAssign: (a: ClientRow) => void; onChanged: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
-  const [status, setStatus] = useState<AthleteStatus>('active');
+  const scope = useScope();
+  const [status, setStatus] = useState<ClientStatus>('active');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -935,11 +949,11 @@ function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
 
   const saveStatus = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId || !athlete) return;
+    if (!client || !athlete) return;
     if (status === athlete.status) { onChanged(); return; }
     setBusy(true); setErr(null);
     try {
-      await updateAthleteStatus(client, userId, athlete.id, status);
+      await updateClientStatus(client, scope, athlete.id, status);
       toast({ variant: 'success', title: 'Estado atualizado', description: `${athlete.name} · ${STATUS_META[status].label}` });
       onChanged();
     } catch (e) {
@@ -960,7 +974,7 @@ function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
           <button className="btn secondary" onClick={() => onAssign(athlete)}>Atribuir plano</button>
         </div>
         <div className="field"><label>Alterar estado</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as AthleteStatus)}>
+          <select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus)}>
             {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
           </select>
         </div>
@@ -972,21 +986,22 @@ function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
 }
 
 function ConfirmArchiveModal({ targets, onClose, onDone }: {
-  targets: AthleteRow[] | null; onClose: () => void; onDone: () => void;
+  targets: ClientRow[] | null; onClose: () => void; onDone: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
 
   const confirm = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId || !targets || targets.length === 0) return;
+    if (!client || !targets || targets.length === 0) return;
     setBusy(true); setErr(null);
     try {
-      for (const a of targets) await archiveAthlete(client, userId, a.id);
+      for (const a of targets) await archiveClient(client, scope, a.id, reason || null);
       toast({
         variant: 'success',
-        title: targets.length === 1 ? 'Atleta arquivado' : `${targets.length} atletas arquivados`,
+        title: targets.length === 1 ? `${P1} arquivado` : `${targets.length} ${pp} arquivados`,
         description: targets.length === 1 ? targets[0].name : 'Saíram da lista (reversível).',
       });
       onDone();
@@ -1001,24 +1016,25 @@ function ConfirmArchiveModal({ targets, onClose, onDone }: {
   const many = targets.length > 1;
 
   return (
-    <ProtoModal open={!!targets} onClose={onClose} title={many ? `Arquivar ${targets.length} atletas?` : `Arquivar ${targets[0].name}?`}
-      sub="Reversível — os dados ficam guardados e o atleta pode ser restaurado." size="sm"
+    <ProtoModal open={!!targets} onClose={onClose} title={many ? `Arquivar ${targets.length} ${pp}?` : `Arquivar ${targets[0].name}?`}
+      sub="Reversível: os dados ficam guardados e pode ser reposto." size="sm"
       footer={<>
         <button className="btn ghost" onClick={onClose} disabled={busy}>Cancelar</button>
         <button className="btn danger" onClick={() => void confirm()} disabled={busy}>{busy ? 'A arquivar…' : 'Arquivar'}</button>
       </>}>
       <div className="proto-form">
         <p className="board-sub">{many
-          ? 'Os atletas selecionados saem da lista ativa. Podes restaurá-los mais tarde.'
-          : 'O atleta sai da lista ativa. Podes restaurá-lo mais tarde.'}</p>
+          ? `Os ${pp} selecionados saem da lista ativa. Podes repô-los mais tarde.`
+          : `O ${p1} sai da lista ativa. Podes repô-lo mais tarde.`}</p>
+        <div className="field"><label htmlFor="arch-reason">Motivo (opcional)</label><input id="arch-reason" className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: mudou de cidade" /></div>
         {err && <p className="proto-error">{err}</p>}
       </div>
     </ProtoModal>
   );
 }
 
-function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClose: () => void; targets: AthleteRow[]; onDone: () => void }) {
-  const userId = useAuthStore((s) => s.userId);
+function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClose: () => void; targets: ClientRow[]; onDone: () => void }) {
+  const scope = useScope();
   const [plans, setPlans] = useState<PlanLite[]>([]);
   const [planId, setPlanId] = useState('');
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -1029,22 +1045,24 @@ function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClos
     if (!open) return;
     setErr(null); setPlanId('');
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setLoadingPlans(true);
-    void fetchPlans(client, userId)
+    void fetchPlans(client, scope)
       .then((p) => { setPlans(p); setPlanId(p[0]?.id ?? ''); })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Erro ao carregar planos'))
       .finally(() => setLoadingPlans(false));
-  }, [open, userId]);
+  }, [open, scope]);
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
+    if (!client) { setErr('Sem sessão Supabase.'); return; }
     if (!planId) { setErr('Escolhe um plano.'); return; }
     setBusy(true); setErr(null);
     try {
-      const n = await assignPlanToAthletes(client, userId, planId, targets.map((t) => t.id));
-      toast({ variant: 'success', title: 'Plano atribuído', description: `${n} atleta(s) atualizados.` });
+      const r = await assignPlanToClients(client, scope, planId, targets.map((t) => t.id));
+      const skipped = [r.alreadyActive && `${r.alreadyActive} já tinham este plano`, r.skippedRestricted && `${r.skippedRestricted} com restrição`]
+        .filter(Boolean).join(' · ');
+      toast({ variant: 'success', title: 'Plano atribuído', description: `${r.created} ${r.created === 1 ? p1 : pp}${skipped ? ` · ${skipped}` : ''}` });
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro ao atribuir');
@@ -1054,7 +1072,7 @@ function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClos
   };
 
   return (
-    <ProtoModal open={open} onClose={onClose} title="Atribuir conteúdo" sub={`${targets.length} atleta(s) selecionado(s)`}
+    <ProtoModal open={open} onClose={onClose} title="Atribuir conteúdo" sub={`${targets.length} ${targets.length === 1 ? p1 : pp} selecionado(s)`}
       footer={<>
         <button className="btn ghost" onClick={onClose}>Cancelar</button>
         <button className="btn primary" onClick={() => void submit()} disabled={busy || loadingPlans || !planId}>{busy ? 'A atribuir…' : 'Atribuir'}</button>
@@ -1064,7 +1082,7 @@ function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClos
           {targets.slice(0, 6).map((a) => (
             <div key={a.id} className="selected-pill">
               <div className="avatar initials" style={{ width: 32, height: 32, borderRadius: 10 }}>{initials(a.name)}</div>
-              <div><b>{a.name}</b><span>{STATUS_META[a.status].label}{a.sport ? ` · ${a.sport}` : ''}</span></div>
+              <div><b>{a.name}</b><span>{STATUS_META[a.status].label}{a.responsibleName ? ` · ${a.responsibleName}` : ''}</span></div>
             </div>
           ))}
           {targets.length > 6 && <div className="board-sub">+ {targets.length - 6} restantes</div>}
@@ -1085,55 +1103,64 @@ function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClos
   );
 }
 
-function NewAthleteModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
-  const userId = useAuthStore((s) => s.userId);
+function NewClientModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const scope = useScope();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [sport, setSport] = useState('');
-  const [status, setStatus] = useState<AthleteStatus>('active');
+  const [responsible, setResponsible] = useState<string>(scope.membershipId);
+  const [staff, setStaff] = useState<StaffLite[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => { if (open) { setName(''); setEmail(''); setPhone(''); setSport(''); setStatus('active'); setErr(null); } }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    setName(''); setEmail(''); setPhone(''); setResponsible(scope.membershipId); setErr(null);
+    // Só quem vê a carteira toda escolhe o responsável; um PT fica com os que cria
+    const client = getSupabaseClient();
+    if (client && scope.canSeeAllClients) {
+      void fetchStaff(client, scope).then(setStaff).catch(() => setStaff([]));
+    }
+  }, [open, scope]);
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
+    if (!client) return;
     if (!name.trim()) { setErr('O nome é obrigatório.'); return; }
     setBusy(true); setErr(null);
     try {
-      await createAthlete(client, userId, { name: name.trim(), email: email || null, phone: phone || null, sport: sport || null, status });
-      toast({ variant: 'success', title: 'Atleta criado', description: name.trim() });
+      await addClient(client, scope, { name: name.trim(), email: email || null, phone: phone || null, responsibleMembershipId: responsible });
+      toast({ variant: 'success', title: `${P1} criado`, description: name.trim() });
       onCreated();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao criar atleta');
+      setErr(e instanceof DuplicateClientError
+        ? `Já existe um ${p1} com este email nesta organização.`
+        : e instanceof Error ? e.message : `Erro ao criar ${p1}`);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <ProtoModal open={open} onClose={onClose} title="Novo Atleta" sub="Cria um atleta na tua carteira."
+    <ProtoModal open={open} onClose={onClose} title={`Novo ${p1}`} sub={`Acrescenta um ${p1} à carteira. Pode ter conta na app mais tarde.`}
       footer={<>
         <button className="btn ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? 'A criar…' : 'Criar atleta'}</button>
+        <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? 'A criar…' : `Criar ${p1}`}</button>
       </>}>
       <div className="proto-form">
-        <div className="field"><label>Nome</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" /></div>
+        <div className="field"><label htmlFor="nc-name">Nome</label><input id="nc-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" /></div>
         <div className="field-row">
-          <div className="field"><label>Email (opcional)</label><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
-          <div className="field"><label>Telefone (opcional)</label><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+351…" /></div>
+          <div className="field"><label htmlFor="nc-email">Email (opcional)</label><input id="nc-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
+          <div className="field"><label htmlFor="nc-phone">Telefone (opcional)</label><input id="nc-phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+351…" /></div>
         </div>
-        <div className="field-row">
-          <div className="field"><label>Modalidade (opcional)</label><input className="input" value={sport} onChange={(e) => setSport(e.target.value)} placeholder="Futebol, Ginásio…" /></div>
-          <div className="field"><label>Estado inicial</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as AthleteStatus)}>
-              {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
+        {scope.canSeeAllClients && staff.length > 1 && (
+          <div className="field"><label htmlFor="nc-resp">{RESP} responsável</label>
+            <select id="nc-resp" value={responsible} onChange={(e) => setResponsible(e.target.value)}>
+              {staff.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
-        </div>
-        {err && <p className="proto-error">{err}</p>}
+        )}
+        {err && <p className="proto-error" role="alert">{err}</p>}
       </div>
     </ProtoModal>
   );

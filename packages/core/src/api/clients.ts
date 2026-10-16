@@ -62,6 +62,8 @@ export interface ClientRow {
   avatarUrl: string | null;
   hasAccount: boolean;
   responsibleMembershipId: string | null;
+  /** Nome do responsável (PT) — útil para quem vê a carteira toda. */
+  responsibleName: string | null;
   hasPlan: boolean;
   planName: string | null;
   groupName: string | null;
@@ -94,14 +96,16 @@ export async function fetchClients(client: LunaClient, scope: OrgScope): Promise
     .order('full_name', { ascending: true })
     .range(from, to));
 
-  const [groups, members, docs] = await Promise.all([
+  const [groups, members, docs, staff] = await Promise.all([
     fetchAllPages<{ id: string; name: string }>((f, t) => client.from('groups').select('id,name')
       .eq('org_id', scope.orgId).range(f, t)),
     fetchAllPages<{ link_id: string; group_id: string }>((f, t) => client.from('group_members').select('link_id,group_id')
       .eq('org_id', scope.orgId).range(f, t)),
     fetchAllPages<{ link_id: string; status: DocumentStatus }>((f, t) => client.from('client_documents').select('link_id,status')
       .eq('org_id', scope.orgId).range(f, t)),
+    fetchStaff(client, scope),
   ]);
+  const staffNames = new Map(staff.map((m) => [m.id, m.name]));
   const groupNames = new Map(groups.map((g) => [g.id, g.name]));
   const groupByClient = new Map<string, string>();
   for (const m of members) {
@@ -123,6 +127,7 @@ export async function fetchClients(client: LunaClient, scope: OrgScope): Promise
     avatarUrl: r.avatar_url,
     hasAccount: r.has_account,
     responsibleMembershipId: r.responsible_membership_id,
+    responsibleName: r.responsible_membership_id ? staffNames.get(r.responsible_membership_id) ?? null : null,
     hasPlan: Boolean(r.current_plan_id),
     planName: r.current_plan_id ? planNames.get(r.current_plan_id) ?? null : null,
     groupName: groupByClient.get(r.id) ?? null,

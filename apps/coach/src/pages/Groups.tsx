@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  assignPlanToGroup, createGroup, fetchGroupMemberIds, fetchGroups, fetchPlans, toast, useAuthStore,
+  assignPlanToGroup, createGroup, fetchGroupMemberIds, fetchGroups, fetchPlans, toast,
   type GroupRow, type PlanLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
+import { useScope } from '../app/ModuleLayout';
+import { vocab } from '../lib/vocab';
+
+const pp = vocab.pessoa({ plural: true });
 import { ProtoModal } from '../app/ProtoModal';
 import { getSupabaseClient } from '../lib/supabase';
 
 export function Groups() {
   const navigate = useNavigate();
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [rows, setRows] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +28,15 @@ export function Groups() {
 
   const load = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setLoading(false); return; }
+    if (!client) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    void fetchGroups(client, userId)
+    void fetchGroups(client, scope)
       .then((g) => { if (!cancelled) { setRows(g); setError(null); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar grupos'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [scope]);
 
   useEffect(() => load(), [load]);
 
@@ -43,7 +47,7 @@ export function Groups() {
   const stats = [
     { id: 'all', k: 'Grupos', v: rows.length, s: 'Total de grupos' },
     { id: 'with', k: 'Com membros', v: withMembers, s: 'Grupos ativos' },
-    { id: 'empty', k: 'Vazios', v: empties, s: 'Sem atletas' },
+    { id: 'empty', k: 'Vazios', v: empties, s: `Sem ${pp}` },
     { id: 'members', k: 'Membros', v: totalMembers, s: 'Em todos os grupos' },
   ];
 
@@ -81,11 +85,11 @@ export function Groups() {
     <>
       <div className="board-card">
         <div className="board-title">Painel de Grupos</div>
-        <div className="board-sub">Cria grupos para agir em escala e atribuir conteúdos a vários atletas.</div>
+        <div className="board-sub">Cria grupos para agir em escala e atribuir conteúdos a vários {pp}.</div>
         <div className="board-actions">
           <button className="btn primary" onClick={() => setCreateOpen(true)}>+ Criar Grupo</button>
           <button className="btn secondary" onClick={() => setFilter('empty')}>Ver vazios</button>
-          <button className="btn secondary" onClick={() => navigate('/athletes')}>Ver atletas</button>
+          <button className="btn secondary" onClick={() => navigate('/clients')}>Ver {pp}</button>
         </div>
       </div>
       <div className="board-card">
@@ -114,7 +118,7 @@ export function Groups() {
         <div className="board-actions">
           {selList.length === 1 && (
             <>
-              <button className="btn primary" onClick={() => navigate(`/groups/${selList[0].id}`)}>Abrir Grupo 360</button>
+              <button className="btn primary" onClick={() => navigate(`/groups/${selList[0].id}`)}>Abrir grupo</button>
               <button className="btn secondary" onClick={() => openAssign(selList[0])}>Atribuir plano</button>
             </>
           )}
@@ -136,7 +140,7 @@ export function Groups() {
           <div>
             <div className="kicker">Grupos</div>
             <h1>Grupos para agir em escala e consultar em profundidade.</h1>
-            <p>Cria grupos, junta atletas e atribui conteúdos a vários de uma só vez.</p>
+            <p>Cria grupos, junta {pp} e atribui conteúdos a vários de uma só vez.</p>
           </div>
           <div className="head-actions">
             <button className="btn primary" onClick={() => setCreateOpen(true)}>+ Criar Grupo</button>
@@ -201,14 +205,14 @@ export function Groups() {
                         <div className="group-icon" style={g.color ? { background: g.color, color: 'rgba(255,255,255,.96)' } : undefined}>⊞</div>
                         <div style={{ minWidth: 0 }}>
                           <div className="group-name">{g.name}</div>
-                          <div className="group-meta">{g.memberCount} atleta(s)</div>
+                          <div className="group-meta">{g.memberCount} {pp}</div>
                         </div>
                       </div>
                       <div className="group-kpis">
-                        <div className="group-kpi"><b>{g.memberCount}</b><span>Atletas</span></div>
+                        <div className="group-kpi"><b>{g.memberCount}</b><span>{vocab.pessoa({ plural: true, maiuscula: true })}</span></div>
                         <div className="group-kpi"><b>{new Date(g.updatedAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}</b><span>Atual.</span></div>
                       </div>
-                      <div className="group-rule"><p>{g.description || 'Grupo manual · atletas escolhidos pela equipa técnica.'}</p></div>
+                      <div className="group-rule"><p>{g.description || 'Grupo manual: escolhido pela equipa.'}</p></div>
                       <div className="group-footer">
                         <button className="btn secondary small" onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}>Abrir</button>
                         <button className="btn ghost small" onClick={(e) => { e.stopPropagation(); openAssign(g); }}>Atribuir</button>
@@ -234,7 +238,7 @@ export function Groups() {
 }
 
 function NewGroupModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
@@ -244,11 +248,11 @@ function NewGroupModal({ open, onClose, onCreated }: { open: boolean; onClose: (
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão Supabase.'); return; }
+    if (!client) { setErr('Sem sessão Supabase.'); return; }
     if (!name.trim()) { setErr('O nome é obrigatório.'); return; }
     setBusy(true); setErr(null);
     try {
-      await createGroup(client, userId, { name: name.trim(), description: description || null });
+      await createGroup(client, scope, { name: name.trim(), description: description || null });
       toast({ variant: 'success', title: 'Grupo criado', description: name.trim() });
       onCreated();
     } catch (e) {
@@ -276,7 +280,7 @@ function NewGroupModal({ open, onClose, onCreated }: { open: boolean; onClose: (
 function AssignGroupModal({ open, onClose, group, onDone }: {
   open: boolean; onClose: () => void; group: GroupRow; onDone: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [plans, setPlans] = useState<PlanLite[]>([]);
   const [planId, setPlanId] = useState('');
   const [memberCount, setMemberCount] = useState(group.memberCount);
@@ -288,24 +292,24 @@ function AssignGroupModal({ open, onClose, group, onDone }: {
     if (!open) return;
     setErr(null); setPlanId('');
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setLoadingPlans(true);
     void Promise.all([
-      fetchPlans(client, userId),
-      fetchGroupMemberIds(client, userId, group.id),
+      fetchPlans(client, scope),
+      fetchGroupMemberIds(client, scope, group.id),
     ])
       .then(([p, ids]) => { setPlans(p); setPlanId(p[0]?.id ?? ''); setMemberCount(ids.length); })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoadingPlans(false));
-  }, [open, userId, group.id]);
+  }, [open, scope, group.id]);
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão.'); return; }
+    if (!client) { setErr('Sem sessão.'); return; }
     if (!planId) { setErr('Escolhe um plano.'); return; }
     setBusy(true); setErr(null);
     try {
-      const n = await assignPlanToGroup(client, userId, group.id, planId);
+      const n = (await assignPlanToGroup(client, scope, group.id, planId)).created;
       toast({ variant: 'success', title: 'Plano atribuído', description: `${n} membro(s) de ${group.name}.` });
       onDone();
     } catch (e) {

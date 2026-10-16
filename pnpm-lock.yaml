@@ -25,6 +25,9 @@ importers:
       '@luna/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@luna/modalidades':
+        specifier: workspace:*
+        version: link:../../packages/modalidades
       '@luna/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens

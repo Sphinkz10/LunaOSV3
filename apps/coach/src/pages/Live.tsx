@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  addLiveExercise, computeSessionSummary, fetchActiveSessionId, fetchAthletesLite, fetchBookingAthleteId,
+  addLiveExercise, computeSessionSummary, fetchActiveSessionId, fetchClientsLite, fetchBookingClientId,
   fetchExercisesLite, fetchLastPerformance, fetchLiveSession, fetchLiveWorkouts, finishLiveSession,
   parseTargetLoadKg, parseTargetReps, recordLiveSet, setBookingStatus, setLiveExerciseNote, setLiveSessionPhase,
-  spikeTimer, startLiveSession, toast, useAuthStore,
-  type AthleteLite, type ExerciseLite, type LastPerformance, type LiveSession, type LiveSessionExercise,
+  NoTrainingShareError, spikeTimer, startLiveSession, toast,
+  type ClientLite, type ExerciseLite, type LastPerformance, type LiveSession, type LiveSessionExercise,
   type LiveWorkout, type LiveWorkoutExercise,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
+import { useScope } from '../app/ModuleLayout';
+import { vocab } from '../lib/vocab';
+
+const P1 = vocab.pessoa({ maiuscula: true });
+const p1 = vocab.pessoa();
+const pp = vocab.pessoa({ plural: true });
+const SESSAO = vocab.sessao({ maiuscula: true });
 import { ProtoModal } from '../app/ProtoModal';
 import { Svg } from '../app/Svg';
 import { getSupabaseClient } from '../lib/supabase';
@@ -52,13 +59,13 @@ function useTick(active: boolean, ms = 250) {
 }
 
 export function Live() {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const { bookingId } = useParams<{ bookingId?: string }>();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [athletes, setAthletes] = useState<AthleteLite[]>([]);
+  const [athletes, setAthletes] = useState<ClientLite[]>([]);
   const [workouts, setWorkouts] = useState<LiveWorkout[]>([]);
   const [exercises, setExercises] = useState<ExerciseLite[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -88,15 +95,15 @@ export function Live() {
   // ===== carregar setup =====
   const loadSetup = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setLoading(false); return; }
+    if (!client) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     void Promise.all([
-      fetchAthletesLite(client, userId),
-      fetchLiveWorkouts(client, userId),
-      fetchExercisesLite(client, userId),
-      fetchActiveSessionId(client, userId),
-      bookingId ? fetchBookingAthleteId(client, userId, bookingId) : Promise.resolve(null),
+      fetchClientsLite(client, scope),
+      fetchLiveWorkouts(client, scope),
+      fetchExercisesLite(client, scope),
+      fetchActiveSessionId(client, scope),
+      bookingId ? fetchBookingClientId(client, scope, bookingId) : Promise.resolve(null),
     ]).then(([a, w, ex, act, bookingAthlete]) => {
       if (cancelled) return;
       setAthletes(a); setWorkouts(w); setExercises(ex); setActiveId(act); setError(null);
@@ -106,7 +113,7 @@ export function Live() {
       if (!cancelled) setError(errMsg(e) ?? 'Erro ao carregar o Live');
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, bookingId]);
+  }, [scope, bookingId]);
 
   useEffect(() => loadSetup(), [loadSetup]);
 
@@ -124,8 +131,8 @@ export function Live() {
   // ===== abrir / recarregar sessão =====
   const openSession = useCallback(async (id: string, keepIdx = false) => {
     const client = getSupabaseClient();
-    if (!client || !userId) return;
-    const s = await fetchLiveSession(client, userId, id);
+    if (!client) return;
+    const s = await fetchLiveSession(client, scope, id);
     setSession(s);
     if (!keepIdx) {
       const first = s.exercises.findIndex((e) => e.sets.length < (e.targetSets ?? 3));
@@ -137,26 +144,27 @@ export function Live() {
       setClock(base);
       setTab('exercise');
     }
-    if (s.athleteId) {
+    if (s.clientId) {
       const ids = s.exercises.map((e) => e.exerciseId).filter((v): v is string => !!v);
-      fetchLastPerformance(client, userId, s.athleteId, ids, s.id).then(setLast).catch(() => setLast(new Map()));
+      fetchLastPerformance(client, scope, s.clientId, ids, s.id).then(setLast).catch(() => setLast(new Map()));
     } else {
       setLast(new Map());
     }
-  }, [userId]);
+  }, [scope]);
 
   const start = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setBusy(true);
     try {
       const wk = workouts.find((w) => w.id === pickWorkout) ?? null;
-      const id = await startLiveSession(client, userId, { athleteId: pickAthlete, workout: wk, bookingId: bookingId ?? null });
+      if (!pickAthlete) { toast({ variant: 'info', title: `Escolhe um ${p1}` }); return; }
+      const id = await startLiveSession(client, scope, { clientId: pickAthlete, workout: wk, bookingId: bookingId ?? null });
       setSkipped(new Set()); setClosed(new Set()); setDrafts({}); setNote(''); setTags(new Set()); setRest(null);
       await openSession(id);
       toast({ variant: 'success', title: 'Sessão iniciada', description: wk?.name });
     } catch (e) {
-      toast({ variant: 'danger', title: 'Não foi possível iniciar', description: errMsg(e) });
+      toast({ variant: 'danger', title: 'Não foi possível iniciar', description: e instanceof NoTrainingShareError ? e.message : errMsg(e) });
     } finally { setBusy(false); }
   };
 
@@ -180,7 +188,7 @@ export function Live() {
   const processed = exList.filter((e, i) => { const st = statusOf(e, i); return st === 'done' || st === 'skipped'; }).length;
   const cur = exList[curIdx] ?? null;
   const elapsedMs = clock ? spikeTimer.elapsedMs(clock) : 0;
-  const athleteName = (id: string | null) => athletes.find((a) => a.id === id)?.name ?? 'Sem atleta';
+  const athleteName = (id: string | null) => athletes.find((a) => a.id === id)?.name ?? `Sem ${p1}`;
 
   const draftFor = (ex: LiveSessionExercise): SetDraft => {
     const d = drafts[ex.id];
@@ -227,7 +235,7 @@ export function Live() {
   };
 
   const logSet = async (completed: boolean) => {
-    if (!cur || !session || !userId) return;
+    if (!cur || !session) return;
     const client = getSupabaseClient();
     if (!client) return;
     const d = draftFor(cur);
@@ -236,7 +244,7 @@ export function Live() {
     setBusy(true);
     try {
       const restTaken = rest ? Math.round(spikeTimer.elapsedMs(rest) / 1000) : null;
-      await recordLiveSet(client, userId, {
+      await recordLiveSet(client, scope, {
         sessionId: session.id, sessionExerciseId: cur.id, setIndex: cur.sets.length + 1,
         reps: toNum(d.reps), loadKg: toNum(d.load), rpe, completed, restTakenSeconds: restTaken,
       });
@@ -253,7 +261,7 @@ export function Live() {
 
   /** Regista as séries em falta com os valores atuais e fecha o exercício. */
   const confirmExercise = async () => {
-    if (!cur || !session || !userId) return;
+    if (!cur || !session) return;
     const client = getSupabaseClient();
     if (!client) return;
     const d = draftFor(cur);
@@ -261,7 +269,7 @@ export function Live() {
     setBusy(true);
     try {
       for (let k = 0; k < missing; k++) {
-        await recordLiveSet(client, userId, {
+        await recordLiveSet(client, scope, {
           sessionId: session.id, sessionExerciseId: cur.id, setIndex: cur.sets.length + k + 1,
           reps: toNum(d.reps), loadKg: toNum(d.load), rpe: toNum(d.rpe), completed: true,
         });
@@ -292,13 +300,13 @@ export function Live() {
   };
 
   const togglePause = async () => {
-    if (!session || !clock || !userId) return;
+    if (!session || !clock) return;
     const client = getSupabaseClient();
     if (!client) return;
     const pausing = session.phase === 'live';
     const nextClock = pausing ? spikeTimer.pause(clock) : spikeTimer.resume(clock);
     try {
-      await setLiveSessionPhase(client, userId, session.id, pausing ? 'paused' : 'live', spikeTimer.elapsedMs(nextClock) / 1000);
+      await setLiveSessionPhase(client, scope, session.id, pausing ? 'paused' : 'live', spikeTimer.elapsedMs(nextClock) / 1000);
       setClock(nextClock);
       setSession({ ...session, phase: pausing ? 'paused' : 'live' });
       if (pausing && rest && !rest.pausedAt) setRest(spikeTimer.pause(rest));
@@ -308,14 +316,14 @@ export function Live() {
   };
 
   const finish = async () => {
-    if (!session || !userId) return;
+    if (!session) return;
     const client = getSupabaseClient();
     if (!client) return;
     setBusy(true);
     try {
       const fullNote = [tags.size ? [...tags].join(' · ') : '', note.trim()].filter(Boolean).join('\n');
-      await finishLiveSession(client, userId, session.id, { elapsedSeconds: elapsedMs / 1000, notes: fullNote, summary });
-      if (session.bookingId) await setBookingStatus(client, session.bookingId, 'completed');
+      await finishLiveSession(client, scope, session.id, { elapsedSeconds: elapsedMs / 1000, notes: fullNote, summary });
+      if (session.bookingId) await setBookingStatus(client, scope, session.bookingId, 'completed');
       setClock((c) => (c ? spikeTimer.pause(c) : c));
       setRest(null);
       setSession({ ...session, phase: 'done' });
@@ -334,11 +342,11 @@ export function Live() {
   };
 
   const addExercise = async (ex: ExerciseLite) => {
-    if (!session || !userId) return;
+    if (!session) return;
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await addLiveExercise(client, userId, session.id, { exerciseId: ex.id, position: exList.length });
+      await addLiveExercise(client, scope, session.id, { exerciseId: ex.id, position: exList.length });
       await openSession(session.id, true);
       setAddOpen(false);
       toast({ variant: 'success', title: 'Exercício adicionado', description: ex.name });
@@ -348,11 +356,11 @@ export function Live() {
   };
 
   const saveNote = async (text: string) => {
-    if (!noteFor || !session || !userId) return;
+    if (!noteFor || !session) return;
     const client = getSupabaseClient();
     if (!client) return;
     try {
-      await setLiveExerciseNote(client, userId, noteFor.id, text);
+      await setLiveExerciseNote(client, scope, noteFor.id, text);
       await openSession(session.id, true);
       setNoteFor(null);
       toast({ variant: 'success', title: 'Nota guardada' });
@@ -365,8 +373,8 @@ export function Live() {
   const wk = workoutOf(session);
   const title = session ? (wk?.name ?? 'Sessão livre') : 'Treino ao Vivo';
   const sub = session
-    ? `${athleteName(session.athleteId)} · ${exList.length} exercícios`
-    : 'Executa um treino com o atleta, série a série.';
+    ? `${athleteName(session.clientId)} · ${exList.length} exercícios`
+    : `Executa o ${vocab.sessao()} com o ${p1}, série a série.`;
 
   const head = (
     <div className="live-head">
@@ -426,7 +434,6 @@ export function Live() {
         loading={loading} athletes={athletes} workouts={workouts} pickAthlete={pickAthlete} pickWorkout={pickWorkout}
         onPickAthlete={setPickAthlete} onPickWorkout={setPickWorkout} busy={busy} onStart={() => void start()}
         activeId={activeId} onResume={() => void resume()} fromBooking={!!bookingId}
-        onOpenStudio={() => navigate('/studio')}
       />
     );
   } else if (tab === 'list') {
@@ -528,7 +535,7 @@ export function Live() {
           <div className="live-setup-h"><Svg name="bolt" /> Sessão & duração</div>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: '.84rem', color: 'var(--muted-hi)' }}>
             <div><b style={{ color: 'var(--white)', fontFamily: 'var(--display)', fontSize: '1.1rem' }}>{Math.max(1, Math.round(elapsedMs / 60000))} min</b><br />duração</div>
-            <div><b style={{ color: 'var(--white)', fontFamily: 'var(--display)', fontSize: '1.1rem' }}>{athleteName(session.athleteId)}</b><br />atleta</div>
+            <div><b style={{ color: 'var(--white)', fontFamily: 'var(--display)', fontSize: '1.1rem' }}>{athleteName(session.clientId)}</b><br />{p1}</div>
             <div><b style={{ color: 'var(--white)', fontFamily: 'var(--display)', fontSize: '1.1rem' }}>{title}</b><br />treino</div>
           </div>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 16 }}>
@@ -623,7 +630,7 @@ export function Live() {
                   )}
                 </>
               ) : (
-                <div className="live-col-sub">Sem registo anterior deste exercício para o atleta.</div>
+                <div className="live-col-sub">Sem registo anterior deste exercício para o {p1}.</div>
               )}
             </div>
           </div>
@@ -698,7 +705,7 @@ export function Live() {
   );
 
   return (
-    <CoachShell headStrong="Live Session · Treino ao Vivo" headSub="Executa o treino com o atleta, série a série." board={board}>
+    <CoachShell headStrong={`${SESSAO} ao vivo`} headSub={`Executa o ${vocab.sessao()} com o ${p1}, série a série.`} board={board}>
       <div className="live-root">
         {head}
         {tabs}
@@ -717,13 +724,12 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 function SetupPanel({
   loading, athletes, workouts, pickAthlete, pickWorkout, onPickAthlete, onPickWorkout, busy, onStart,
-  activeId, onResume, fromBooking, onOpenStudio,
+  activeId, onResume, fromBooking,
 }: {
-  loading: boolean; athletes: AthleteLite[]; workouts: LiveWorkout[];
+  loading: boolean; athletes: ClientLite[]; workouts: LiveWorkout[];
   pickAthlete: string | null; pickWorkout: string | null;
   onPickAthlete: (id: string) => void; onPickWorkout: (id: string | null) => void;
   busy: boolean; onStart: () => void; activeId: string | null; onResume: () => void; fromBooking: boolean;
-  onOpenStudio: () => void;
 }) {
   const ath = athletes.find((a) => a.id === pickAthlete);
   const wk = workouts.find((w) => w.id === pickWorkout) ?? null;
@@ -733,7 +739,7 @@ function SetupPanel({
       <div className="live-setup">
         <div className="live-setup-greet">
           <h2>Preparar sessão</h2>
-          <p>Escolhe o atleta e o treino. A prescrição vem do treino do Studio; cada série fica gravada assim que a marcas.</p>
+          <p>Escolhe o {p1} e o {vocab.sessao()}. A prescrição vem da biblioteca; cada série fica gravada assim que a marcas.</p>
         </div>
         {activeId && (
           <div className="live-resume">
@@ -746,9 +752,9 @@ function SetupPanel({
         </div>}
         <div className="live-setup-grid">
           <div className="live-card">
-            <div className="live-setup-h"><Svg name="user" /> Atleta</div>
+            <div className="live-setup-h"><Svg name="user" /> {P1}</div>
             {loading && <p className="live-pick-meta">A carregar…</p>}
-            {!loading && !athletes.length && <p className="live-pick-meta">Ainda não tens atletas. Cria um em Atletas.</p>}
+            {!loading && !athletes.length && <p className="live-pick-meta">Ainda não tens {pp}. Cria um em {vocab.pessoa({ plural: true, maiuscula: true })}.</p>}
             {athletes.map((a) => (
               <button key={a.id} type="button" className={`live-pick${pickAthlete === a.id ? ' on' : ''}`} aria-pressed={pickAthlete === a.id} onClick={() => onPickAthlete(a.id)}>
                 <div className="live-pick-av">{initials(a.name)}</div>
@@ -758,7 +764,7 @@ function SetupPanel({
             ))}
           </div>
           <div className="live-card">
-            <div className="live-setup-h"><Svg name="dumbbell" /> Treino (do Studio)</div>
+            <div className="live-setup-h"><Svg name="dumbbell" /> Treino (da biblioteca)</div>
             {!loading && !workouts.length && <p className="live-pick-meta">Ainda não há treinos. Podes começar uma sessão livre e adicionar exercícios.</p>}
             {workouts.map((w) => (
               <button key={w.id} type="button" className={`live-pick${pickWorkout === w.id ? ' on' : ''}`} aria-pressed={pickWorkout === w.id} onClick={() => onPickWorkout(w.id)}>
@@ -775,12 +781,11 @@ function SetupPanel({
               <div className="live-pick-body"><div className="live-pick-name">Sessão livre</div><div className="live-pick-meta">Sem treino; adicionas exercícios durante a sessão</div></div>
               <div className="live-pick-check"><Svg name="check" /></div>
             </button>
-            <button type="button" className="btn ghost small" onClick={onOpenStudio}>Abrir Studio →</button>
           </div>
         </div>
         <div className="live-start-row">
           <div className="live-start-info">
-            {ath ? <>Pronto para <b>{ath.name}</b> · <b>{wk?.name ?? 'Sessão livre'}</b>{wk ? ` · ${wk.exercises.length} exercícios · ${totalSets} séries` : ''}</> : 'Escolhe um atleta para começar.'}
+            {ath ? <>Pronto para <b>{ath.name}</b> · <b>{wk?.name ?? 'Sessão livre'}</b>{wk ? ` · ${wk.exercises.length} exercícios · ${totalSets} séries` : ''}</> : `Escolhe um ${p1} para começar.`}
           </div>
           <button type="button" className="btn live-start" disabled={busy || loading || !ath} onClick={onStart}><Svg name="play" /> Iniciar sessão</button>
         </div>
@@ -804,12 +809,12 @@ function LiveBoard({
       <>
         <div className="board-card">
           <div className="board-title">Live Session</div>
-          <div className="board-sub">Executa um treino com o atleta em tempo real. Cada série fica gravada na hora, com reps, carga e RPE.</div>
+          <div className="board-sub">Executa o {vocab.sessao()} com o {p1} em tempo real. Cada série fica gravada na hora, com reps, carga e RPE.</div>
           <div className="board-actions"><button type="button" className="btn live-start" disabled={!canStart} onClick={onStart}><Svg name="play" /> Iniciar sessão</button></div>
         </div>
         <div className="board-card">
           <div className="board-title">De onde vêm os dados</div>
-          <div className="mini-row"><span>Treino & exercícios</span><b>Studio</b></div>
+          <div className="mini-row"><span>Treino & exercícios</span><b>Biblioteca</b></div>
           <div className="mini-row"><span>Último treino</span><b>Sessões anteriores</b></div>
           <div className="mini-row"><span>Marcação</span><b>Calendário</b></div>
         </div>
@@ -867,7 +872,7 @@ function AddExerciseModal({ open, onClose, exercises, onPick }: {
   useEffect(() => { if (open) setQ(''); }, [open]);
   const list = exercises.filter((e) => e.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
-    <ProtoModal open={open} onClose={onClose} title="Adicionar exercício" sub="Da tua biblioteca de exercícios (Studio)."
+    <ProtoModal open={open} onClose={onClose} title="Adicionar exercício" sub="Da biblioteca de exercícios da organização."
       footer={<button type="button" className="btn ghost" onClick={onClose}>Fechar</button>}>
       <div className="proto-form">
         <div className="field"><label htmlFor="live-qa-q">Pesquisar</label>
@@ -881,7 +886,7 @@ function AddExerciseModal({ open, onClose, exercises, onPick }: {
                 <span className="live-qa-ex-meta">{CATEGORY_LABEL[e.category] ?? e.category} · 3 séries · 1:30 descanso</span></span>
             </button>
           ))}
-          {!list.length && <p className="board-sub">{exercises.length ? 'Nenhum exercício encontrado.' : 'A biblioteca está vazia. Cria exercícios no Studio.'}</p>}
+          {!list.length && <p className="board-sub">{exercises.length ? 'Nenhum exercício encontrado.' : 'A biblioteca está vazia.'}</p>}
         </div>
       </div>
     </ProtoModal>

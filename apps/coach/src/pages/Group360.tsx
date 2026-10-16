@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  addGroupMembers, assignPlanToGroup, fetchAthletes, fetchGroupProfile, fetchPlans,
-  removeGroupMember, toast, useAuthStore,
-  type AthleteRow, type GroupDetail, type GroupMemberRow, type PlanLite,
+  addGroupMembers, assignPlanToGroup, fetchClients, fetchGroupProfile, fetchPlans,
+  removeGroupMember, toast,
+  type ClientRow, type GroupDetail, type GroupMemberRow, type PlanLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
+import { useScope } from '../app/ModuleLayout';
+import { vocab } from '../lib/vocab';
+
+const p1 = vocab.pessoa();
+const pp = vocab.pessoa({ plural: true });
 import { ProtoModal } from '../app/ProtoModal';
 import { getSupabaseClient } from '../lib/supabase';
 
@@ -32,7 +37,7 @@ function fmtDate(iso: string | null) {
 export function Group360() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [data, setData] = useState<GroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,15 +48,15 @@ export function Group360() {
 
   const load = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || !userId || !id) { setLoading(false); return; }
+    if (!client || !id) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    void fetchGroupProfile(client, userId, id)
+    void fetchGroupProfile(client, scope, id)
       .then((d) => { if (!cancelled) { setData(d); setError(null); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar grupo'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, id]);
+  }, [scope, id]);
 
   useEffect(() => load(), [load]);
 
@@ -75,7 +80,7 @@ export function Group360() {
   const filteredMembers = useMemo(() => {
     const q = memberQuery.toLowerCase().trim();
     if (!q || !data) return data?.members ?? [];
-    return data.members.filter((m) => [m.name, m.sport, STATUS_META[m.status]?.label].filter(Boolean).join(' ').toLowerCase().includes(q));
+    return data.members.filter((m) => [m.name, STATUS_META[m.status]?.label].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [data, memberQuery]);
 
   const p = data?.profile;
@@ -92,11 +97,11 @@ export function Group360() {
               <div className="group360-title">
                 <div className="group360-icon" style={p.color ? { background: p.color, color: 'rgba(255,255,255,.96)' } : undefined}>⊞</div>
                 <div style={{ minWidth: 0 }}>
-                  <button className="group360-back" onClick={() => navigate('/groups')}>← Voltar a Grupos</button>
+                  <button className="group360-back" onClick={() => navigate('/groups')}>← Voltar aos grupos</button>
                   <div className="group360-kicker">Grupo 360 · Consulta coletiva</div>
                   <div className="group360-name">{p.name}</div>
                   <div className="group360-meta">
-                    <span>{agg.total} atleta(s)</span>
+                    <span>{agg.total} {pp}</span>
                     <span>· Criado {fmtDate(p.createdAt)}</span>
                     <span>· Atual. {fmtDate(p.updatedAt)}</span>
                   </div>
@@ -141,7 +146,7 @@ export function Group360() {
                     <div className="group360-panel group360-wide">
                       <h3>Descrição / regra</h3>
                       <p style={{ fontSize: '.78rem', color: 'var(--muted-hi)', lineHeight: 1.45, margin: 0 }}>
-                        {p.description || 'Grupo manual · atletas escolhidos pela equipa técnica.'}
+                        {p.description || 'Grupo manual: escolhido pela equipa.'}
                       </p>
                     </div>
                     {agg.noPlan > 0 && (
@@ -159,11 +164,11 @@ export function Group360() {
                       <button className="btn secondary small" onClick={() => setAddOpen(true)}>+ Adicionar</button>
                     </div>
                     {filteredMembers.length === 0
-                      ? <div className="group360-note"><b>Sem membros visíveis.</b> Adiciona atletas ao grupo para agir em escala.</div>
+                      ? <div className="group360-note"><b>Sem membros visíveis.</b> Adiciona {pp} ao grupo para agir em escala.</div>
                       : (
                         <div className="group-member-list">
                           {filteredMembers.map((m) => (
-                            <MemberRow key={m.id} member={m} groupId={p.id} onRemoved={load} onOpen={() => navigate(`/athletes/${m.id}`)} />
+                            <MemberRow key={m.id} member={m} groupId={p.id} onRemoved={load} onOpen={() => navigate(`/clients/${m.id}`)} />
                           ))}
                         </div>
                       )}
@@ -204,16 +209,16 @@ export function Group360() {
 }
 
 function MemberRow({ member, groupId, onRemoved, onOpen }: { member: GroupMemberRow; groupId: string; onRemoved: () => void; onOpen: () => void }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [busy, setBusy] = useState(false);
   const meta = STATUS_META[member.status] ?? STATUS_META.active;
 
   const remove = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setBusy(true);
     try {
-      await removeGroupMember(client, userId, groupId, member.id);
+      await removeGroupMember(client, scope, groupId, member.id);
       toast({ variant: 'info', title: 'Membro removido', description: member.name });
       onRemoved();
     } catch (e) {
@@ -230,7 +235,7 @@ function MemberRow({ member, groupId, onRemoved, onOpen }: { member: GroupMember
         : <div className="avatar initials" style={{ width: 32, height: 32, borderRadius: 10 }}>{initials(member.name)}</div>}
       <div style={{ minWidth: 0, flex: 1 }}>
         <b>{member.name}</b>
-        <span>{[member.sport, meta.label, member.hasPlan ? 'Com plano' : 'Sem plano'].filter(Boolean).join(' · ')}</span>
+        <span>{[meta.label, member.hasPlan ? 'Com plano' : 'Sem plano'].filter(Boolean).join(' · ')}</span>
       </div>
       <button className="btn ghost small" onClick={onOpen}>Abrir</button>
       <button className="btn ghost small" onClick={() => void remove()} disabled={busy}>Remover</button>
@@ -241,8 +246,8 @@ function MemberRow({ member, groupId, onRemoved, onOpen }: { member: GroupMember
 function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
   open: boolean; onClose: () => void; groupId: string; existing: GroupMemberRow[]; onAdded: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
-  const [all, setAll] = useState<AthleteRow[]>([]);
+  const scope = useScope();
+  const [all, setAll] = useState<ClientRow[]>([]);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -253,20 +258,20 @@ function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
     if (!open) return;
     setPicked(new Set()); setQuery(''); setErr(null);
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setLoading(true);
-    void fetchAthletes(client, userId)
+    void fetchClients(client, scope)
       .then(setAll)
       .catch((e) => setErr(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoading(false));
-  }, [open, userId]);
+  }, [open, scope]);
 
   const existingIds = useMemo(() => new Set(existing.map((m) => m.id)), [existing]);
   const visible = useMemo(() => {
     const q = query.toLowerCase().trim();
     return all
       .filter((a) => !existingIds.has(a.id))
-      .filter((a) => !q || [a.name, a.sport, a.groupName].filter(Boolean).join(' ').toLowerCase().includes(q));
+      .filter((a) => !q || [a.name, a.responsibleName, a.groupName].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [all, existingIds, query]);
 
   const toggle = (id: string) => setPicked((prev) => {
@@ -277,12 +282,12 @@ function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão.'); return; }
-    if (picked.size === 0) { setErr('Seleciona pelo menos um atleta.'); return; }
+    if (!client) { setErr('Sem sessão.'); return; }
+    if (picked.size === 0) { setErr(`Seleciona pelo menos um ${p1}.`); return; }
     setBusy(true); setErr(null);
     try {
-      const n = await addGroupMembers(client, userId, groupId, [...picked]);
-      toast({ variant: 'success', title: 'Membros adicionados', description: `${n} atleta(s) adicionados ao grupo.` });
+      const n = await addGroupMembers(client, scope, groupId, [...picked]);
+      toast({ variant: 'success', title: 'Membros adicionados', description: `${n} ${pp} adicionados ao grupo.` });
       onAdded();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erro ao adicionar');
@@ -292,22 +297,22 @@ function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
   };
 
   return (
-    <ProtoModal open={open} onClose={onClose} title="Adicionar membros" sub="Escolhe atletas para juntar ao grupo." size="lg"
+    <ProtoModal open={open} onClose={onClose} title="Adicionar membros" sub={`Escolhe ${pp} para juntar ao grupo.`} size="lg"
       footer={<>
         <button className="btn ghost" onClick={onClose}>Cancelar</button>
         <button className="btn primary" onClick={() => void submit()} disabled={busy || picked.size === 0}>{busy ? 'A adicionar…' : `Adicionar ${picked.size || ''}`}</button>
       </>}>
       <div className="proto-form">
-        <label className="group-member-search">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} type="search" placeholder="Procurar atleta..." /></label>
-        {loading && <p style={{ margin: 0, color: 'var(--muted-hi)', fontSize: '.78rem' }}>A carregar atletas…</p>}
+        <label className="group-member-search">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} type="search" placeholder={`Procurar ${p1}…`} /></label>
+        {loading && <p style={{ margin: 0, color: 'var(--muted-hi)', fontSize: '.78rem' }}>A carregar {pp}…</p>}
         {err && <p className="proto-error">{err}</p>}
         <div className="group-wizard-members" style={{ maxHeight: 280, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 7, overflow: 'auto', padding: 8, borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.035)' }}>
           {visible.length === 0 && !loading
-            ? <div className="groups-empty" style={{ gridColumn: '1/-1', margin: 0 }}><b>Nenhum atleta disponível</b></div>
+            ? <div className="groups-empty" style={{ gridColumn: '1/-1', margin: 0 }}><b>Nenhum {p1} disponível</b></div>
             : visible.map((a) => (
               <label key={a.id} className="member-choice">
                 <input type="checkbox" checked={picked.has(a.id)} onChange={() => toggle(a.id)} />
-                <div><strong>{a.name}</strong><small>{[a.sport, STATUS_META[a.status]?.label].filter(Boolean).join(' · ')}</small></div>
+                <div><strong>{a.name}</strong><small>{[a.responsibleName, STATUS_META[a.status]?.label].filter(Boolean).join(' · ')}</small></div>
               </label>
             ))}
         </div>
@@ -319,7 +324,7 @@ function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
 function AssignGroupModal({ open, onClose, groupId, groupName, memberCount, onDone }: {
   open: boolean; onClose: () => void; groupId: string; groupName: string; memberCount: number; onDone: () => void;
 }) {
-  const userId = useAuthStore((s) => s.userId);
+  const scope = useScope();
   const [plans, setPlans] = useState<PlanLite[]>([]);
   const [planId, setPlanId] = useState('');
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -330,21 +335,21 @@ function AssignGroupModal({ open, onClose, groupId, groupName, memberCount, onDo
     if (!open) return;
     setErr(null); setPlanId('');
     const client = getSupabaseClient();
-    if (!client || !userId) return;
+    if (!client) return;
     setLoadingPlans(true);
-    void fetchPlans(client, userId)
+    void fetchPlans(client, scope)
       .then((p) => { setPlans(p); setPlanId(p[0]?.id ?? ''); })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoadingPlans(false));
-  }, [open, userId]);
+  }, [open, scope]);
 
   const submit = async () => {
     const client = getSupabaseClient();
-    if (!client || !userId) { setErr('Sem sessão.'); return; }
+    if (!client) { setErr('Sem sessão.'); return; }
     if (!planId) { setErr('Escolhe um plano.'); return; }
     setBusy(true); setErr(null);
     try {
-      const n = await assignPlanToGroup(client, userId, groupId, planId);
+      const n = (await assignPlanToGroup(client, scope, groupId, planId)).created;
       toast({ variant: 'success', title: 'Plano atribuído', description: `${n} membro(s) de ${groupName}.` });
       onDone();
     } catch (e) {
