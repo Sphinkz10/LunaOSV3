@@ -21,11 +21,18 @@ async function lastOrgId(client: LunaClient, userId: string): Promise<string | n
   return (data as { last_org_id: string | null } | null)?.last_org_id ?? null;
 }
 
+async function fetchMe(client: LunaClient, userId: string): Promise<{ name: string; avatarUrl: string | null } | null> {
+  const { data, error } = await client.from('persons').select('full_name,avatar_url').eq('user_id', userId).maybeSingle();
+  if (error || !data) return null; // o cartão do menu mostra o email em falta de nome
+  return { name: data.full_name, avatarUrl: data.avatar_url };
+}
+
 /** Carrega a sessão: organizações, a última escolhida e os módulos ligados. */
 export async function loadSession(client: LunaClient, userId: string): Promise<void> {
   try {
-    const [orgs, last] = await Promise.all([fetchMyOrgs(client), lastOrgId(client, userId)]);
+    const [orgs, last, me] = await Promise.all([fetchMyOrgs(client), lastOrgId(client, userId), fetchMe(client, userId)]);
     useAuthStore.getState().signIn(userId, orgs, last);
+    useAuthStore.getState().setMe(me);
     const scope = useAuthStore.getState().scope;
     if (scope) useAuthStore.getState().setModules(await fetchMyModules(client, scope.orgId));
   } catch (e) {

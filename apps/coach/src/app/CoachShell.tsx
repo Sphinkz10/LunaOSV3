@@ -1,114 +1,232 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { switchOrg, toast, useAuthStore } from '@luna/core';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
+import { Avatar, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
+import { CaretRight, DotsThree, List, MagnifyingGlass, Plus, SignOut } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
+import { vocab } from '../lib/vocab';
 import { signOutEverywhere } from './session';
-import { CoachNav } from './CoachNav';
-import { MobileNav } from './MobileNav';
+import { navItems } from './CoachNav';
+import { Procura } from './Procura';
+import './gestao.css';
+
+const ORG_TIPO: Record<string, string> = {
+  solo_coach: 'PT independente', studio: 'Estúdio', box: 'Box', gym: 'Ginásio', club: 'Clube', online: 'Online',
+};
+const PAPEL: Record<string, string> = {
+  owner: 'Dono', manager: 'Gerente', coach: vocab.responsavel(), reception: 'Receção', clinician: 'Clínico',
+};
+const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** Fecha um menu suspenso com Esc ou clique fora. */
+function usePop() {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setAberto(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false); };
+    document.addEventListener('mousedown', fora);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('keydown', esc); };
+  }, [aberto]);
+  return { aberto, setAberto, ref };
+}
+
+/** Ações do botão + (G-00): só as do plano e dos direitos ligados. */
+function useNovoAcoes() {
+  const modules = useAuthStore((s) => s.modules);
+  return [
+    hasModule(modules, 'schedule') && { rotulo: `Nova ${vocab.sessao()}`, to: '/schedule?nova=1' },
+    hasModule(modules, 'clients') && { rotulo: `Novo ${vocab.pessoa()}`, to: '/clients?novo=1' },
+    hasModule(modules, 'training') && { rotulo: `Iniciar ${vocab.sessao()}`, to: '/live' },
+  ].filter(Boolean) as { rotulo: string; to: string }[];
+}
 
 /**
- * Shell fiel ao protótipo HTML: .app > .topbar + .layout(.sidebar|.main|.board).
- * Desktop (>=960px): sidebar + board visíveis.
- * Mobile (<960px): botão ☰ abre drawer lateral com navegação completa + barra inferior.
+ * Estrutura da Gestão por papel (G-00): menu só com os destinos do papel e dos
+ * direitos, seletor de organização, procura (Ctrl/⌘K), botão + e conta.
  */
 export function CoachShell({
-  headStrong,
-  headSub,
-  topActions,
-  children,
-  board,
-  pageActions,
-  mainClassName,
-  layoutClassName,
+  headStrong, headSub, topActions, children, board, pageActions, legado = true,
 }: {
   headStrong: string;
-  headSub: string;
+  headSub?: string;
   topActions?: ReactNode;
   children: ReactNode;
   board?: ReactNode;
   pageActions?: ReactNode;
+  /** Página ainda no visual antigo: fica num painel escuro próprio até ser redesenhada. */
+  legado?: boolean;
   mainClassName?: string;
-  /** Ex.: athlete-mode na ficha do cliente */
   layoutClassName?: string;
 }) {
-  const [navOpen, setNavOpen] = useState(false);
+  const navigate = useNavigate();
   const { pathname } = useLocation();
-
-  useEffect(() => {
-    setNavOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!navOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [navOpen]);
-
   const orgs = useAuthStore((s) => s.orgs);
   const scope = useAuthStore((s) => s.scope);
-  const onSwitchOrg = (orgId: string) => {
+  const modules = useAuthStore((s) => s.modules);
+  const me = useAuthStore((s) => s.me);
+  const [procura, setProcura] = useState(false);
+  const orgPop = usePop();
+  const contaPop = usePop();
+  const novoPop = usePop();
+  const maisPop = usePop();
+  const novo = useNovoAcoes();
+  const itens = navItems(modules, scope?.permissions);
+  const ativo = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
+
+  // Tema da organização em toda a página (data-tema no <html>)
+  useEffect(() => {
+    if (scope) document.documentElement.dataset.tema = scope.theme;
+  }, [scope]);
+
+  // Ctrl/⌘K abre a procura
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setProcura(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const trocarOrg = (orgId: string) => {
+    orgPop.setAberto(false);
     const client = getSupabaseClient();
     if (!client) return;
-    void switchOrg(client, orgId).catch((e) =>
+    void switchOrg(client, orgId).then(() => navigate('/today')).catch((e) =>
       toast({ variant: 'danger', title: 'Não foi possível mudar de organização', description: e instanceof Error ? e.message : undefined }));
   };
+  const sair = () => void signOutEverywhere(getSupabaseClient());
+
+  const w = wallClock(new Date(), scope?.timezone ?? 'Europe/Lisbon');
+  const diaSemana = DIAS[new Date(Date.UTC(w.year, w.month - 1, w.day)).getUTCDay()];
+  const data = `${diaSemana}, ${w.day} de ${MESES[w.month - 1]}`;
+  const papeis = scope?.roles.map((r) => PAPEL[r] ?? r).join(' · ') ?? '';
+  const nome = me?.name ?? '';
+
+  const botaoNovo = novo.length > 0 && (
+    <div className="lg-pop" ref={novoPop.ref}>
+      <Botao icone={Plus} aria-haspopup="menu" aria-expanded={novoPop.aberto} onClick={() => novoPop.setAberto((v) => !v)}>
+        Novo
+      </Botao>
+      {novoPop.aberto && (
+        <div className="lg-pop__lista lg-pop__lista--baixo" role="menu">
+          {novo.map((a) => (
+            <button key={a.to} type="button" role="menuitem" className="lg-pop__item"
+              onClick={() => { novoPop.setAberto(false); navigate(a.to); }}>{a.rotulo}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <button
-            type="button"
-            className="nav-toggle"
-            aria-label="Abrir menu de navegação"
-            aria-expanded={navOpen}
-            onClick={() => setNavOpen(true)}
-          >
-            ☰
-          </button>
-          <Link to="/today" className="brand-badge" aria-label="Voltar a Hoje">
-            <div className="brand-i">L</div>
-            <div className="brand-t">LUNA.OS</div>
-          </Link>
-          <div className="hsep hide-mobile" />
-          <div className="hcopy">
-            <strong>{headStrong}</strong>
-            <span>{headSub}</span>
+    <div className="lg-app">
+      <aside className="lg-side" aria-label="Menu">
+        <Link to="/today" className="lg-logo" aria-label="LunaOS, voltar a Hoje"><span className="lg-logo__lua" aria-hidden />LunaOS</Link>
+
+        {scope && (
+          <div className="lg-pop" ref={orgPop.ref}>
+            <button type="button" className="lg-org" disabled={orgs.length < 2}
+              aria-haspopup={orgs.length > 1 ? 'menu' : undefined} aria-expanded={orgs.length > 1 ? orgPop.aberto : undefined}
+              aria-label={`Organização: ${scope.orgName}${orgs.length > 1 ? ', mudar' : ''}`}
+              onClick={() => orgPop.setAberto((v) => !v)}>
+              <span className="lg-org__foto" aria-hidden>{iniciais(scope.orgName)}</span>
+              <span className="lg-org__corpo">
+                <span className="lg-org__nome">{scope.orgName}</span>
+                <span className="lg-org__sub">{ORG_TIPO[scope.orgType] ?? scope.orgType}{orgs.length > 1 ? ` · ${orgs.length} organizações` : ''}</span>
+              </span>
+              {orgs.length > 1 && <CaretRight size={16} aria-hidden />}
+            </button>
+            {orgPop.aberto && (
+              <div className="lg-pop__lista lg-pop__lista--org" role="menu">
+                {orgs.map((o) => (
+                  <button key={o.org_id} type="button" role="menuitem" className="lg-pop__item"
+                    aria-current={o.org_id === scope.orgId} onClick={() => trocarOrg(o.org_id)}>{o.name}</button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-        <div className="top-actions">
-          {orgs.length > 1 && scope && (
-            <label className="org-switch">
-              <span className="sr-only">Organização</span>
-              <select value={scope.orgId} onChange={(e) => onSwitchOrg(e.target.value)} aria-label="Organização">
-                {orgs.map((o) => <option key={o.org_id} value={o.org_id}>{o.name}</option>)}
-              </select>
-            </label>
+        )}
+
+        <nav className="lg-menu" aria-label="Destinos">
+          {itens.map((i) => (
+            <MenuItem key={i.to} icone={i.icone} ativo={ativo(i.to)} onClick={() => navigate(i.to)}>{i.label}</MenuItem>
+          ))}
+        </nav>
+
+        <div className="lg-pop lg-eu" ref={contaPop.ref}>
+          <Avatar nome={nome || '?'} foto={me?.avatarUrl} />
+          <span className="lg-eu__corpo">
+            <span className="lg-eu__nome">{nome}</span>
+            <span className="lg-eu__papel">{papeis}</span>
+          </span>
+          <button type="button" className="lv-btn lv-btn--secundario" style={{ padding: 0, width: 44 }}
+            aria-label="Conta" aria-haspopup="menu" aria-expanded={contaPop.aberto} onClick={() => contaPop.setAberto((v) => !v)}>
+            <DotsThree size={16} aria-hidden />
+          </button>
+          {contaPop.aberto && (
+            <div className="lg-pop__lista lg-pop__lista--cima" role="menu">
+              <button type="button" role="menuitem" className="lg-pop__item" onClick={sair}><SignOut size={18} aria-hidden />Sair</button>
+            </div>
           )}
-          {topActions}
-          <button type="button" className="btn ghost small hide-mobile" onClick={() => void signOutEverywhere(getSupabaseClient())}>Sair</button>
         </div>
-      </header>
+      </aside>
 
-      {navOpen && (
-        <button type="button" className="nav-scrim" aria-label="Fechar menu" onClick={() => setNavOpen(false)} />
-      )}
+      <div className="lg-coluna">
+        <header className="lg-topo">
+          <div style={{ minWidth: 0 }}>
+            <span className="lg-topo__data">{headSub ?? data}</span>
+            <h1 className="lg-topo__titulo">{headStrong}</h1>
+          </div>
+          <div className="lg-topo__acoes">
+            <button type="button" className="lg-procura" onClick={() => setProcura(true)} aria-label="Procurar (Ctrl+K)">
+              <MagnifyingGlass size={16} aria-hidden />Procurar {vocab.pessoa()}<span className="lg-procura__kbd" aria-hidden>Ctrl K</span>
+            </button>
+            <span className="lg-desktop-only">{topActions}</span>
+            {botaoNovo}
+          </div>
+        </header>
 
-      <main className={`layout${layoutClassName ? ` ${layoutClassName}` : ''}`}>
-        <aside className={`sidebar${navOpen ? ' drawer-open' : ''}`}>
-          <CoachNav onNavigate={() => setNavOpen(false)} />
-        </aside>
-        <section className={`main${mainClassName ? ` ${mainClassName}` : ''}`}>{children}</section>
-        {board != null && <aside className="board">{board}</aside>}
-      </main>
+        <div className="lg-corpo">
+          <main className="lg-conteudo">
+            {legado ? <div className="lg-legado">{children}</div> : children}
+          </main>
+          {board != null && <aside className="lg-lateral" aria-label="Resumo">{board}</aside>}
+        </div>
+      </div>
 
       {pageActions}
-      <MobileNav />
+
+      {/* Telemóvel: navegação inferior em pílula; o resto vai para "Mais" */}
+      <div className="lg-mobile-only">
+        <NavegacaoInferior itens={[
+          ...itens.slice(0, 4).map((i) => ({
+            id: i.to, rotulo: i.label, icone: i.icone, ativo: ativo(i.to), onClick: () => navigate(i.to),
+          })),
+          { id: 'mais', rotulo: 'Mais', icone: List, ativo: maisPop.aberto, onClick: () => maisPop.setAberto((v) => !v) },
+        ]} />
+        {maisPop.aberto && (
+          <div ref={maisPop.ref} className="lg-pop__lista" role="menu"
+            style={{ position: 'fixed', right: 'var(--margem-telemovel)', bottom: 'calc(var(--altura-navegacao) + 32px)', zIndex: 30 }}>
+            {itens.slice(4).map((i) => (
+              <button key={i.to} type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate(i.to); }}>{i.label}</button>
+            ))}
+            {modules.includes('clients') && (
+              <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate('/groups'); }}>Grupos</button>
+            )}
+            <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); setProcura(true); }}>Procurar</button>
+            {orgs.length > 1 && orgs.filter((o) => o.org_id !== scope?.orgId).map((o) => (
+              <button key={o.org_id} type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); trocarOrg(o.org_id); }}>Mudar para {o.name}</button>
+            ))}
+            <button type="button" role="menuitem" className="lg-pop__item" onClick={sair}><SignOut size={18} aria-hidden />Sair</button>
+          </div>
+        )}
+      </div>
+
+      <Procura aberta={procura} onFechar={() => setProcura(false)} />
     </div>
   );
 }

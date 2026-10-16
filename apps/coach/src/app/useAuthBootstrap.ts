@@ -4,5 +4,9 @@ import { getSupabaseClient } from '../lib/supabase';
 
 /** Arranca a sessão; sem .env o estado fica 'notConfigured' (nunca um esqueleto infinito). */
 export function useAuthBootstrap(): void {
-  useEffect(() => bootstrapAuth(getSupabaseClient()), []);
+  useEffect(() => {
+    // Demonstrações de desenvolvimento usam uma sessão de exemplo, sem servidor
+    if (import.meta.env.DEV && window.location.pathname.startsWith('/dev/')) return;
+    return bootstrapAuth(getSupabaseClient());
+  }, []);
 }

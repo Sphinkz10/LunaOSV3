@@ -214,3 +214,34 @@
 
 /* Dentro de cartões coloridos o estado usa a cor do cartão (contraste garantido) */
 .lv-cartao-numero .lv-estado, .lv-metrica .lv-estado, .lv-destaque .lv-estado { color: inherit; }
+
+/* ── Estados de página (X-02) ───────────────────────────────────────────── */
+.lv-estado-pagina {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--espaco-12);
+  min-height: 240px; padding: var(--espaco-32) var(--espaco-24); text-align: center;
+  border-radius: var(--raio-cartao); background: var(--cor-superficie); border: 1px solid var(--cor-linha);
+}
+.lv-estado-pagina__icone {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--raio-pilula);
+  background: var(--cor-superficie-2); color: var(--cor-texto);
+}
+.lv-estado-pagina--erro .lv-estado-pagina__icone, .lv-estado-pagina--falha-parcial .lv-estado-pagina__icone { color: var(--estado-erro); }
+.lv-estado-pagina__titulo { margin: 0; font: 600 20px/1.15 var(--fonte-titulo); }
+.lv-estado-pagina__texto { margin: 0; max-width: 32ch; color: var(--cor-texto-secundario); }
+.lv-esqueleto { display: flex; flex-direction: column; gap: var(--espaco-12); padding: var(--espaco-24); }
+.lv-esqueleto__linha {
+  display: block; height: 14px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2);
+  animation: lv-pulsa 1.4s ease-in-out infinite;
+}
+@keyframes lv-pulsa { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .lv-esqueleto__linha { animation: none; } }
+.lv-aviso-secao {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-12);
+  padding: var(--espaco-8) var(--espaco-12); border-radius: var(--raio-nota);
+  background: var(--cor-superficie-2); color: var(--cor-texto); font-size: 12.5px;
+}
+.lv-aviso-secao--falha-parcial { color: var(--estado-erro); }
+.lv-aviso-secao__acao {
+  background: none; border: 0; color: inherit; font: 700 12.5px/1.4 var(--fonte-texto); cursor: pointer;
+  text-decoration: underline; min-height: 44px;
+}

@@ -1,0 +1,109 @@
+/* Estrutura da Gestão v3 (G-00, Figma 62:15). Só tokens v3; o tema é o da organização
+   (data-tema no <html>). Desktop: menu lateral 240 + topo 72. Telemóvel: topo
+   compacto e navegação inferior em pílula. */
+
+.lg-app {
+  position: relative; z-index: 10; /* acima das decorações do fundo antigo */
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); height: 100dvh;
+  background: var(--cor-fundo); color: var(--cor-texto); font-family: var(--fonte-texto);
+}
+
+/* ── Menu lateral ───────────────────────────────────────────────────────── */
+.lg-side {
+  display: flex; flex-direction: column; gap: var(--espaco-8); min-height: 0; overflow-y: auto;
+  padding: var(--espaco-20) var(--espaco-16); background: var(--cor-superficie); border-right: 1px solid var(--cor-linha);
+}
+.lg-logo { display: flex; align-items: center; gap: var(--espaco-12); padding: 0 var(--espaco-8); min-height: 32px;
+  font: 600 20px/1 var(--fonte-titulo); color: var(--cor-texto); text-decoration: none; }
+.lg-logo__lua {
+  width: 28px; height: 28px; border-radius: var(--raio-pilula); background: var(--cor-acao);
+  -webkit-mask-image: radial-gradient(circle at 70% 35%, transparent 42%, black 43%);
+  mask-image: radial-gradient(circle at 70% 35%, transparent 42%, black 43%);
+}
+.lg-org {
+  display: flex; align-items: center; gap: var(--espaco-12); width: 100%; margin: var(--espaco-12) 0;
+  padding: var(--espaco-8); border-radius: var(--raio-linha); text-align: left;
+  background: var(--cor-superficie-2); border: 1px solid var(--cor-linha); color: var(--cor-texto); font: inherit; cursor: pointer;
+}
+.lg-org:disabled { cursor: default; }
+.lg-org__foto {
+  display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: var(--raio-nota);
+  background: var(--cor-cartao-suave); color: var(--cor-sobre-cartao-suave); font: 600 14px/1 var(--fonte-titulo);
+}
+.lg-org__nome { display: block; font-weight: 600; }
+.lg-org__sub { display: block; font-size: 12px; color: var(--cor-texto-secundario); }
+.lg-org__corpo { flex: 1; min-width: 0; }
+.lg-menu { display: flex; flex-direction: column; gap: var(--espaco-4); }
+.lg-seccao { margin: var(--espaco-16) 0 var(--espaco-4); padding: 0 var(--espaco-12);
+  font: 700 11px/1.4 var(--fonte-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--cor-texto-secundario); }
+.lg-eu { margin-top: auto; display: flex; align-items: center; gap: var(--espaco-12); padding: var(--espaco-8); }
+.lg-eu__corpo { flex: 1; min-width: 0; }
+.lg-eu__nome { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-eu__papel { display: block; font-size: 12px; color: var(--cor-texto-secundario); }
+
+/* Menu suspenso (organizações, conta, +) */
+.lg-pop { position: relative; }
+.lg-pop__lista {
+  position: absolute; z-index: 40; min-width: 220px; padding: var(--espaco-8);
+  display: flex; flex-direction: column; gap: var(--espaco-4);
+  border-radius: var(--raio-linha); background: var(--cor-superficie); border: 1px solid var(--cor-linha);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--cor-texto) 18%, transparent);
+}
+.lg-pop__lista--cima { bottom: calc(100% + var(--espaco-8)); left: 0; }
+.lg-pop__lista--baixo { top: calc(100% + var(--espaco-8)); right: 0; }
+.lg-pop__lista--org { top: calc(100% - var(--espaco-8)); left: 0; right: 0; }
+.lg-pop__item {
+  display: flex; align-items: center; gap: var(--espaco-12); min-height: 44px; padding: 0 var(--espaco-12);
+  border-radius: var(--raio-nota); background: none; border: 0; color: var(--cor-texto); font: 600 14px/1.4 var(--fonte-texto);
+  text-align: left; cursor: pointer; text-decoration: none;
+}
+.lg-pop__item:hover, .lg-pop__item:focus-visible { background: var(--cor-selecao); }
+.lg-pop__item[aria-current='true'] { background: var(--cor-selecao); }
+
+/* ── Topo ──────────────────────────────────────────────────────────────── */
+.lg-coluna { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.lg-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-16);
+  min-height: 72px; padding: var(--espaco-8) var(--margem-computador) var(--espaco-8) 28px;
+  border-bottom: 1px solid var(--cor-linha);
+}
+.lg-topo__data { display: block; font-size: 13px; color: var(--cor-texto-secundario); }
+.lg-topo__titulo { margin: 0; font: 600 24px/1.15 var(--fonte-titulo); }
+.lg-topo__acoes { display: flex; align-items: center; gap: var(--espaco-12); }
+.lg-procura {
+  display: flex; align-items: center; gap: var(--espaco-12); width: 300px; min-height: var(--altura-botao-redondo);
+  padding: 0 var(--espaco-12) 0 var(--espaco-16); border-radius: var(--raio-pilula);
+  background: var(--cor-superficie); border: 1px solid var(--cor-linha); color: var(--cor-texto-secundario);
+  font: 400 14px/1.4 var(--fonte-texto); cursor: pointer;
+}
+.lg-procura__kbd {
+  margin-left: auto; padding: 2px var(--espaco-8); border-radius: var(--raio-nota);
+  background: var(--cor-superficie-2); font: 700 11px/1.4 var(--fonte-texto);
+}
+
+/* ── Corpo ─────────────────────────────────────────────────────────────── */
+.lg-corpo { display: grid; grid-template-columns: minmax(0, 1fr) auto; flex: 1; min-height: 0; }
+.lg-conteudo { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--espaco-24) var(--margem-computador) var(--espaco-32) 28px; }
+.lg-lateral { width: 320px; min-height: 0; overflow-y: auto; padding: var(--espaco-24) var(--espaco-16);
+  border-left: 1px solid var(--cor-linha); display: flex; flex-direction: column; gap: var(--espaco-12); }
+
+/* Conteúdo das páginas antigas (ainda no visual escuro do protótipo) até cada
+   tarefa o redesenhar: fica num painel próprio, legível em qualquer tema. */
+.lg-legado {
+  border-radius: var(--raio-cartao); background: var(--navy); color: var(--white);
+  padding: var(--espaco-16); display: flex; flex-direction: column; gap: 12px; min-height: 100%;
+}
+.lg-lateral .board-card { background: var(--navy); color: var(--white); }
+
+/* ── Telemóvel ─────────────────────────────────────────────────────────── */
+.lg-mobile-only { display: none; }
+@media (max-width: 960px) {
+  .lg-app { grid-template-columns: minmax(0, 1fr); }
+  .lg-side, .lg-lateral, .lg-procura, .lg-desktop-only { display: none; }
+  .lg-mobile-only { display: revert; }
+  .lg-topo { min-height: 64px; padding: var(--espaco-8) var(--margem-telemovel); }
+  .lg-topo__titulo { font-size: 22px; }
+  .lg-corpo { grid-template-columns: minmax(0, 1fr); }
+  .lg-conteudo { padding: var(--espaco-16) var(--margem-telemovel) calc(var(--altura-navegacao) + 48px); }
+  .lg-legado { padding: var(--espaco-12); }
+}

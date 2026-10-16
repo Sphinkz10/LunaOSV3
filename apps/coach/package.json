@@ -15,6 +15,7 @@
     "@capacitor/android": "^6.2.0",
     "@capacitor/ios": "^6.2.0",
     "@luna/core": "workspace:*",
+    "@luna/icons": "workspace:^",
     "@luna/modalidades": "workspace:*",
     "@luna/tokens": "workspace:*",
     "@luna/ui": "workspace:*",

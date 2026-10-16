@@ -59,7 +59,26 @@ describe('Porta da Gestão (X-02, AUD-71)', () => {
 describe('Menu por direitos (G-00)', () => {
   it('só mostra destinos ligados, com o vocabulário da modalidade', () => {
     const labels = navItems(['today', 'clients']).map((i) => i.label);
-    expect(labels).toEqual(['Hoje', 'Clientes', 'Grupos']);
+    expect(labels).toEqual(['Hoje', 'Clientes']);
     expect(navItems([]).length).toBe(0);
+  });
+
+  it('cada papel vê só os seus destinos', () => {
+    const plano = ['today', 'clients', 'schedule', 'training', 'settings'];
+    // PT: Hoje, Clientes (os seus), Horário, Treino; nunca Definições
+    expect(navItems(plano, ['clients.read_own', 'clients.write', 'schedule.write', 'training.write']).map((i) => i.to))
+      .toEqual(['/today', '/clients', '/schedule', '/live']);
+    // Receção: sem Treino
+    expect(navItems(plano, ['clients.read_all', 'schedule.read_all', 'schedule.write']).map((i) => i.to))
+      .toEqual(['/today', '/clients', '/schedule']);
+  });
+});
+
+describe('Rotas dos ecrãs G- (T04)', () => {
+  it('os 49 ecrãs do mapa têm rota', async () => {
+    const { ECRAS_G, rotaPorConstruir } = await import('../app/ecras');
+    expect(ECRAS_G).toHaveLength(49);
+    expect(new Set(ECRAS_G.map((e) => e.id)).size).toBe(49);
+    for (const e of ECRAS_G) expect(e.rota ?? rotaPorConstruir(e.id)).toMatch(/^\//);
   });
 });

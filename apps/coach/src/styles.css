@@ -1,4 +1,7 @@
 @import '@luna/tokens/tokens.css';
+@import '@luna/tokens/v3/tokens.css';
+@import '@luna/tokens/v3/fonts.css';
+@import '@luna/ui/v3.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

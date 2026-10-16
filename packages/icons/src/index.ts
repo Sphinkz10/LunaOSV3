@@ -4,7 +4,8 @@
  * Só se exporta o conjunto usado, para o pacote não crescer.
  */
 export {
-  Bell, CalendarBlank, CaretRight, Check, ClipboardText, Clock, DotsThree, Gear, House, Info,
-  List, MagnifyingGlass, Play, Plus, SignOut, Sun, User, Users, Warning, X,
+  ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, ClipboardText, Clock, DotsThree,
+  Fire, Gear, Heartbeat, House, Info, List, Lock, MagnifyingGlass, Play, Plus, QrCode, SignOut, Sun, User, Users,
+  Wallet, Warning, WifiSlash, X,
 } from '@phosphor-icons/react';
 export type { Icon as IconComponent, IconProps, IconWeight } from '@phosphor-icons/react';

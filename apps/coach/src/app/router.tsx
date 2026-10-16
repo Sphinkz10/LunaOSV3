@@ -13,6 +13,8 @@ import { Client360 } from '../pages/Client360';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { Live } from '../pages/Live';
+import { DemoEstrutura } from '../dev/DemoEstrutura';
+import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
 
 const NotFound = () => (
   <CoachShell headStrong="Página não encontrada" headSub="Esta ligação não existe ou mudou de sítio.">
@@ -44,6 +46,10 @@ const routes: RouteObject[] = [
       { index: true, element: <Groups /> },
       { path: ':id', element: <Group360 /> },
     ] },
+  // Todos os ecrãs G- do mapa têm rota (T04); os por construir ficam no tema Esboço
+  ...ECRAS_G.filter((e) => !e.rota).map((e): RouteObject => ({
+    path: rotaPorConstruir(e.id), element: <Protected><EcraPorConstruir ecra={e} /></Protected>,
+  })),
   { path: '*', element: <Protected><NotFound /></Protected> },
 ];
 
@@ -51,7 +57,8 @@ const routes: RouteObject[] = [
 if (import.meta.env.DEV) {
   routes.splice(1, 0,
     { path: '/hello', element: <Hello /> },
-    { path: '/poc', element: <LayoutProvider><Poc /></LayoutProvider> });
+    { path: '/poc', element: <LayoutProvider><Poc /></LayoutProvider> },
+    { path: '/dev/estrutura', element: <DemoEstrutura /> });
 }
 
 export const router = createBrowserRouter(routes);

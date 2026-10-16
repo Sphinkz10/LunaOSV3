@@ -6,7 +6,7 @@ import {
   type ClientLite, type AvailabilitySlot, type Booking, type BookingType, type DayMarker, type DayMarkerType,
   type DayState, type NewBookingInput, type WaitlistEntry,
 } from '@luna/core';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { t, vocab } from '../lib/vocab';
@@ -106,7 +106,12 @@ export function Schedule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Botão + (G-00): /schedule?nova=1 abre logo a nova marcação
+  const [modalOpen, setModalOpen] = useState(searchParams.get('nova') === '1');
+  useEffect(() => {
+    if (searchParams.get('nova') === '1') { setModalOpen(true); setSearchParams({}, { replace: true }); }
+  }, [searchParams, setSearchParams]);
   const [markerOpen, setMarkerOpen] = useState(false);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [availOpen, setAvailOpen] = useState(false);
