@@ -20,9 +20,7 @@ describe('tokens v3 · gerados do JSON com Style Dictionary', () => {
     const out: Out = await buildTokens();
     const dir = resolve(__dirname, '../v3');
     // Sem diferenças de fim de linha (checkouts em Windows usam CRLF)
-    const read = (f: string) => readFileSync(join(dir, f), 'utf8').replace(/
-/g, '
-');
+    const read = (f: string) => readFileSync(join(dir, f), 'utf8').replace(/\r\n/g, '\n');
     expect(read('tokens.css')).toBe(out.css);
     expect(read('tokens.ts')).toBe(out.ts);
     expect(read('tokens.native.ts')).toBe(out.native);
