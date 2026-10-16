@@ -7,7 +7,9 @@
   "scripts": {
     "lint": "eslint src --config ../config/src/eslint.config.cjs",
     "typecheck": "tsc --noEmit -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build -o storybook-static"
   },
   "peerDependencies": {
     "react": "^18.3.0",
@@ -16,25 +18,37 @@
   "devDependencies": {
     "@luna/config": "workspace:*",
     "@luna/tokens": "workspace:*",
-    "@types/react": "^18.3.12",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.5",
-    "jsdom": "^25.0.1",
+    "@storybook/addon-essentials": "8.4.7",
+    "@storybook/react": "8.4.7",
+    "@storybook/react-vite": "8.4.7",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",
-    "@testing-library/jest-dom": "^6.6.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "axe-core": "^4.10.2",
     "eslint": "^9.15.0",
-    "@typescript-eslint/parser": "^8.15.0"
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "storybook": "8.4.7",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
   },
   "dependencies": {
+    "@luna/core": "workspace:*",
+    "@luna/icons": "workspace:^",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "framer-motion": "^11.11.17",
-    "@luna/core": "workspace:*"
+    "framer-motion": "^11.11.17"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./v3": "./src/v3/index.ts",
+    "./v3.css": "./src/v3/v3.css"
   }
 }

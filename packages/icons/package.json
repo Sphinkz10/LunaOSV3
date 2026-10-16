@@ -1,1 +1,1 @@
-{ "name": "@luna/icons", "version": "0.1.0", "private": true, "type": "module", "main": "./src/index.ts" }
+{"name":"@luna/icons","version":"0.1.0","private":true,"type":"module","main":"./src/index.ts","dependencies":{"@phosphor-icons/react":"^2.1.7"}}

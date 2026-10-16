@@ -1,0 +1,216 @@
+/* LunaOS v3 · componentes base (DS-05 e padrões dos ecrãs).
+   Só tokens de @luna/tokens/v3: nenhuma cor, espaço ou fonte escrita à mão.
+   Esbatimentos com a cor do tema e máscara de transparência, nunca cinzento. */
+
+.lv-root {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-family: var(--fonte-texto);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Tipografia (6 estilos, e mais nenhum) */
+.lv-titulo-ecra { font-family: var(--fonte-titulo); font-weight: 600; font-size: 28px; line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
+.lv-numero-grande { font-family: var(--fonte-titulo); font-weight: 600; font-size: 40px; line-height: 1; letter-spacing: -0.03em; }
+.lv-titulo-cartao { font-family: var(--fonte-titulo); font-weight: 600; font-size: 20px; line-height: 1.15; letter-spacing: -0.01em; margin: 0; }
+.lv-legenda { font-size: 12px; line-height: 1.4; color: var(--cor-texto-secundario); }
+.lv-sobretitulo { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Foco visível em tudo o que é interativo */
+.lv-focus:focus-visible,
+.lv-btn:focus-visible, .lv-chip:focus-visible, .lv-menu-item:focus-visible, .lv-atalho:focus-visible,
+.lv-linha-lista:focus-visible, .lv-nav-item:focus-visible, .lv-switch:focus-visible, .lv-campo-input:focus-visible {
+  outline: 2px solid var(--cor-principal);
+  outline-offset: 2px;
+}
+
+/* ── Botão (principal, secundário, no destaque) ─────────────────────────── */
+.lv-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-8);
+  min-height: var(--altura-botao-redondo); padding: 0 var(--espaco-20);
+  border-radius: var(--raio-pilula); border: 1px solid transparent;
+  font: 700 14px/1.4 var(--fonte-texto); cursor: pointer; white-space: nowrap;
+  transition: filter .15s ease, opacity .15s ease;
+}
+.lv-btn--principal { background: var(--cor-acao); color: var(--cor-sobre-acao); }
+.lv-btn--secundario { background: var(--cor-superficie); color: var(--cor-texto); border-color: var(--cor-linha); }
+.lv-btn--no-destaque { background: var(--cor-acao-no-destaque); color: var(--cor-sobre-acao-no-destaque); }
+.lv-btn:hover:not(:disabled) { filter: brightness(0.96); }
+.lv-btn:disabled { opacity: .5; cursor: not-allowed; }
+.lv-btn[aria-busy='true'] { cursor: progress; }
+.lv-btn--fixo { width: 100%; min-height: var(--altura-botao-principal); font-size: 16px; }
+.lv-spinner {
+  width: 16px; height: 16px; border-radius: var(--raio-pilula);
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: lv-gira .8s linear infinite;
+}
+@keyframes lv-gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lv-spinner { animation: none; } }
+
+/* ── Pill e Chip ────────────────────────────────────────────────────────── */
+.lv-pill {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 var(--espaco-12);
+  border-radius: var(--raio-pilula); background: var(--cor-superficie-2); color: var(--cor-texto-secundario);
+  font: 600 12px/1.4 var(--fonte-texto);
+}
+.lv-chip {
+  display: inline-flex; align-items: center; gap: var(--espaco-4);
+  min-height: var(--altura-chip); padding: 0 var(--espaco-12); border-radius: var(--raio-pilula);
+  font: 600 13px/1.4 var(--fonte-texto); cursor: pointer;
+  background: var(--cor-superficie); color: var(--cor-texto); border: 1px solid var(--cor-linha);
+}
+.lv-chip[aria-pressed='true'] { background: var(--cor-texto); color: var(--cor-fundo); border-color: var(--cor-texto); }
+.lv-chip:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Avatar ─────────────────────────────────────────────────────────────── */
+.lv-avatar {
+  display: inline-grid; place-items: center; flex: none; overflow: hidden;
+  border-radius: var(--raio-pilula); background: var(--cor-avatar); color: var(--cor-sobre-avatar);
+  font-family: var(--fonte-titulo); font-weight: 600;
+}
+.lv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Menu (item da navegação lateral) ───────────────────────────────────── */
+.lv-menu-item {
+  display: flex; align-items: center; gap: var(--espaco-12); min-height: var(--altura-botao-redondo);
+  padding: 0 var(--espaco-12); border-radius: var(--raio-pilula); color: var(--cor-texto);
+  font: 600 14px/1.4 var(--fonte-texto); text-decoration: none; background: transparent; border: 0; cursor: pointer;
+}
+.lv-menu-item[aria-current='page'] { background: var(--cor-navegacao); color: var(--cor-sobre-navegacao); }
+
+/* ── Métrica / destaque e cartão de número ─────────────────────────────── */
+.lv-metrica {
+  display: flex; flex-direction: column; gap: var(--espaco-8);
+  padding: var(--espaco-20); border-radius: var(--raio-cartao);
+  background: var(--cor-cartao-suave); color: var(--cor-sobre-cartao-suave);
+}
+.lv-metrica__rotulo { display: flex; align-items: center; gap: var(--espaco-8); font: 600 13px/1.4 var(--fonte-texto); opacity: .85; }
+.lv-metrica__valor { display: flex; align-items: baseline; gap: var(--espaco-8); }
+.lv-metrica__de { font: 500 14px/1 var(--fonte-titulo); opacity: .75; }
+.lv-metrica__legenda { font-size: 12.5px; opacity: .85; }
+.lv-cartao-numero {
+  display: flex; flex-direction: column; min-height: 132px;
+  padding: var(--espaco-20); border-radius: var(--raio-cartao);
+  background: var(--cor-cartao-numero); color: var(--cor-sobre-cartao-numero);
+}
+.lv-cartao-numero__rodape { margin-top: auto; padding-top: var(--espaco-12); font-size: 12px; }
+
+/* ── Linha de tabela e linha de lista ───────────────────────────────────── */
+.lv-linha-tabela {
+  display: grid; grid-template-columns: 64px auto 1fr auto auto; align-items: center; gap: var(--espaco-16);
+  min-height: 60px; padding: 0 var(--espaco-16); border-top: 1px solid var(--cor-linha);
+}
+.lv-linha-tabela__hora { font: 600 14px/1.4 var(--fonte-titulo); }
+.lv-linha-tabela__nome { font-weight: 600; }
+.lv-linha-lista {
+  display: flex; align-items: center; gap: var(--espaco-12); width: 100%;
+  min-height: var(--altura-linha-lista); padding: var(--espaco-8) var(--espaco-12);
+  border-radius: var(--raio-linha); background: var(--cor-superficie); color: var(--cor-texto);
+  border: 0; text-align: left; font: inherit; cursor: pointer;
+}
+.lv-linha-lista__mini { width: 48px; height: 48px; border-radius: var(--raio-nota); object-fit: cover; flex: none; background: var(--cor-cartao-suave); }
+.lv-linha-lista__corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lv-linha-lista__titulo { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Nota ───────────────────────────────────────────────────────────────── */
+.lv-nota {
+  display: flex; align-items: flex-start; gap: var(--espaco-8);
+  padding: var(--espaco-8) var(--espaco-12); border-radius: var(--raio-nota);
+  background: var(--cor-superficie-2); color: var(--cor-texto); font-size: 12.5px;
+}
+.lv-nota svg { flex: none; margin-top: 1px; }
+
+/* ── Estado (Ativa, Em risco, Em atraso) ───────────────────────────────── */
+.lv-estado { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1.4 var(--fonte-texto); }
+.lv-estado::before { content: ''; width: 6px; height: 6px; border-radius: var(--raio-pilula); background: currentColor; }
+.lv-estado--ok { color: var(--estado-ok); }
+.lv-estado--aviso { color: var(--estado-aviso); }
+.lv-estado--erro { color: var(--estado-erro); }
+
+/* ── Cartão de destaque com foto e véu ─────────────────────────────────── */
+.lv-destaque {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 220px; padding: var(--espaco-20); border-radius: var(--raio-cartao);
+  background: var(--cor-destaque); color: var(--cor-sobre-destaque); isolation: isolate;
+}
+.lv-destaque__foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+/* Véu: a cor do destaque, esbatida por máscara (nunca preto transparente) */
+.lv-destaque__veu {
+  position: absolute; inset: 0; z-index: -1; background: var(--cor-destaque);
+  -webkit-mask-image: linear-gradient(to top, black 35%, transparent 85%);
+  mask-image: linear-gradient(to top, black 35%, transparent 85%);
+}
+.lv-destaque__acao { margin-top: var(--espaco-16); align-self: flex-start; }
+
+/* ── Atalho redondo ─────────────────────────────────────────────────────── */
+.lv-atalho {
+  display: inline-flex; flex-direction: column; align-items: center; gap: var(--espaco-8);
+  background: none; border: 0; color: var(--cor-texto); font: 600 12px/1.4 var(--fonte-texto); cursor: pointer;
+}
+.lv-atalho__circulo {
+  display: grid; place-items: center; width: var(--altura-atalho); height: var(--altura-atalho);
+  border-radius: var(--raio-pilula); background: var(--cor-cartao-suave); color: var(--cor-sobre-cartao-suave);
+}
+
+/* ── Navegação inferior em pílula e botão principal fixo ───────────────── */
+.lv-nav-inferior {
+  position: fixed; left: var(--margem-telemovel); right: var(--margem-telemovel); bottom: var(--espaco-16);
+  display: flex; justify-content: space-around; align-items: center; height: var(--altura-navegacao);
+  border-radius: var(--raio-pilula); background: var(--cor-navegacao); color: var(--cor-sobre-navegacao);
+  z-index: 20;
+}
+.lv-nav-inferior--estatica { position: static; }
+.lv-nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 44px; min-height: 44px;
+  justify-content: center; background: none; border: 0; color: inherit; opacity: .7;
+  font: 600 11px/1.2 var(--fonte-texto); cursor: pointer; text-decoration: none;
+}
+.lv-nav-item[aria-current='page'] { opacity: 1; }
+/* O conteúdo esbate-se por baixo da navegação e do botão: cor do fundo + máscara */
+.lv-esbate-fundo {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; z-index: 10;
+  background: var(--cor-fundo);
+  -webkit-mask-image: linear-gradient(to top, black 40%, transparent);
+  mask-image: linear-gradient(to top, black 40%, transparent);
+}
+.lv-botao-fixo {
+  position: fixed; left: var(--margem-telemovel); right: var(--margem-telemovel); bottom: var(--espaco-16); z-index: 20;
+}
+.lv-botao-fixo--estatico { position: static; }
+
+/* ── Interruptor ────────────────────────────────────────────────────────── */
+.lv-switch-wrap { display: inline-flex; align-items: center; gap: var(--espaco-12); cursor: pointer; }
+.lv-switch {
+  position: relative; width: 48px; height: 28px; flex: none; border-radius: var(--raio-pilula);
+  background: var(--cor-linha); border: 0; cursor: pointer; padding: 0;
+}
+.lv-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+  border-radius: var(--raio-pilula); background: var(--cor-superficie); transition: transform .15s ease;
+}
+.lv-switch[aria-checked='true'] { background: var(--cor-principal); }
+.lv-switch[aria-checked='true']::after { transform: translateX(20px); background: var(--cor-sobre-principal); }
+.lv-switch:disabled { opacity: .5; cursor: not-allowed; }
+/* Alvo de toque ≥ 44 px sem mudar o desenho */
+.lv-switch::before { content: ''; position: absolute; inset: -8px; }
+
+/* ── Campo ──────────────────────────────────────────────────────────────── */
+.lv-campo { display: flex; flex-direction: column; gap: var(--espaco-4); }
+.lv-campo-rotulo { font: 600 13px/1.4 var(--fonte-texto); }
+.lv-campo-input {
+  min-height: var(--altura-botao-redondo); padding: 0 var(--espaco-12); border-radius: var(--raio-linha);
+  border: 1px solid var(--cor-linha); background: var(--cor-superficie); color: var(--cor-texto); font: inherit;
+}
+.lv-campo-input[aria-invalid='true'] { border-color: var(--estado-erro); }
+.lv-campo-input:disabled { opacity: .5; }
+.lv-campo-erro { color: var(--estado-erro); font-size: 12px; }
+
+/* ── Barra de lotação ───────────────────────────────────────────────────── */
+.lv-lotacao { display: flex; flex-direction: column; gap: var(--espaco-4); }
+.lv-lotacao__barra { height: 8px; border-radius: var(--raio-pilula); background: var(--dado-fundo); overflow: hidden; }
+.lv-lotacao__cheio { height: 100%; border-radius: var(--raio-pilula); background: var(--dado-destaque); }
+.lv-lotacao__cheio--alerta { background: var(--estado-aviso); }
+
+/* Dentro de cartões coloridos o estado usa a cor do cartão (contraste garantido) */
+.lv-cartao-numero .lv-estado, .lv-metrica .lv-estado, .lv-destaque .lv-estado { color: inherit; }

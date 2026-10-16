@@ -4,7 +4,7 @@
 #   - !important: proibido em todo o lado EXCETO apps/coach/src/luna-proto.css,
 #     a camada de fidelidade vendida do protótipo HTML (ver ADR-0004).
 set -e
-COMMON='/dist/|__tests__|node_modules'
+COMMON='/dist/|__tests__|node_modules|storybook-static'
 
 HEX=$(grep -rnE '#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b' \
   --include='*.ts' --include='*.tsx' --include='*.css' \
