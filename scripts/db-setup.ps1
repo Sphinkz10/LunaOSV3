@@ -1,4 +1,4 @@
-# LUNA.OS — Aplica migrações + seeds + provas G-DB (espelha CI)
+# LUNA.OS — Aplica migrações + provas SQL + seeds de desenvolvimento (espelha o CI)
 # Uso local (PostgreSQL 16): .\scripts\db-setup.ps1 -Host localhost -Port 5432 -User postgres -Password postgres
 # Requer: psql no PATH
 
@@ -26,41 +26,18 @@ function Invoke-PsqlFile {
   psql -h $DbHost -p $Port -U $User -d $Database -v ON_ERROR_STOP=1 -f $Path
 }
 
-Write-Host "==> Stub auth (compatível com migrações Supabase)"
-Invoke-Psql @"
-create schema if not exists auth;
-create table if not exists auth.users (
-  id uuid primary key,
-  email text,
-  raw_user_meta_data jsonb default '{}'::jsonb,
-  created_at timestamptz default now()
-);
-create or replace function auth.uid() returns uuid
-  language sql stable as `$`$ select nullif(current_setting('app.uid', true), '')::uuid `$`$;
-do `$`$b`$`$ begin
-  if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;
-  if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
-  if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin bypassrls; end if;
-end `$`$b`$`$;
-grant usage on schema auth to authenticated, anon;
-"@
+Write-Host "==> Shim do Supabase Auth"
+Invoke-PsqlFile "supabase/tests/auth_shim.sql"
 
-Write-Host "==> Migração 0001_luna_os.sql"
-Invoke-PsqlFile "supabase/migrations/0001_luna_os.sql"
+Get-ChildItem "supabase/migrations/*.sql" | Sort-Object Name | ForEach-Object {
+  Write-Host "==> Migração $($_.Name)"
+  Invoke-PsqlFile $_.FullName
+}
 
-Write-Host "==> Utilizador CI/coach stub"
-Invoke-Psql "insert into auth.users (id,email) values ('00000000-0000-0000-0000-00000000c0a0','coach@luna.os') on conflict (id) do nothing;"
+Write-Host "==> Provas SQL (RLS, partilhas, papéis)"
+Invoke-PsqlFile "supabase/tests/rls_asserts.sql"
 
-Write-Host "==> Migração 0002_hardening.sql"
-Invoke-PsqlFile "supabase/migrations/0002_hardening.sql"
-Write-Host "==> Migração 0003_security_fixes.sql"
-Invoke-PsqlFile "supabase/migrations/0003_security_fixes.sql"
-
-Write-Host "==> Seeds"
-Invoke-PsqlFile "supabase/seed_base.sql"
-Invoke-PsqlFile "supabase/seed_extended.sql"
-
-Write-Host "==> Provas G-DB (9 asserts)"
-Invoke-PsqlFile "supabase/tests/gdb_asserts.sql"
+Write-Host "==> Seeds de desenvolvimento"
+Invoke-PsqlFile "supabase/seed.sql"
 
 Write-Host "✅ db-setup concluído com sucesso"

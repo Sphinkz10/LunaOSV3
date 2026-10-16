@@ -40,13 +40,14 @@ enabled = true
 site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
-# Registo fechado (auditoria v3): contas novas só por convite.
-# Na cloud, desligar também em Authentication → Sign In / Providers.
-enable_signup = false
+# Registo aberto (o atleta usa a app de graça), mas a conta nova não tem papel
+# nenhum até criar uma organização ou aceitar um convite (AUD-71).
+enable_signup = true
 
 [auth.email]
-enable_signup = false
-enable_confirmations = false
+enable_signup = true
+# Confirmação de email obrigatória (AUD-71). Na cloud: Authentication → Sign In / Providers → Email.
+enable_confirmations = true
 
 [realtime]
 enabled = true

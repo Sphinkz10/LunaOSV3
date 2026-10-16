@@ -1,0 +1,83 @@
+-- ============================================================================
+-- LUNA.OS v3 · 0005_modalidades — catálogo de modalidades
+-- Gerado a partir de packages/modalidades/src/fitness/v1.json (o teste do pacote
+-- confirma que são iguais). Mudar a modalidade = nova versão, nunca editar esta.
+-- ============================================================================
+insert into public.sports (id, version, config) values ('fitness', 1, $json$
+{
+  "id": "fitness",
+  "versao": 1,
+  "vocabulario": {
+    "pessoa": "cliente",
+    "pessoa_ginasio": "sócio",
+    "sessao": "treino",
+    "aula": "aula",
+    "grupo_principal": "turma",
+    "responsavel": "PT"
+  },
+  "plurais": {
+    "cliente": "clientes",
+    "sócio": "sócios",
+    "treino": "treinos",
+    "aula": "aulas",
+    "turma": "turmas",
+    "PT": "PT"
+  },
+  "tipos_de_sessao": [
+    "sala",
+    "aula_de_grupo",
+    "pt_individual",
+    "pt_pequeno_grupo",
+    "wod",
+    "online"
+  ],
+  "metricas": [
+    {
+      "id": "carga",
+      "unidade": "kg"
+    },
+    {
+      "id": "repeticoes",
+      "unidade": "rep"
+    },
+    {
+      "id": "tempo",
+      "unidade": "s"
+    },
+    {
+      "id": "distancia",
+      "unidade": "m"
+    },
+    {
+      "id": "esforco",
+      "unidade": "RPE 1-10"
+    },
+    {
+      "id": "fc",
+      "unidade": "bpm"
+    }
+  ],
+  "testes": [
+    "1RM",
+    "composicao_corporal",
+    "flexibilidade",
+    "cardio_6min"
+  ],
+  "categorias_biblioteca": [
+    "forca",
+    "cardio",
+    "mobilidade",
+    "pliometria",
+    "equilibrio",
+    "reabilitacao",
+    "tecnica"
+  ],
+  "tipos_de_grupo": [
+    "turma",
+    "carteira",
+    "programa"
+  ],
+  "epoca": false
+}
+$json$::jsonb)
+on conflict (id, version) do nothing;
