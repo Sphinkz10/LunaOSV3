@@ -47,7 +47,8 @@ export function ProtoModal({
 
   return createPortal(
     <>
-      <div className="proto-modal-backdrop" onClick={closeOnBackdrop ? onClose : undefined} />
+      {/* Fundo: fecha com o rato; o teclado fecha com Esc (tratado acima) */}
+      <div className="proto-modal-backdrop" aria-hidden="true" role="presentation" onClick={closeOnBackdrop ? onClose : undefined} />
       <div
         ref={ref}
         className={`proto-modal ${size}`}

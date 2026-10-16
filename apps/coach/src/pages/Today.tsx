@@ -107,7 +107,7 @@ export function Today() {
           {WD_MINI.map((w, i) => <div key={`wd-${i}`} className="dash-mc-wd">{w}</div>)}
           {miniCal.map((d, i) => d == null
             ? <div key={`o-${i}`} className="dash-mc-d out" />
-            : <div key={`d-${d}`} className={`dash-mc-d${d === wall.day ? ' today' : ''}`} onClick={() => navigate('/schedule')}>{d}</div>)}
+            : <button type="button" key={`d-${d}`} className={`dash-mc-d${d === wall.day ? ' today' : ''}`} aria-label={`Dia ${d}`} onClick={() => navigate('/schedule')}>{d}</button>)}
         </div>
       </div>
       <div className="board-card">
@@ -168,7 +168,8 @@ export function Today() {
         {/* Quick stats */}
         <div className="dash-stats">
           {stats.map((s) => (
-            <div key={s.k} className={`dash-stat s-${s.k}`} onClick={s.act} role="button" tabIndex={0}>
+            <div key={s.k} className={`dash-stat s-${s.k}`} onClick={s.act} role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); s.act(); } }}>
               <div className="dash-stat-top"><div className="dash-stat-ic"><Svg name={s.ic} /></div></div>
               {/* Sem dados = traço, nunca um zero falso */}
               <div className="dash-stat-v">{loading ? '…' : s.v ?? '—'}</div>

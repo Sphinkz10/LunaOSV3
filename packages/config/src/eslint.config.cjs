@@ -1,3 +1,5 @@
+const reactHooks = require('eslint-plugin-react-hooks');
+const jsxA11y = require('eslint-plugin-jsx-a11y');
 const HEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/;
 const antiHardcode = {
   meta: { type: 'problem', messages: {
@@ -29,5 +31,14 @@ module.exports = [
     },
     plugins: { luna: { rules: { 'no-hardcoded-visuals': antiHardcode } } },
     rules: { 'luna/no-hardcoded-visuals': 'error' },
+  },
+  // Regras de hooks e de acessibilidade (auditoria, Baixo)
+  {
+    files: ['**/*.{tsx,jsx}'],
+    plugins: { 'react-hooks': reactHooks, 'jsx-a11y': jsxA11y },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      ...jsxA11y.flatConfigs.recommended.rules,
+    },
   },
 ];

@@ -609,7 +609,7 @@ export function Clients() {
             <h1 className="phase3-head-title">
               Quem precisa de atenção?
               {isMobile && (
-                <span className="info-dot phase3-head-info" tabIndex={0} aria-label="Ajuda sobre esta área">
+                <span className="info-dot phase3-head-info" role="note" aria-label="Ajuda sobre esta área">
                   i
                   <span className="tip">
                     Consulta, seleciona, atribui e resolve sem sair da carteira.
@@ -621,7 +621,7 @@ export function Clients() {
             <p className="phase3-head-desc">
               Consulta, seleciona, atribui e resolve sem sair da carteira.
               {' '}
-              <span className="info-dot phase3-head-desc-info" tabIndex={0} aria-label="Ajuda sobre esta área">
+              <span className="info-dot phase3-head-desc-info" role="note" aria-label="Ajuda sobre esta área">
                 i
                 <span className="tip">Esta página serve para decidir quem precisa de ação, gerir seleção e abrir o 360 quando é preciso profundidade.</span>
               </span>
@@ -892,8 +892,8 @@ function SaveViewModal({ open, onClose, defaultName, onSave }: {
     >
       <div className="proto-form">
         <div className="field">
-          <label>Nome da vista</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bloqueados urgentes" autoFocus />
+          <label htmlFor="view-name">Nome da vista</label>
+          <input id="view-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bloqueados urgentes" />
         </div>
       </div>
     </ProtoModal>
@@ -913,14 +913,14 @@ function AdvancedSearchModal({ open, onClose, value, onApply }: {
       </>}>
       <div className="proto-form">
         <div className="field-row">
-          <div className="field"><label>Estado</label>
-            <select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as AdvFilters['status'] })}>
+          <div className="field"><label htmlFor="adv-status">Estado</label>
+            <select id="adv-status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as AdvFilters['status'] })}>
               <option value="all">Qualquer</option>
               {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
             </select>
           </div>
-          <div className="field"><label>Plano</label>
-            <select value={draft.plan} onChange={(e) => setDraft({ ...draft, plan: e.target.value as AdvFilters['plan'] })}>
+          <div className="field"><label htmlFor="adv-plan">Plano</label>
+            <select id="adv-plan" value={draft.plan} onChange={(e) => setDraft({ ...draft, plan: e.target.value as AdvFilters['plan'] })}>
               <option value="all">Qualquer</option>
               <option value="with">Com plano</option>
               <option value="without">Sem plano</option>
@@ -928,8 +928,8 @@ function AdvancedSearchModal({ open, onClose, value, onApply }: {
           </div>
         </div>
         <div className="field-row">
-          <div className="field"><label>{RESP} contém</label><input className="input" value={draft.responsible} onChange={(e) => setDraft({ ...draft, responsible: e.target.value })} placeholder="Nome" /></div>
-          <div className="field"><label>Grupo contém</label><input className="input" value={draft.group} onChange={(e) => setDraft({ ...draft, group: e.target.value })} placeholder="Ex.: Reentrada" /></div>
+          <div className="field"><label htmlFor="adv-resp">{RESP} contém</label><input id="adv-resp" className="input" value={draft.responsible} onChange={(e) => setDraft({ ...draft, responsible: e.target.value })} placeholder="Nome" /></div>
+          <div className="field"><label htmlFor="adv-group">Grupo contém</label><input id="adv-group" className="input" value={draft.group} onChange={(e) => setDraft({ ...draft, group: e.target.value })} placeholder="Ex.: Reentrada" /></div>
         </div>
       </div>
     </ProtoModal>
@@ -973,8 +973,8 @@ function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
           <button className="btn secondary" onClick={() => onOpen360(athlete)}>Abrir perfil 360</button>
           <button className="btn secondary" onClick={() => onAssign(athlete)}>Atribuir plano</button>
         </div>
-        <div className="field"><label>Alterar estado</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus)}>
+        <div className="field"><label htmlFor="row-status">Alterar estado</label>
+          <select id="row-status" value={status} onChange={(e) => setStatus(e.target.value as ClientStatus)}>
             {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
           </select>
         </div>
@@ -1088,11 +1088,11 @@ function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClos
           {targets.length > 6 && <div className="board-sub">+ {targets.length - 6} restantes</div>}
         </div>
         <div className="field">
-          <label>Plano a atribuir</label>
+          <label htmlFor="assign-plan">Plano a atribuir</label>
           {loadingPlans ? (
-            <select disabled><option>A carregar…</option></select>
+            <select id="assign-plan" disabled><option>A carregar…</option></select>
           ) : plans.length === 0 ? (
-            <p className="proto-error">Ainda não há planos criados. Cria planos no módulo Plans.OS (fase própria).</p>
+            <p className="proto-error">Ainda não há planos criados na biblioteca.</p>
           ) : (
             <select value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
           )}

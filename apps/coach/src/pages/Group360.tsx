@@ -310,7 +310,7 @@ function AddMembersModal({ open, onClose, groupId, existing, onAdded }: {
           {visible.length === 0 && !loading
             ? <div className="groups-empty" style={{ gridColumn: '1/-1', margin: 0 }}><b>Nenhum {p1} disponível</b></div>
             : visible.map((a) => (
-              <label key={a.id} className="member-choice">
+              <label key={a.id} className="member-choice" aria-label={a.name}>
                 <input type="checkbox" checked={picked.has(a.id)} onChange={() => toggle(a.id)} />
                 <div><strong>{a.name}</strong><small>{[a.responsibleName, STATUS_META[a.status]?.label].filter(Boolean).join(' · ')}</small></div>
               </label>
@@ -367,12 +367,12 @@ function AssignGroupModal({ open, onClose, groupId, groupName, memberCount, onDo
       </>}>
       <div className="proto-form">
         <div className="field">
-          <label>Plano a atribuir</label>
+          <label htmlFor="group-plan">Plano a atribuir</label>
           {loadingPlans
-            ? <select disabled><option>A carregar…</option></select>
+            ? <select id="group-plan" disabled><option>A carregar…</option></select>
             : plans.length === 0
-              ? <p className="proto-error">Ainda não há planos. Cria planos no Plans.OS (fase própria).</p>
-              : <select value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+              ? <p className="proto-error">Ainda não há planos na biblioteca.</p>
+              : <select id="group-plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
         </div>
         {memberCount === 0 && <p className="proto-error">Este grupo ainda não tem membros.</p>}
         {err && <p className="proto-error">{err}</p>}

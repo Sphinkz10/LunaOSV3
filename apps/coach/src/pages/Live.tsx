@@ -177,7 +177,7 @@ export function Live() {
   };
 
   // ===== derivados =====
-  const exList = session?.exercises ?? [];
+  const exList = useMemo(() => session?.exercises ?? [], [session]);
   const statusOf = (e: LiveSessionExercise, i: number): ExStatus => {
     if (skipped.has(e.id)) return 'skipped';
     if (closed.has(e.id) || e.sets.length >= (e.targetSets ?? Number.POSITIVE_INFINITY)) return 'done';

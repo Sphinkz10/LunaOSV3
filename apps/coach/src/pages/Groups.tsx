@@ -184,14 +184,14 @@ export function Groups() {
               : (
                 <div className="groups-grid">
                   {filtered.map((g) => (
-                    <article
+                    <div
                       key={g.id}
                       className={`group-card${selected.has(g.id) ? ' selected' : ''}`}
                       tabIndex={0}
                       role="button"
                       aria-label={`Grupo ${g.name}`}
                       onClick={() => navigate(`/groups/${g.id}`)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/groups/${g.id}`); }}
+                      onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(`/groups/${g.id}`); } }}
                     >
                       <input
                         className="group-check"
@@ -217,7 +217,7 @@ export function Groups() {
                         <button className="btn secondary small" onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}>Abrir</button>
                         <button className="btn ghost small" onClick={(e) => { e.stopPropagation(); openAssign(g); }}>Atribuir</button>
                       </div>
-                    </article>
+                    </div>
                   ))}
                 </div>
               )}
@@ -269,8 +269,8 @@ function NewGroupModal({ open, onClose, onCreated }: { open: boolean; onClose: (
         <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? 'A criar…' : 'Criar grupo'}</button>
       </>}>
       <div className="proto-form">
-        <div className="field"><label>Nome</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Equipa Principal" /></div>
-        <div className="field"><label>Descrição (opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Critério ou objetivo do grupo" /></div>
+        <div className="field"><label htmlFor="grp-name">Nome</label><input id="grp-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Equipa Principal" /></div>
+        <div className="field"><label htmlFor="grp-desc">Descrição (opcional)</label><textarea id="grp-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Critério ou objetivo do grupo" /></div>
         {err && <p className="proto-error">{err}</p>}
       </div>
     </ProtoModal>
@@ -327,12 +327,12 @@ function AssignGroupModal({ open, onClose, group, onDone }: {
       </>}>
       <div className="proto-form">
         <div className="field">
-          <label>Plano a atribuir</label>
+          <label htmlFor="group-plan">Plano a atribuir</label>
           {loadingPlans
-            ? <select disabled><option>A carregar…</option></select>
+            ? <select id="group-plan" disabled><option>A carregar…</option></select>
             : plans.length === 0
-              ? <p className="proto-error">Ainda não há planos. Cria planos no Plans.OS (fase própria).</p>
-              : <select value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+              ? <p className="proto-error">Ainda não há planos na biblioteca.</p>
+              : <select id="group-plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
         </div>
         {memberCount === 0 && <p className="proto-error">Este grupo ainda não tem membros.</p>}
         {err && <p className="proto-error">{err}</p>}
