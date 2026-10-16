@@ -12,9 +12,11 @@
     "secret-scan": "node scripts/secret-scan.mjs",
     "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/db-setup.ps1",
     "db:cloud": "powershell -ExecutionPolicy Bypass -File scripts/supabase-cloud.ps1",
-    "validate:g1": "pnpm --filter @luna/coach test"
+    "validate:g1": "pnpm --filter @luna/coach test",
+    "db:test": "node scripts/db-test-pglite.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17",
     "turbo": "^2.3.3"
   }
 }

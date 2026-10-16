@@ -32,7 +32,8 @@ Verificações (as mesmas do CI):
 npx pnpm@9.15.9 turbo typecheck build test lint
 npx pnpm@9.15.9 audit:tokens
 npx pnpm@9.15.9 secret-scan
-bash scripts/db-setup.sh     # precisa de PostgreSQL 16 e psql
+npx pnpm@9.15.9 db:test      # migrações + provas SQL + seeds em PGlite (sem Docker)
+bash scripts/db-setup.sh     # o mesmo em PostgreSQL 16 com psql (como no CI)
 ```
 
 ## Modelo de dados
