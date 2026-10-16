@@ -59,10 +59,26 @@ export function bootstrapAuth(client: LunaClient | null): () => void {
   }
   let current: string | null | undefined;
   const apply = (userId: string | null) => {
-    if (userId === current) return;
+    const store = useAuthStore.getState();
+    if (userId === current) {
+      if (userId && store.sessaoTerminada) store.setSessaoTerminada(false);
+      return;
+    }
+    const anterior = current;
     current = userId;
-    if (!userId) useAuthStore.getState().signOut();
-    else void loadSession(client, userId);
+    if (!userId) {
+      // Sessão expirada (não pedida): guarda o ecrã e pede para entrar outra vez
+      if (anterior && !saidaPedida && store.status === 'signedIn') store.setSessaoTerminada(true);
+      else store.signOut();
+      saidaPedida = false;
+    } else if (anterior && anterior === userId) {
+      store.setSessaoTerminada(false);
+    } else if (store.sessaoTerminada && store.userId === userId) {
+      // Voltou a mesma pessoa: retoma sem recarregar nada
+      store.setSessaoTerminada(false);
+    } else {
+      void loadSession(client, userId);
+    }
   };
 
   void client.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
@@ -75,7 +91,10 @@ export async function signInWithPassword(client: LunaClient, email: string, pass
   if (error) throw error;
 }
 
+let saidaPedida = false;
+
 export async function signOut(client: LunaClient) {
+  saidaPedida = true;
   const { error } = await client.auth.signOut();
   if (error) throw error;
 }

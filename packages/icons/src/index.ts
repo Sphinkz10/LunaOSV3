@@ -4,7 +4,8 @@
  * Só se exporta o conjunto usado, para o pacote não crescer.
  */
 export {
-  ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, ClipboardText, Clock, DotsThree,
+  ArrowCounterClockwise, ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, CheckCircle,
+  ClipboardText, Clock, DotsThree, ListChecks, MapPin, ShieldCheck,
   Fire, Gear, Heartbeat, House, Info, List, Lock, MagnifyingGlass, Play, Plus, QrCode, SignOut, Sun, User, Users,
   Wallet, Warning, WifiSlash, X,
 } from '@phosphor-icons/react';

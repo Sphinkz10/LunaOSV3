@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   addToWaitlist, BookingConflictError, computeDayStates, createAvailabilitySlot, createBooking, createDayMarker,
-  dayInZone, deleteAvailabilitySlot, deleteDayMarker, fetchClientsLite, fetchAvailability, fetchMonthBookings,
+  confirmarDestrutivo, countClassEnrollments, dayInZone, deleteAvailabilitySlot, deleteDayMarker, fetchClientsLite, fetchAvailability, fetchMonthBookings,
   fetchMonthMarkers, fetchWaitlist, setBookingStatus, setWaitlistStatus, timeInZone, toast, wallClock, zonedToUtc,
   type ClientLite, type AvailabilitySlot, type Booking, type BookingType, type DayMarker, type DayMarkerType,
   type DayState, type NewBookingInput, type WaitlistEntry,
@@ -171,53 +171,76 @@ export function Schedule() {
   async function changeStatus(id: string, status: 'confirmed' | 'cancelled') {
     const client = getSupabaseClient();
     if (!client) return;
+    if (status === 'cancelled') { await pedirCancelamento(id); return; }
     try {
       await setBookingStatus(client, scope, id, status);
-      toast({
-        variant: status === 'confirmed' ? 'success' : 'info',
-        title: status === 'confirmed' ? 'Marcação confirmada' : 'Marcação cancelada',
-        description: status === 'cancelled' ? 'Se houver lista de espera para o horário, é promovida automaticamente.' : undefined,
-      });
+      toast({ variant: 'success', title: 'Marcação confirmada' });
       setDetail(null); load();
     } catch (e) {
       toast({ variant: 'danger', title: 'Falha na operação', description: e instanceof Error ? e.message : undefined });
     }
   }
 
+  /** Cancelar mostra o efeito em números antes de confirmar (P-04): avisados e lista de espera. */
+  async function pedirCancelamento(id: string) {
+    const client = getSupabaseClient();
+    const b = bookings.find((x) => x.id === id);
+    if (!client || !b) return;
+    const efeitos: string[] = [];
+    try {
+      if (b.type === 'class') {
+        const inscritos = await countClassEnrollments(client, scope, b.starts_at, b.ends_at);
+        efeitos.push(`${inscritos} ${inscritos === 1 ? 'inscrito recebe' : 'inscritos recebem'} aviso`);
+      } else if (b.link_id) {
+        efeitos.push(`${athleteName.get(b.link_id) ?? P1} recebe aviso`);
+      }
+      const espera = waitlist.filter((w) => w.status === 'waiting' && w.requestedStartsAt === b.starts_at).length;
+      if (espera > 0) efeitos.push(`Lista de espera deste horário: ${espera} ${espera === 1 ? 'pessoa' : 'pessoas'}; a primeira é promovida`);
+    } catch {
+      efeitos.push('Não foi possível contar os inscritos; confirma no horário antes de cancelar.');
+    }
+    const ok = await confirmarDestrutivo({
+      titulo: `Cancelar ${b.title ?? TYPE_LABELS[b.type as BookingType]}?`,
+      texto: fmtLocal(b.starts_at, { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }),
+      efeitos, verbo: b.type === 'class' ? 'Cancelar aula' : 'Cancelar marcação', manter: 'Manter',
+      motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: doença do treinador' },
+      acao: (motivo) => setBookingStatus(client, scope, id, 'cancelled', motivo ?? null),
+    });
+    if (ok) { toast({ variant: 'info', title: 'Marcação cancelada' }); setDetail(null); load(); }
+  }
+
   async function removeMarker(id: string) {
     const client = getSupabaseClient();
     if (!client) return;
-    try {
-      await deleteDayMarker(client, scope, id);
-      toast({ variant: 'info', title: 'Marcador removido' });
-      load();
-    } catch (e) {
-      toast({ variant: 'danger', title: 'Falha ao remover', description: e instanceof Error ? e.message : undefined });
-    }
+    const ok = await confirmarDestrutivo({
+      titulo: 'Remover o marcador deste dia?', verbo: 'Remover', manter: 'Manter',
+      efeitos: ['O dia volta a aparecer como disponível'],
+      acao: () => deleteDayMarker(client, scope, id),
+    });
+    if (ok) { toast({ variant: 'info', title: 'Marcador removido' }); load(); }
   }
 
   async function cancelWaitlist(id: string) {
     const client = getSupabaseClient();
-    if (!client) return;
-    try {
-      await setWaitlistStatus(client, scope, id, 'cancelled');
-      toast({ variant: 'info', title: 'Removido da lista de espera' });
-      load();
-    } catch (e) {
-      toast({ variant: 'danger', title: 'Falha na operação', description: e instanceof Error ? e.message : undefined });
-    }
+    const w = waitlist.find((x) => x.id === id);
+    if (!client || !w) return;
+    const ok = await confirmarDestrutivo({
+      titulo: `Tirar ${athleteName.get(w.clientId) ?? p1} da lista de espera?`, verbo: 'Tirar da lista', manter: 'Manter',
+      efeitos: ['Perde o lugar na fila; quem está atrás sobe uma posição'],
+      acao: () => setWaitlistStatus(client, scope, id, 'cancelled'),
+    });
+    if (ok) { toast({ variant: 'info', title: 'Removido da lista de espera' }); load(); }
   }
 
   async function removeAvailability(id: string) {
     const client = getSupabaseClient();
     if (!client) return;
-    try {
-      await deleteAvailabilitySlot(client, scope, id);
-      toast({ variant: 'info', title: 'Horário removido' });
-      load();
-    } catch (e) {
-      toast({ variant: 'danger', title: 'Falha ao remover', description: e instanceof Error ? e.message : undefined });
-    }
+    const ok = await confirmarDestrutivo({
+      titulo: 'Remover este horário de disponibilidade?', verbo: 'Remover', manter: 'Manter',
+      efeitos: ['As marcações já feitas mantêm-se'],
+      acao: () => deleteAvailabilitySlot(client, scope, id),
+    });
+    if (ok) { toast({ variant: 'info', title: 'Horário removido' }); load(); }
   }
 
   const filterEvs = (list: Booking[]) => (typeFilter === 'all' ? list : list.filter((b) => b.type === typeFilter));

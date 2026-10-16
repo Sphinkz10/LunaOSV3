@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
-import { Avatar, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
+import { Avatar, BarraSemRede, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
 import { CaretRight, DotsThree, List, MagnifyingGlass, Plus, SignOut } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 import { signOutEverywhere } from './session';
 import { navItems } from './CoachNav';
 import { Procura } from './Procura';
+import { Notificacoes } from './Notificacoes';
+import { SessaoExpirada } from './SessaoExpirada';
 import './gestao.css';
 
 const ORG_TIPO: Record<string, string> = {
@@ -176,6 +178,7 @@ export function CoachShell({
       </aside>
 
       <div className="lg-coluna">
+        <BarraSemRede />
         <header className="lg-topo">
           <div style={{ minWidth: 0 }}>
             <span className="lg-topo__data">{headSub ?? data}</span>
@@ -186,6 +189,7 @@ export function CoachShell({
               <MagnifyingGlass size={16} aria-hidden />Procurar {vocab.pessoa()}<span className="lg-procura__kbd" aria-hidden>Ctrl K</span>
             </button>
             <span className="lg-desktop-only">{topActions}</span>
+            {scope && <Notificacoes />}
             {botaoNovo}
           </div>
         </header>
@@ -227,6 +231,7 @@ export function CoachShell({
       </div>
 
       <Procura aberta={procura} onFechar={() => setProcura(false)} />
+      <SessaoExpirada />
     </div>
   );
 }

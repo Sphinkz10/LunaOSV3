@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  archiveClient, assignPlanToClients, addClient, DuplicateClientError, fetchClients, fetchPlans, fetchStaff, toast, updateClientStatus,
+  archiveClient, assignPlanToClients, confirmarDestrutivo, addClient, DuplicateClientError, fetchClients, fetchPlans, fetchStaff, toast, updateClientStatus,
   type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
@@ -394,7 +394,28 @@ export function Clients() {
   const [adv, setAdv] = useState<AdvFilters>(DEFAULT_ADV);
   const [rowAction, setRowAction] = useState<ClientRow | null>(null);
   const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
-  const [archiveTargets, setArchiveTargets] = useState<ClientRow[] | null>(null);
+  /** Arquivar (reversível, com motivo) usa a confirmação comum (P-01). */
+  const pedirArquivo = async (targets: ClientRow[]) => {
+    const client = getSupabaseClient();
+    if (!client || targets.length === 0) return;
+    const many = targets.length > 1;
+    const comPlano = targets.filter((t) => t.hasPlan).length;
+    const ok = await confirmarDestrutivo({
+      titulo: many ? `Arquivar ${targets.length} ${pp}?` : `Arquivar ${targets[0].name}?`,
+      texto: 'Deixa de aparecer nas listas. O histórico fica e podes voltar a ativar.',
+      efeitos: [
+        `${targets.length} ${many ? pp : p1} saem da carteira ativa`,
+        ...(comPlano ? [`${comPlano} com plano ativo: o plano fica guardado`] : []),
+      ],
+      verbo: 'Arquivar', manter: 'Cancelar',
+      motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: mudou de cidade' },
+      acao: async (motivo) => { for (const a of targets) await archiveClient(client, scope, a.id, motivo ?? null); },
+    });
+    if (ok) {
+      toast({ variant: 'success', title: many ? `${targets.length} ${pp} arquivados` : `${P1} arquivado`, description: many ? undefined : targets[0].name });
+      setSelected(new Set()); load();
+    }
+  };
   const [savedViews, setSavedViews] = useState<SavedView[]>(() => loadSavedViews());
   const [saveViewOpen, setSaveViewOpen] = useState(false);
 
@@ -569,7 +590,7 @@ export function Clients() {
       onSaveView={saveView}
       onLoadView={applySavedView}
       onRowAction={(a) => { setBoardOpen(false); setRowAction(a); }}
-      onArchive={(targets) => { setBoardOpen(false); setArchiveTargets(targets); }}
+      onArchive={(targets) => { setBoardOpen(false); void pedirArquivo(targets); }}
     />
   );
 
@@ -862,11 +883,6 @@ export function Clients() {
         onClose={() => setSaveViewOpen(false)}
         onSave={persistView}
       />
-      <ConfirmArchiveModal
-        targets={archiveTargets}
-        onClose={() => setArchiveTargets(null)}
-        onDone={() => { setArchiveTargets(null); setSelected(new Set()); load(); }}
-      />
     </CoachShell>
   );
 }
@@ -980,54 +996,6 @@ function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
         </div>
         {err && <p className="proto-error">{err}</p>}
         <button className="btn primary" onClick={() => void saveStatus()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar estado'}</button>
-      </div>
-    </ProtoModal>
-  );
-}
-
-function ConfirmArchiveModal({ targets, onClose, onDone }: {
-  targets: ClientRow[] | null; onClose: () => void; onDone: () => void;
-}) {
-  const scope = useScope();
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
-
-  const confirm = async () => {
-    const client = getSupabaseClient();
-    if (!client || !targets || targets.length === 0) return;
-    setBusy(true); setErr(null);
-    try {
-      for (const a of targets) await archiveClient(client, scope, a.id, reason || null);
-      toast({
-        variant: 'success',
-        title: targets.length === 1 ? `${P1} arquivado` : `${targets.length} ${pp} arquivados`,
-        description: targets.length === 1 ? targets[0].name : 'Saíram da lista (reversível).',
-      });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao arquivar');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!targets || targets.length === 0) return null;
-  const many = targets.length > 1;
-
-  return (
-    <ProtoModal open={!!targets} onClose={onClose} title={many ? `Arquivar ${targets.length} ${pp}?` : `Arquivar ${targets[0].name}?`}
-      sub="Reversível: os dados ficam guardados e pode ser reposto." size="sm"
-      footer={<>
-        <button className="btn ghost" onClick={onClose} disabled={busy}>Cancelar</button>
-        <button className="btn danger" onClick={() => void confirm()} disabled={busy}>{busy ? 'A arquivar…' : 'Arquivar'}</button>
-      </>}>
-      <div className="proto-form">
-        <p className="board-sub">{many
-          ? `Os ${pp} selecionados saem da lista ativa. Podes repô-los mais tarde.`
-          : `O ${p1} sai da lista ativa. Podes repô-lo mais tarde.`}</p>
-        <div className="field"><label htmlFor="arch-reason">Motivo (opcional)</label><input id="arch-reason" className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: mudou de cidade" /></div>
-        {err && <p className="proto-error">{err}</p>}
       </div>
     </ProtoModal>
   );

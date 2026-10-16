@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   addGroupMembers, assignPlanToGroup, fetchClients, fetchGroupProfile, fetchPlans,
-  removeGroupMember, toast,
+  confirmarDestrutivo, removeGroupMember, toast,
   type ClientRow, type GroupDetail, type GroupMemberRow, type PlanLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
@@ -217,15 +217,13 @@ function MemberRow({ member, groupId, onRemoved, onOpen }: { member: GroupMember
     const client = getSupabaseClient();
     if (!client) return;
     setBusy(true);
-    try {
-      await removeGroupMember(client, scope, groupId, member.id);
-      toast({ variant: 'info', title: 'Membro removido', description: member.name });
-      onRemoved();
-    } catch (e) {
-      toast({ variant: 'danger', title: 'Erro', description: e instanceof Error ? e.message : undefined });
-    } finally {
-      setBusy(false);
-    }
+    const ok = await confirmarDestrutivo({
+      titulo: `Tirar ${member.name} do grupo?`, verbo: 'Tirar do grupo', manter: 'Manter',
+      efeitos: ['Deixa de receber o que for atribuído ao grupo; o que já tem fica'],
+      acao: () => removeGroupMember(client, scope, groupId, member.id),
+    });
+    setBusy(false);
+    if (ok) { toast({ variant: 'info', title: 'Membro removido', description: member.name }); onRemoved(); }
   };
 
   return (

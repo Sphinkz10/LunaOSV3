@@ -1221,3 +1221,13 @@ button{cursor:pointer;color:inherit}
 .live-pick{width:100%;text-align:left;color:inherit;font-family:inherit}
 .live-head-time{font-family:var(--display);font-weight:800;font-size:1.05rem;color:var(--white);font-variant-numeric:tabular-nums;padding:0 6px}
 @media(max-width:640px){.live-set{gap:6px}.live-set-input{padding:10px 4px}}
+
+/* P-06: no telemóvel, as janelas antigas abrem como folha de baixo (nunca centradas) */
+@media (max-width: 960px) {
+  .proto-modal, .proto-modal.sm, .proto-modal.lg, .proto-modal.wide {
+    left: 0; right: 0; top: auto; bottom: 0; transform: none; width: 100%;
+    max-height: 90dvh; border-radius: 24px 24px 0 0; animation: none;
+  }
+  .proto-modal-f { flex-direction: column-reverse; }
+  .proto-modal-f .btn { width: 100%; min-height: 56px; }
+}

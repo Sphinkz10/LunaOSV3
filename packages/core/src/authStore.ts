@@ -31,6 +31,9 @@ export interface AuthState {
   modules: string[];
   /** Nome e foto da própria pessoa (cartão no fundo do menu). */
   me: { name: string; avatarUrl: string | null } | null;
+  /** A sessão acabou sem a pessoa pedir: o ecrã fica como está até voltar a entrar. */
+  sessaoTerminada: boolean;
+  setSessaoTerminada: (v: boolean) => void;
   setMe: (me: { name: string; avatarUrl: string | null } | null) => void;
   signIn: (userId: string, orgs: MyOrgRow[], activeOrgId?: string | null, modules?: string[]) => void;
   setModules: (modules: string[]) => void;
@@ -55,7 +58,7 @@ export function toScope(o: MyOrgRow): OrgScope {
   };
 }
 
-const signedOut = { userId: null, orgs: [] as MyOrgRow[], scope: null, modules: [] as string[], error: null, me: null };
+const signedOut = { userId: null, orgs: [] as MyOrgRow[], scope: null, modules: [] as string[], error: null, me: null, sessaoTerminada: false };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...signedOut,
@@ -70,6 +73,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   setModules: (modules) => set({ modules }),
   setMe: (me) => set({ me }),
+  setSessaoTerminada: (sessaoTerminada) => set({ sessaoTerminada }),
   selectOrg: (orgId) => {
     const o = get().orgs.find((x) => x.org_id === orgId);
     if (o) set({ scope: toScope(o), modules: [] });
