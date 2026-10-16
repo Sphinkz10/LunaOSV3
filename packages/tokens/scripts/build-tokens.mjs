@@ -124,7 +124,9 @@ async function main() {
   let stale = [];
   for (const [k, file] of Object.entries(FILES)) {
     const p = resolve(DEFAULT_OUT, file);
-    const cur = existsSync(p) ? readFileSync(p, 'utf8') : null;
+    const cur = existsSync(p) ? readFileSync(p, 'utf8').replace(/
+/g, '
+') : null;
     if (cur !== out[k]) {
       if (check) stale.push(file);
       else writeFileSync(p, out[k]);

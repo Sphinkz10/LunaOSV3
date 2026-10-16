@@ -19,9 +19,13 @@ describe('tokens v3 · gerados do JSON com Style Dictionary', () => {
   it('as saídas no repositório estão atualizadas', async () => {
     const out: Out = await buildTokens();
     const dir = resolve(__dirname, '../v3');
-    expect(readFileSync(join(dir, 'tokens.css'), 'utf8')).toBe(out.css);
-    expect(readFileSync(join(dir, 'tokens.ts'), 'utf8')).toBe(out.ts);
-    expect(readFileSync(join(dir, 'tokens.native.ts'), 'utf8')).toBe(out.native);
+    // Sem diferenças de fim de linha (checkouts em Windows usam CRLF)
+    const read = (f: string) => readFileSync(join(dir, f), 'utf8').replace(/
+/g, '
+');
+    expect(read('tokens.css')).toBe(out.css);
+    expect(read('tokens.ts')).toBe(out.ts);
+    expect(read('tokens.native.ts')).toBe(out.native);
   });
 
   it('mudar um valor e regenerar muda as três saídas', async () => {
