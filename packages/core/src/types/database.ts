@@ -167,6 +167,7 @@ export type WorkoutBlockRow = {
   mode: 'normal' | 'superset' | 'circuito' | 'emom' | 'amrap' | 'for_time'; rounds: number | null; minutes: number | null; notes: string | null;
   rest_between_rounds: number | null; rest_after: number | null;
 };
+export type BookingRulesRow = { org_id: Uuid; slot_minutes: number; min_notice_hours: number; cancel_hours: number; auto_confirm: boolean; horizon_days: number; updated_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
   unit: string | null; min_value: number | null; max_value: number | null; required: boolean;
@@ -196,6 +197,7 @@ export type AssignmentRow = {
 export type AvailabilityRow = {
   id: Uuid; org_id: Uuid; membership_id: Uuid; unit_id: Uuid | null; weekday: number; start_time: string;
   end_time: string; is_available: boolean; created_at: Ts; updated_at: Ts;
+  kind: 'turno' | 'marcacoes';
 };
 export type DayMarkerRow = {
   id: Uuid; org_id: Uuid; membership_id: Uuid | null; link_id: Uuid | null; date: string;
@@ -206,6 +208,7 @@ export type BookingRow = {
   class_id: Uuid | null; assignment_id: Uuid | null; type: Enums['booking_type']; session_type: string | null;
   status: Enums['booking_status']; title: string | null; starts_at: Ts; ends_at: Ts; location: string | null;
   notes: string | null; capacity: number | null; source: string; cancel_reason: string | null; created_at: Ts; updated_at: Ts;
+  series_id: Uuid | null; late_cancel: boolean;
 };
 export type WaitlistRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; class_id: Uuid | null; membership_id: Uuid | null;
@@ -327,6 +330,7 @@ export interface Database {
       library_exercises: Table<LibraryExerciseRow, 'key' | 'version' | 'name' | 'category'>;
       workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
       exercise_fields: Table<ExerciseFieldRow, 'org_id' | 'exercise_id' | 'label' | 'kind'>;
+      booking_rules: Table<BookingRulesRow, 'org_id'>;
       session_set_edits: Table<SessionSetEditRow, 'set_id' | 'session_id' | 'person_id' | 'before' | 'after'>;
       plan_workouts: Table<PlanWorkoutRow, 'org_id' | 'plan_id' | 'workout_id'>;
       exercise_alternatives: Table<ExerciseAlternativeRow, 'org_id' | 'exercise_id' | 'alternative_id'>;
@@ -363,6 +367,18 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      schedule_conflicts: {
+        Args: { _org: string; _membership: string | null; _room: string | null; _starts: string; _ends: string; _ignore?: string | null };
+        Returns: { motivo: string }[];
+      };
+      create_booking_series: {
+        Args: { _org: string; _membership: string; _link: string | null; _room: string | null; _type: Enums['booking_type']; _title: string | null; _first: string; _minutes: number; _until: string };
+        Returns: number;
+      };
+      my_pt_slots: { Args: { _link: string; _from?: string; _days?: number }; Returns: { inicio: string; fim: string }[] };
+      book_my_pt: { Args: { _link: string; _starts: string }; Returns: string };
+      cancel_my_booking: { Args: { _booking: string }; Returns: string };
+      my_bookings: { Args: Record<string, never>; Returns: { id: string; inicio: string; fim: string; titulo: string; estado: string; com: string | null; pode_desmarcar_sem_contar: boolean }[] };
       workout_problems: { Args: { _workout: string }; Returns: { problema: string }[] };
       workout_library_changes: { Args: { _workout: string }; Returns: { exercise_id: string; nome: string; versao_no_treino: number; versao_atual: number }[] };
       accept_exercise_update: { Args: { _workout: string; _exercise: string }; Returns: undefined };

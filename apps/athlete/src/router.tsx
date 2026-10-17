@@ -3,9 +3,9 @@ import {
   BoasVindas, Consentimentos, CriarContaCliente, EntrarCliente, Parq, Partilhas, PedirEncarregado, Pronto,
 } from './pages/Conta';
 import { Tutela } from './pages/Tutela';
-import { AppCliente, AvisosCliente, DefinicoesCliente, EuCliente, HojeCliente, PorChegar, PrivacidadeCliente, ProgressoCliente } from './pages/App';
+import { AppCliente, AvisosCliente, DefinicoesCliente, EuCliente, HojeCliente, PrivacidadeCliente, ProgressoCliente } from './pages/App';
 import { TreinoAntevisao, TreinoEmCurso, TreinoSemana } from './pages/TreinoCliente';
-import { t } from './vocab';
+import { MarcarPT } from './pages/Marcar';
 
 /** App do cliente · F1a: conta, consentimentos, convite, PAR-Q e encarregado (C-01, C-25); Hoje, avisos, Eu e privacidade (C-03, C-20, C-21, C-24). */
 export const router = createBrowserRouter([
@@ -25,7 +25,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/hoje', element: <HojeCliente /> },
       { path: '/avisos', element: <AvisosCliente /> },
-      { path: '/aulas', element: <PorChegar titulo={t('aula', { plural: true, maiuscula: true })} texto={`Marcar ${t('sessao', { plural: true })} e ${t('aula', { plural: true })} chega com o horário.`} /> },
+      { path: '/aulas', element: <MarcarPT /> },
       { path: '/treino', element: <TreinoSemana /> },
       { path: '/treino/:id', element: <TreinoAntevisao /> },
       { path: '/progresso', element: <ProgressoCliente /> },

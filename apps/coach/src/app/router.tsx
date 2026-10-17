@@ -8,7 +8,8 @@ import { Poc } from '../Poc';
 import { Login } from '../pages/Login';
 import { CriarConta, Recuperar } from '../pages/Acesso';
 import { Today } from '../pages/Today';
-import { Schedule } from '../pages/Schedule';
+import { Horario } from '../pages/Horario';
+import { Disponibilidade } from '../pages/Disponibilidade';
 import { Clients } from '../pages/Clients';
 import { Client360 } from '../pages/Client360';
 import { Aptidao } from '../pages/Aptidao';
@@ -45,7 +46,7 @@ const routes: RouteObject[] = [
   { path: '/today', element: <Protected module="today"><ModuleLayout module="today" /></Protected>,
     children: [{ index: true, element: <Today /> }] },
   { path: '/schedule', element: <Protected module="schedule"><ModuleLayout module="schedule" /></Protected>,
-    children: [{ index: true, element: <Schedule /> }] },
+    children: [{ index: true, element: <Horario /> }, { path: 'disponibilidade', element: <Disponibilidade /> }] },
   { path: '/live/:bookingId?', element: <Protected module="training"><ModuleLayout module="live" /></Protected>,
     children: [{ index: true, element: <Live /> }] },
   { path: '/clients', element: <Protected module="clients"><ModuleLayout module="clients" /></Protected>,

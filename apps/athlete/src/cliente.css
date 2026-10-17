@@ -111,3 +111,13 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
 .lc-rpe__n[aria-checked='true'] { background: var(--cor-principal); color: var(--cor-sobre-principal); border-color: var(--cor-principal); }
 .lc-barras { display: flex; align-items: flex-end; gap: 3px; height: 36px; margin-top: auto; }
 .lc-barras i { flex: 1; border-radius: 3px; background: var(--cor-principal); }
+
+/* Marcar com o PT (C-06) */
+.lc-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.lc-dia { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--espaco-8) 0; border: 1px solid var(--cor-linha); border-radius: 14px; background: var(--cor-superficie); color: var(--cor-texto); font: inherit; cursor: pointer; }
+.lc-dia b { font: 600 18px/1 var(--fonte-titulo); }
+.lc-dia i { width: 5px; height: 5px; border-radius: 50%; background: var(--cor-principal); }
+.lc-dia[aria-checked='true'] { background: var(--cor-selecao); border: 2px solid var(--cor-texto); }
+.lc-horas { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--espaco-8); }
+.lc-hora { min-height: 48px; border: 1px solid var(--cor-linha); border-radius: var(--raio-linha); background: var(--cor-superficie); color: var(--cor-texto); font: 600 16px/1 var(--fonte-texto); cursor: pointer; }
+.lc-hora[aria-checked='true'] { background: var(--cor-principal); color: var(--cor-sobre-principal); border-color: var(--cor-principal); }
