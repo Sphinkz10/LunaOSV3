@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  addClient, archiveClient, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients, fetchAssiduidade,
-  fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, MOTIVO_ATENCAO, toast, unarchiveClient,
-  type Assiduidade, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
+  addClient, apagarRascunhoServidor, archiveClient, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
+  fetchAssiduidade, fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, guardarRascunhoServidor, lerRascunhoServidor, MOTIVO_ATENCAO,
+  convidarParaApp, procurarDuplicados, toast, unarchiveClient, useAuthStore,
+  type Assiduidade, type Duplicado, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
 import { Plus } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
+import { useMediaQuery } from '../app/useMediaQuery';
+import { AvisoDuplicado, ConvidarApp, PreviaMassa, type ForaDeAlcance, type ParaConvidar } from '../app/ClientesP07';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 
@@ -58,6 +61,8 @@ export function Clients() {
   const navigate = useNavigate();
   const scope = useScope();
   const gere = scope.permissions.includes('clients.read_all');
+  // No telemóvel, tocar abre logo a ficha; no tablet e no computador, o primeiro toque abre o resumo ao lado
+  const estreito = useMediaQuery('(max-width: 760px)');
   const [searchParams, setSearchParams] = useSearchParams();
   const [separador, setSeparador] = useState<'ativos' | 'arquivados'>(searchParams.get('ver') === 'arquivados' ? 'arquivados' : 'ativos');
   const [q, setQ] = useState(searchParams.get('q') ?? '');
@@ -71,6 +76,8 @@ export function Clients() {
   const [resumo, setResumo] = useState<string | null>(null);
   const [novo, setNovo] = useState(searchParams.get('novo') === '1');
   const [atribuir, setAtribuir] = useState<string[] | null>(null);
+  const [convidar, setConvidar] = useState<ParaConvidar | null>(null);
+  const [massaConvite, setMassaConvite] = useState(false);
   const [vistas, setVistas] = useState<Vista[]>(lerVistas);
 
   // Filtros no endereço: "Voltar a…" a partir da ficha repõe-nos (G-00)
@@ -111,6 +118,18 @@ export function Clients() {
   };
   const alternar = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const todosSel = lista.length > 0 && lista.every((r) => sel.has(r.id));
+  // Antes de convidar em massa: a quem chega e quem fica de fora e porquê
+  const previaConvite = useMemo(() => {
+    const alvos = (rows ?? []).filter((r) => sel.has(r.id));
+    const fora: ForaDeAlcance[] = [];
+    const recebem: ClientRow[] = [];
+    for (const r of alvos) {
+      if (r.hasAccount) fora.push({ nome: r.name, motivo: 'já usam a app' });
+      else if (!r.email && !r.phone) fora.push({ nome: r.name, motivo: 'sem email nem telemóvel' });
+      else recebem.push(r);
+    }
+    return { recebem, fora };
+  }, [rows, sel]);
 
   const arquivar = async (alvos: ClientRow[]) => {
     const client = getSupabaseClient();
@@ -198,6 +217,7 @@ export function Clients() {
                       <div className="lg-tabela__massa" role="toolbar" aria-label="Ações para os selecionados">
                         <b>{sel.size} selecionados</b>
                         <span style={{ flex: 1 }} />
+                        <button type="button" onClick={() => setMassaConvite(true)}>Convidar para a app</button>
                         <button type="button" onClick={() => setAtribuir([...sel])}>Atribuir plano</button>
                         <button type="button" onClick={() => void arquivar(lista.filter((r) => sel.has(r.id)))}>Arquivar</button>
                         <button type="button" onClick={() => setSel(new Set())}>Limpar</button>
@@ -215,7 +235,8 @@ export function Clients() {
                         return (
                           <div key={r.id} role="row" className={`lg-tabela__linha${sel.has(r.id) || resumo === r.id ? ' lg-tabela__linha--sel' : ''}`}>
                             <input type="checkbox" aria-label={`Selecionar ${r.name}`} checked={sel.has(r.id)} onChange={() => alternar(r.id)} />
-                            <button type="button" className="lg-tabela__nome" onClick={() => setResumo(r.id)} onDoubleClick={() => abrirFicha(r.id)}>
+                            <button type="button" className="lg-tabela__nome"
+                              onClick={() => (estreito || resumo === r.id ? abrirFicha(r.id) : setResumo(r.id))}>
                               <Avatar nome={r.name} foto={r.avatarUrl} tamanho={32} />
                               <span style={{ minWidth: 0 }}>
                                 <span className="lv-linha-lista__titulo">{r.name}</span>
@@ -249,6 +270,9 @@ export function Clients() {
                         <div><span className="lv-legenda">Grupo</span><b>{aberto.groupName ?? '—'}</b></div>
                       </div>
                       <div style={{ display: 'flex', gap: 'var(--espaco-8)', marginTop: 'auto' }}>
+                        {!aberto.hasAccount && (
+                          <Botao variante="secundario" onClick={() => setConvidar({ id: aberto.id, nome: aberto.name, email: aberto.email, telefone: aberto.phone })}>Convidar</Botao>
+                        )}
                         <Botao variante="secundario" onClick={() => setAtribuir([aberto.id])}>Atribuir plano</Botao>
                         <Botao onClick={() => abrirFicha(aberto.id)}>Abrir ficha</Botao>
                       </div>
@@ -261,67 +285,143 @@ export function Clients() {
       </div>
 
       <NovoCliente aberta={novo} gere={gere} onFechar={() => { setNovo(false); if (searchParams.get('novo')) setSearchParams(params, { replace: true }); }}
-        onCriado={(id) => { carregar(); abrirFicha(id); }} />
+        onCriado={(id) => { carregar(); abrirFicha(id); }} onAbrir={abrirFicha} />
       <Janela aberta={nomeVista !== null} onFechar={() => setNomeVista(null)} titulo="Guardar vista" sub="Fica com o filtro e a procura de agora."
         acoes={<><Botao variante="secundario" onClick={() => setNomeVista(null)}>Voltar</Botao>
           <Botao disabled={!nomeVista?.trim()} onClick={() => { guardarVista(nomeVista!.trim()); setNomeVista(null); }}>Guardar</Botao></>}>
         <Campo rotulo="Nome" value={nomeVista ?? ''} onChange={(e) => setNomeVista(e.target.value)} placeholder="Ex.: Em atenção esta semana" />
       </Janela>
-      <AtribuirPlano ids={atribuir} onFechar={() => setAtribuir(null)} onFeito={() => { setSel(new Set()); carregar(); }} />
+      <ConvidarApp cliente={convidar} onFechar={() => setConvidar(null)} />
+      <PreviaMassa aberta={massaConvite} titulo={`Convidar ${sel.size} ${pp} para a app?`} verbo="Convidar"
+        recebem={previaConvite.recebem.length} fora={previaConvite.fora}
+        nota="Vale 7 dias e fica no perfil de cada um, com o teu nome."
+        onFechar={() => setMassaConvite(false)}
+        onConfirmar={async () => {
+          const client = getSupabaseClient();
+          if (!client) return;
+          let ok = 0;
+          for (const r of previaConvite.recebem) {
+            try { await convidarParaApp(client, r.id, r.phone ? 'sms' : 'email'); ok++; } catch { /* conta no fim */ }
+          }
+          toast({ variant: ok === previaConvite.recebem.length ? 'success' : 'warning', title: `${ok} convites enviados`,
+            description: ok < previaConvite.recebem.length ? `${previaConvite.recebem.length - ok} não foram: tenta outra vez na ficha.` : undefined });
+          setMassaConvite(false); setSel(new Set());
+        }} />
+      <AtribuirPlano ids={atribuir} alvos={(rows ?? []).filter((r) => atribuir?.includes(r.id))} onFechar={() => setAtribuir(null)} onFeito={() => { setSel(new Set()); carregar(); }} />
     </CoachShell>
   );
 }
 
-function NovoCliente({ aberta, gere, onFechar, onCriado }: { aberta: boolean; gere: boolean; onFechar: () => void; onCriado: (id: string) => void }) {
+interface RascunhoNovo { nome: string; email: string; telefone: string; nif: string; resp: string }
+const vazioNovo = (resp: string): RascunhoNovo => ({ nome: '', email: '', telefone: '', nif: '', resp });
+
+/**
+ * Novo cliente (P-07): o duplicado aparece ao escrever o telemóvel, o email ou
+ * o NIF; sair sem guardar só pergunta quando algo mudou e o rascunho fica 7
+ * dias, no computador ou no telemóvel.
+ */
+function NovoCliente({ aberta, gere, onFechar, onCriado, onAbrir }: {
+  aberta: boolean; gere: boolean; onFechar: () => void; onCriado: (id: string) => void; onAbrir: (id: string) => void;
+}) {
   const scope = useScope();
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [resp, setResp] = useState(scope.membershipId);
+  const userId = useAuthStore((s) => s.userId) ?? '';
+  const chave = `novo-cliente:${scope.orgId}`;
+  const [f, setF] = useState<RascunhoNovo>(vazioNovo(scope.membershipId));
+  const [rascunhoDe, setRascunhoDe] = useState<string | null>(null);
   const [equipa, setEquipa] = useState<StaffLite[]>([]);
+  const [duplicados, setDuplicados] = useState<Duplicado[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
+  const [sair, setSair] = useState(false);
+  const sujo = !!(f.nome.trim() || f.email.trim() || f.telefone.trim() || f.nif.trim());
+
   useEffect(() => {
     if (!aberta) return;
-    setNome(''); setEmail(''); setTelefone(''); setErro(null); setResp(scope.membershipId);
+    setF(vazioNovo(scope.membershipId)); setErro(null); setDuplicados([]); setRascunhoDe(null); setSair(false);
     const client = getSupabaseClient();
-    if (gere && client) void fetchStaff(client, scope).then(setEquipa).catch(() => setEquipa([]));
-  }, [aberta, gere, scope]);
+    if (!client) return;
+    if (gere) void fetchStaff(client, scope).then(setEquipa).catch(() => setEquipa([]));
+    void lerRascunhoServidor<RascunhoNovo>(client, userId, chave).then((r) => {
+      if (r) { setF({ ...vazioNovo(scope.membershipId), ...r.valor }); setRascunhoDe(r.em); }
+    });
+  }, [aberta, gere, scope, userId, chave]);
+
+  // Duplicados ao escrever (telemóvel, email ou NIF)
+  useEffect(() => {
+    if (!aberta) return;
+    const client = getSupabaseClient();
+    if (!client) return;
+    const t = setTimeout(() => {
+      void procurarDuplicados(client, scope, { telefone: f.telefone, email: f.email, nif: f.nif }).then(setDuplicados).catch(() => setDuplicados([]));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [aberta, scope, f.telefone, f.email, f.nif]);
+
+  const fechar = () => { if (sujo) setSair(true); else onFechar(); };
+  const sairEGuardar = async () => {
+    const client = getSupabaseClient();
+    if (client) await guardarRascunhoServidor(client, userId, chave, f).catch(() => undefined);
+    setSair(false); onFechar();
+    toast({ variant: 'success', title: 'Rascunho guardado', description: 'Fica 7 dias, aqui ou no telemóvel.' });
+  };
+  const sairSemGuardar = async () => {
+    const client = getSupabaseClient();
+    if (client) await apagarRascunhoServidor(client, userId, chave).catch(() => undefined);
+    setSair(false); onFechar();
+  };
   const criar = async (e: FormEvent) => {
     e.preventDefault();
     const client = getSupabaseClient();
-    if (!client || !nome.trim()) return;
+    if (!client || !f.nome.trim()) return;
     setAGravar(true); setErro(null);
     try {
-      const id = await addClient(client, scope, { name: nome.trim(), email: email.trim() || null, phone: telefone.trim() || null, responsibleMembershipId: resp });
-      toast({ variant: 'success', title: `${P1} criado`, description: nome.trim() });
+      const id = await addClient(client, scope, {
+        name: f.nome.trim(), email: f.email.trim() || null, phone: f.telefone.trim() || null, taxId: f.nif.trim() || null, responsibleMembershipId: f.resp,
+      });
+      await apagarRascunhoServidor(client, userId, chave);
+      toast({ variant: 'success', title: `${P1} criado`, description: f.nome.trim() });
       onFechar(); onCriado(id);
     } catch (err) {
-      setErro(err instanceof DuplicateClientError ? `Já existe um ${p1} com este email.` : err instanceof Error ? err.message : 'Não foi possível criar.');
+      setErro(err instanceof DuplicateClientError ? `Já existe um ${p1} com este telemóvel, email ou NIF.` : err instanceof Error ? err.message : 'Não foi possível criar.');
     } finally { setAGravar(false); }
   };
+  const campo = (k: keyof RascunhoNovo) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+
   return (
-    <Janela aberta={aberta} onFechar={onFechar} titulo={`Novo ${p1}`} sub="O convite para a app pode ir depois, a partir da ficha.">
-      <form onSubmit={(e) => void criar(e)} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
-        <Campo rotulo="Nome" value={nome} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
-        <Campo rotulo="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" ajuda="Serve para o convite e para evitar duplicados" />
-        <Campo rotulo="Telemóvel" value={telefone} onChange={(e) => setTelefone(e.target.value)} inputMode="tel" autoComplete="off" />
-        {gere && equipa.length > 0 && (
-          <label className="lv-campo">
-            <span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
-            <select className="lv-campo-input" value={resp} onChange={(e) => setResp(e.target.value)}>
-              {equipa.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </label>
-        )}
-        {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
-        <Botao type="submit" aCarregar={aGravar}>Criar {p1}</Botao>
-      </form>
-    </Janela>
+    <>
+      <Janela aberta={aberta && !sair} onFechar={fechar} titulo={`Novo ${p1}`} sub="O convite para a app pode ir logo a seguir.">
+        <form onSubmit={(e) => void criar(e)} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+          {rascunhoDe && <Nota>Continuas o rascunho de {new Date(rascunhoDe).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}.</Nota>}
+          <Campo rotulo="Nome" value={f.nome} onChange={campo('nome')} required autoComplete="off" />
+          <Campo rotulo="Telemóvel" value={f.telefone} onChange={campo('telefone')} inputMode="tel" autoComplete="off" />
+          <Campo rotulo="Email" type="email" value={f.email} onChange={campo('email')} autoComplete="off" ajuda="Para o convite da app" />
+          <Campo rotulo="NIF (opcional)" value={f.nif} onChange={campo('nif')} inputMode="numeric" autoComplete="off" />
+          <AvisoDuplicado duplicados={duplicados} onAbrir={(id) => { onFechar(); onAbrir(id); }} />
+          {gere && equipa.length > 0 && (
+            <label className="lv-campo">
+              <span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
+              <select className="lv-campo-input" value={f.resp} onChange={campo('resp')}>
+                {equipa.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+          )}
+          {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
+          <Botao type="submit" aCarregar={aGravar} disabled={duplicados.length > 0}>Criar {p1}</Botao>
+        </form>
+      </Janela>
+      <Janela aberta={sair} onFechar={() => setSair(false)} titulo={`Sair do novo ${p1}?`}
+        sub={`${f.nome.trim() || 'O que escreveste'} fica guardado 7 dias; podes continuar aqui ou no telemóvel.`}
+        acoes={<>
+          <Botao variante="secundario" onClick={() => void sairSemGuardar()}>Descartar</Botao>
+          <Botao variante="secundario" onClick={() => setSair(false)}>Continuar</Botao>
+          <Botao onClick={() => void sairEGuardar()}>Sair e guardar</Botao>
+        </>} />
+    </>
   );
 }
 
-function AtribuirPlano({ ids, onFechar, onFeito }: { ids: string[] | null; onFechar: () => void; onFeito: () => void }) {
+function AtribuirPlano({ ids, alvos, onFechar, onFeito }: { ids: string[] | null; alvos: ClientRow[]; onFechar: () => void; onFeito: () => void }) {
+  const bloqueados = alvos.filter((a) => a.status === 'blocked');
   const scope = useScope();
   const [planos, setPlanos] = useState<PlanLite[] | null>(null);
   const [aGravar, setAGravar] = useState<string | null>(null);
@@ -345,6 +445,7 @@ function AtribuirPlano({ ids, onFechar, onFeito }: { ids: string[] | null; onFec
   };
   return (
     <Janela aberta={!!ids} onFechar={onFechar} titulo="Atribuir plano" sub={ids && ids.length > 1 ? `${ids.length} ${pp}. Quem está bloqueado fica de fora.` : undefined}>
+      {bloqueados.length > 0 && <Nota>{bloqueados.length} {bloqueados.length === 1 ? 'fica' : 'ficam'} de fora por estarem bloqueados: {bloqueados.map((b) => b.name).slice(0, 3).join(', ')}.</Nota>}
       {!planos ? <Esqueleto linhas={3} />
         : planos.length === 0 ? <p className="lv-legenda">Ainda não há planos. Cria um em Treino.</p>
         : (

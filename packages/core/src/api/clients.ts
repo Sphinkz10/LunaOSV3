@@ -57,6 +57,7 @@ export interface ClientRow {
   personId: string;
   name: string;
   email: string | null;
+  phone: string | null;
   status: ClientStatus;
   statusNote: string | null;
   avatarUrl: string | null;
@@ -80,10 +81,11 @@ export interface NewClientInput {
   phone?: string | null;
   birthDate?: string | null;
   responsibleMembershipId?: string | null;
+  taxId?: string | null;
 }
 
-const CLIENT_COLUMNS = 'id,person_id,full_name,email,client_status,status_note,avatar_url,has_account,responsible_membership_id,current_plan_id,updated_at';
-type ClientListRow = Pick<ClientViewRow, 'id' | 'person_id' | 'full_name' | 'email' | 'client_status' | 'status_note' |
+const CLIENT_COLUMNS = 'id,person_id,full_name,email,phone,client_status,status_note,avatar_url,has_account,responsible_membership_id,current_plan_id,updated_at';
+type ClientListRow = Pick<ClientViewRow, 'id' | 'person_id' | 'full_name' | 'email' | 'phone' | 'client_status' | 'status_note' |
   'avatar_url' | 'has_account' | 'responsible_membership_id' | 'current_plan_id' | 'updated_at'>;
 
 /** Carteira visível (todas as páginas). */
@@ -122,6 +124,7 @@ export async function fetchClients(client: LunaClient, scope: OrgScope): Promise
     personId: r.person_id,
     name: r.full_name,
     email: r.email,
+    phone: r.phone,
     status: r.client_status,
     statusNote: r.status_note,
     avatarUrl: r.avatar_url,
@@ -182,7 +185,7 @@ export async function unarchiveClient(client: LunaClient, scope: OrgScope, linkI
 }
 
 export class DuplicateClientError extends Error {
-  constructor() { super('Já existe um cliente com este email.'); this.name = 'DuplicateClientError'; }
+  constructor() { super('Já existe um cliente com este telemóvel, email ou NIF.'); this.name = 'DuplicateClientError'; }
 }
 
 /** Acrescenta um cliente (pessoa gerida pela organização até ter conta). Devolve o id da ligação. */
@@ -194,6 +197,7 @@ export async function addClient(client: LunaClient, scope: OrgScope, input: NewC
     _phone: input.phone || null,
     _birth_date: input.birthDate || null,
     _responsible: input.responsibleMembershipId ?? null,
+    _tax_id: input.taxId || null,
   });
   if (error) {
     if (error.message?.includes('duplicate_client')) throw new DuplicateClientError();

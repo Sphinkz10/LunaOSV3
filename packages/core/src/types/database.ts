@@ -46,7 +46,7 @@ export type Enums = {
 export type PersonRow = {
   id: Uuid; user_id: Uuid | null; managed_by_org: Uuid | null; full_name: string; email: string | null;
   phone: string | null; birth_date: string | null; avatar_url: string | null; locale: string; timezone: string;
-  created_at: Ts; updated_at: Ts;
+  tax_id: string | null; created_at: Ts; updated_at: Ts;
 };
 export type OrganizationRow = {
   id: Uuid; type: Enums['org_type']; name: string; slug: string | null; brand: Json; theme: string;
@@ -102,6 +102,7 @@ export type InviteRow = {
 export type MembershipEventRow = {
   id: number; org_id: Uuid; membership_id: Uuid; action: string; reason: string | null; actor_user: Uuid | null; created_at: Ts;
 };
+export type DraftRow = { user_id: Uuid; key: string; payload: Json; updated_at: Ts };
 export type AccountDeletionRow = {
   id: Uuid; person_id: Uuid; user_id: Uuid; requested_at: Ts; scheduled_for: Ts; cancelled_at: Ts | null; done_at: Ts | null;
 };
@@ -276,6 +277,7 @@ export interface Database {
       membership_events: Table<MembershipEventRow, 'org_id' | 'membership_id' | 'action'>;
       login_history: Table<LoginHistoryRow, 'user_id'>;
       account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
+      drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
       consents: Table<ConsentRow, 'person_id' | 'kind' | 'version' | 'granted'>;
       pendencias: Table<PendenciaRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
       restrictions: Table<RestrictionRow, 'org_id' | 'link_id' | 'person_id' | 'kind'>;
@@ -290,7 +292,7 @@ export interface Database {
       create_organization: { Args: { _name: string; _type: Enums['org_type']; _sport?: string; _timezone?: string }; Returns: string };
       create_invite: { Args: { _org: string; _email: string; _role_key: string; _unit?: string | null; _confirm_over_seats?: boolean }; Returns: string };
       accept_invite: { Args: { _token: string }; Returns: string };
-      add_client: { Args: { _org: string; _full_name: string; _email?: string | null; _phone?: string | null; _birth_date?: string | null; _responsible?: string | null; _type?: Enums['link_type'] }; Returns: string };
+      add_client: { Args: { _org: string; _full_name: string; _email?: string | null; _phone?: string | null; _birth_date?: string | null; _responsible?: string | null; _type?: Enums['link_type']; _tax_id?: string | null }; Returns: string };
       end_link: { Args: { _link: string }; Returns: undefined };
       get_person_health: { Args: { _link: string }; Returns: Json };
       has_module: { Args: { _org: string; _module: string }; Returns: boolean };
@@ -306,6 +308,13 @@ export interface Database {
       set_my_shares: { Args: { _link: string; _shares: Enums['share_category'][] }; Returns: undefined };
       request_account_deletion: { Args: Record<string, never>; Returns: string };
       cancel_account_deletion: { Args: Record<string, never>; Returns: undefined };
+      find_client_duplicates: {
+        Args: { _org: string; _phone?: string | null; _email?: string | null; _nif?: string | null; _exclude?: string | null };
+        Returns: { link_id: string | null; full_name: string; motivo: 'telefone' | 'email' | 'nif'; client_status: Enums['client_status']; archived: boolean; sessions: number; visible: boolean }[];
+      };
+      merge_clients: { Args: { _keep: string; _drop: string }; Returns: string };
+      undo_merge: { Args: { _merge: string }; Returns: undefined };
+      send_link_invite: { Args: { _link: string; _canal: 'email' | 'sms' | 'codigo'; _destino?: string | null }; Returns: string };
       export_org_data: { Args: { _org: string }; Returns: Json };
       has_booking_conflict: { Args: { _org: string; _membership: string; _starts: string; _ends: string; _ignore?: string | null }; Returns: boolean };
       get_security_score: { Args: Record<string, never>; Returns: number };

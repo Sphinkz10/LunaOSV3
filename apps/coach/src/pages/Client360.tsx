@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  fetchAptidao, fetchAssiduidade, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO,
+  archiveClient, confirmarDestrutivo, fetchAptidao, fetchAssiduidade, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, toast,
   type Aptidao, type Assiduidade, type ClientDetail, type Section,
 } from '@luna/core';
-import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
-import { Barbell, CalendarBlank, Heartbeat, Play } from '@luna/icons';
+import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
+import { Archive, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
+import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { VoltarA } from '../app/Estados';
@@ -69,6 +70,8 @@ export function Client360() {
   const [assid, setAssid] = useState<Assiduidade | null>(null);
   const [motivos, setMotivos] = useState<string[]>([]);
   const [sep, setSep] = useState<Separador>('geral');
+  const [convidar, setConvidar] = useState<ParaConvidar | null>(null);
+  const [juntar, setJuntar] = useState(false);
 
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
@@ -91,6 +94,17 @@ export function Client360() {
   const ativa = data?.assignments.state === 'ok' ? data.assignments.data.find((a) => a.status === 'active') : undefined;
   const daqui = { state: { voltar: { rotulo: `à ficha de ${p?.name.split(' ')[0] ?? p1}`, href: `/clients/${id}` } } };
   const anos = idade(p?.birthDate ?? null);
+  const arquivar = async () => {
+    const client = getSupabaseClient();
+    if (!client || !p) return;
+    const ok = await confirmarDestrutivo({
+      titulo: `Arquivar ${p.name}?`, texto: 'Sai das listas e da app deixa de ver o plano. O histórico fica e pode voltar.',
+      efeitos: [proximas.length ? `${proximas.length} ${vocab.sessao({ plural: proximas.length !== 1 })} marcadas continuam no horário até as cancelares` : 'Sem marcações futuras'],
+      verbo: 'Arquivar', manter: 'Cancelar', motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: mudou de cidade' },
+      acao: (motivo) => archiveClient(client, scope, id, motivo ?? null),
+    });
+    if (ok) { toast({ variant: 'success', title: `${p.name} arquivado` }); navigate('/clients'); }
+  };
   const separadores: { id: Separador; rotulo: string }[] = [
     { id: 'geral', rotulo: 'Visão geral' }, { id: 'treino', rotulo: 'Treino' }, { id: 'avaliacoes', rotulo: 'Avaliações' },
     { id: 'saude', rotulo: 'Saúde' }, { id: 'documentos', rotulo: 'Documentos' },
@@ -119,6 +133,12 @@ export function Client360() {
                 <div className="lg-ficha__acoes">
                   <Botao variante="secundario" icone={CalendarBlank} onClick={() => navigate(`/schedule?nova=1&cliente=${id}`)}>Marcar</Botao>
                   <Botao icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
+                  <MenuAcoes rotulo={`Mais ações para ${p.name}`} acoes={[
+                    ...(p.hasAccount ? [] : [{ rotulo: 'Convidar para a app', icone: EnvelopeSimple, onClick: () => setConvidar({ id, nome: p.name, email: p.email, telefone: p.phone }) }]),
+                    { rotulo: `Juntar com outro ${p1}`, icone: UsersThree, onClick: () => setJuntar(true) },
+                    { rotulo: 'Restrição e aptidão', icone: Heartbeat, onClick: () => navigate(`/clients/${id}/aptidao`, daqui) },
+                    { rotulo: 'Arquivar', icone: Archive, perigo: true, onClick: () => void arquivar() },
+                  ]} />
                 </div>
               </header>
 
@@ -293,6 +313,9 @@ export function Client360() {
             </>
           )}
       </div>
+      <ConvidarApp cliente={convidar} onFechar={() => { setConvidar(null); carregar(); }} />
+      {juntar && p && <JuntarClientes cliente={{ id, nome: p.name }} onFechar={() => setJuntar(false)}
+        onFeito={(manter) => { if (manter === id) carregar(); else navigate(`/clients/${manter}`); }} />}
     </CoachShell>
   );
 }
