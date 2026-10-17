@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   cancelarApagarConta, definirPartilhas, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
-  fetchMeusObjetivos, marcarLidas, minhaConta, pedirApagarConta, toast,
-  type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type MinhaLigacao, type Notificacao,
+  assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
+  type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
 import {
   Atalho, Avatar, Botao, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Interruptor, NavegacaoInferior, Nota, Tema, type TemaId,
@@ -34,6 +34,14 @@ export function AppCliente() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [tema, setTema] = useState<TemaId>(lerTema);
+  const online = useRede((s) => s.online);
+  // Quando a rede volta, os treinos feitos sem rede seguem para o treinador
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (online && client && treinosPorEnviar().length) {
+      void sincronizarTreinos(client).then((falta) => { if (falta === 0) toast({ variant: 'success', title: 'Treinos enviados' }); }).catch(() => undefined);
+    }
+  }, [online]);
   useEffect(() => { document.documentElement.dataset.tema = tema; }, [tema]);
   useEffect(() => {
     const on = (e: Event) => setTema((e as CustomEvent<TemaId>).detail);
@@ -180,15 +188,55 @@ const ESTADO_OBJ: Record<string, string> = { no_caminho: 'No caminho', em_risco:
 export function ProgressoCliente() {
   const [lista, setLista] = useState<MeuObjetivo[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [recordes, setRecordes] = useState<Recorde[] | null>(null);
+  const [historico, setHistorico] = useState<TreinoHistorico[] | null>(null);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
     void fetchMeusObjetivos(client).then(setLista).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
+    void fetchRecordes(client).then(setRecordes).catch(() => setRecordes([]));
+    void fetchHistorico(client).then(setHistorico).catch(() => setHistorico([]));
   }, []);
+  const semanas = historico ? assiduidade(historico) : null;
+  const ordenados = recordes ? [...recordes].sort((a, b) => b.carga - a.carga) : [];
   useEffect(() => carregar(), [carregar]);
   return (
     <main className="lc-ecra">
       <Cabeca sobre="A tua evolução" titulo="Progresso" />
+      <div className="lc-par">
+        <section className="lc-cartao lc-cartao--claro" aria-label="Assiduidade">
+          <span className="lc-cartao__rotulo">Assiduidade</span>
+          <span className="lv-numero-grande">{semanas ? semanas.slice(-4).reduce((x, y) => x + y, 0) : '…'}</span>
+          <span className="lv-legenda">treinos nas últimas 4 semanas</span>
+          {semanas && <span className="lc-barras" aria-hidden>{semanas.map((v, k) => <i key={k} style={{ height: 4 + v * 8 }} />)}</span>}
+        </section>
+        <section className="lc-cartao lc-cartao--quente" aria-label="Recorde">
+          <span className="lc-cartao__rotulo">Melhor recorde</span>
+          {ordenados[0] ? <><span className="lv-numero-grande">{ordenados[0].carga}</span><span className="lv-legenda">kg · {ordenados[0].exercicio}</span></> : <span className="lv-legenda">Ainda sem recordes</span>}
+        </section>
+      </div>
+      {ordenados.length > 0 && (
+        <section className="lc-lista" aria-label="Recordes">
+          {ordenados.slice(0, 8).map((r) => (
+            <div key={r.exercicio} className="lc-lista__linha">
+              <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{r.exercicio}</span><span className="lv-legenda">{new Date(r.em).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}</span></span>
+              <b>{r.carga} kg{r.reps ? ` × ${r.reps}` : ''}</b>
+            </div>
+          ))}
+        </section>
+      )}
+      {historico && historico.length > 0 && (
+        <section className="lc-grupo" aria-label="Histórico de treinos">
+          <h2 className="lv-sobretitulo">Histórico de treinos</h2>
+          {historico.slice(0, 10).map((h) => (
+            <div key={h.id} className="lc-aviso" style={{ cursor: 'default' }}>
+              <ChartLineUp size={18} aria-hidden />
+              <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{h.nome}</span>
+                <span className="lv-legenda">{new Date(h.em).toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })} · {h.minutos} min · {h.series} séries{h.rpe ? ` · esforço ${h.rpe}` : ''}</span></span>
+            </div>
+          ))}
+        </section>
+      )}
       {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
         : !lista ? <Esqueleto />
         : lista.length === 0 ? <EstadoPagina tipo="vazio" icone={ChartLineUp} titulo="Ainda sem objetivos" texto={`Os objetivos que combinares com o teu ${t('responsavel')} aparecem aqui.`} />
@@ -204,7 +252,7 @@ export function ProgressoCliente() {
             ))}
           </section>
         ))}
-      <Nota>Recordes, histórico e assiduidade chegam com o módulo de progresso.</Nota>
+      <Nota>Medidas, fotos e avaliações chegam com a avaliação.</Nota>
     </main>
   );
 }

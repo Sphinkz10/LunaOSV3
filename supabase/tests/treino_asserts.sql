@@ -85,6 +85,29 @@ do $$ begin
     raise exception 'PROVA T3 FALHOU: o plano antigo ficou ativo';
   end if;
 end $$;
+
+-- ---------- PROVA T4: treino feito sem rede chega uma só vez e vai para o PT ----------
+select set_config('app.uid', '00000000-0000-0000-0000-0000000e0003', false);   -- Carla
+do $$ declare p jsonb := jsonb_build_object(
+    'id', '00000000-0000-0000-0000-00000000f001', 'link_id', current_setting('c.link'), 'workout_id', current_setting('t.w'),
+    'nome', 'Força A', 'started_at', now() - interval '50 minutes', 'ended_at', now(), 'rpe', 7, 'nota', 'Joelho bem hoje.',
+    'exercicios', jsonb_build_array(jsonb_build_object('exercise_id', current_setting('t.ht'), 'series', 3,
+      'sets', jsonb_build_array(jsonb_build_object('n', 1, 'reps', 8, 'carga', 60), jsonb_build_object('n', 2, 'reps', 8, 'carga', 62.5)))));
+begin
+  perform public.sync_my_session(p);
+  perform public.sync_my_session(p);   -- a fila repetiu
+  if (select count(*) from public.sessions where id = '00000000-0000-0000-0000-00000000f001') <> 1
+     or (select count(*) from public.session_sets where session_id = '00000000-0000-0000-0000-00000000f001') <> 2 then
+    raise exception 'PROVA T4 FALHOU: treino duplicado ou incompleto';
+  end if;
+  if not exists (select 1 from public.my_records() where exercicio = 'Hip thrust' and carga = 62.5) then raise exception 'PROVA T4 FALHOU: recorde'; end if;
+  if not exists (select 1 from public.my_history() where nome = 'Força A' and series = 2) then raise exception 'PROVA T4 FALHOU: histórico'; end if;
+end $$;
 reset role;
+do $$ begin
+  if not exists (select 1 from public.notifications where type = 'treino_feito' and user_id = '00000000-0000-0000-0000-0000000e0002') then
+    raise exception 'PROVA T4 FALHOU: o PT não recebeu o resumo';
+  end if;
+end $$;
 
 select '✅ Treino: TODAS AS PROVAS PASSARAM' as resultado;

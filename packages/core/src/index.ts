@@ -16,6 +16,7 @@ export * from './api/ficha';
 export * from './api/definicoes';
 export * from './api/biblioteca';
 export * from './api/treino';
+export * from './api/treinoApp';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

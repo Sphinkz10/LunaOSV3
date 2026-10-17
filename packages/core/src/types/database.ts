@@ -364,6 +364,9 @@ export interface Database {
       };
       my_workout: { Args: { _workout?: string | null; _on?: string }; Returns: Json };
       my_week: { Args: { _from?: string }; Returns: { dia: string; workout_id: string; nome: string; plano: string | null }[] };
+      sync_my_session: { Args: { _p: Json }; Returns: string };
+      my_records: { Args: Record<string, never>; Returns: { exercicio: string; carga: number; reps: number | null; em: string }[] };
+      my_history: { Args: { _limit?: number }; Returns: { id: string; em: string; nome: string; minutos: number; series: number; rpe: string | null }[] };
       copy_library_exercise: { Args: { _org: string; _key: string; _nova?: boolean }; Returns: string };
       import_check: { Args: { _org: string; _rows: Json }; Returns: { linha: number; nome: string | null; motivo: string }[] };
       has_module: { Args: { _org: string; _module: string }; Returns: boolean };
