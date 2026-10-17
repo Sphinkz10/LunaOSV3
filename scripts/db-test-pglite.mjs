@@ -41,9 +41,10 @@ try {
     await correr(db, `migrations/${f}`, ler(join(SUPA, 'migrations', f)));
   }
   await correr(db, 'tests/rls_asserts.sql', ler(join(SUPA, 'tests/rls_asserts.sql')));
+  await correr(db, 'tests/conta_asserts.sql', ler(join(SUPA, 'tests/conta_asserts.sql')));
   await correr(db, 'seed.sql', ler(join(SUPA, 'seed.sql')));
   const c = await db.query("select (select count(*) from public.organizations)::int as orgs, (select count(*) from public.links)::int as links");
-  console.log(`✅ Migrações, 15 provas e seeds OK · ${c.rows[0].orgs} organizações, ${c.rows[0].links} ligações`);
+  console.log(`✅ Migrações, provas SQL e seeds OK · ${c.rows[0].orgs} organizações, ${c.rows[0].links} ligações`);
 } catch {
   console.error('❌ Falhou (ver acima)');
 } finally {

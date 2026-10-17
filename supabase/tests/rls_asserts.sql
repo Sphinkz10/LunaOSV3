@@ -263,11 +263,23 @@ do $$ begin
   end;
 end $$;
 select set_config('app.uid', '00000000-0000-0000-0000-00000000b001', false);
+-- sem dois fatores (aal1) a saúde não abre, mesmo com papel clínico e partilha (D18)
+do $$ begin
+  begin
+    perform public.get_person_health(current_setting('t.link_c')::uuid);
+    raise exception 'PROVA 6 FALHOU: saúde lida sem dois fatores';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('app.aal', 'aal2', false);
 do $$ declare j jsonb;
 begin
   j := public.get_person_health(current_setting('t.link_c')::uuid);
   if jsonb_array_length(j->'allergies') <> 1 then raise exception 'PROVA 6 FALHOU: alergia em falta'; end if;
+  -- nem com dois fatores a tabela se lê diretamente (sem registo da leitura)
+  if exists (select 1 from public.allergies) then raise exception 'PROVA 6 FALHOU: alergias lidas sem registo'; end if;
 end $$;
+select set_config('app.aal', '', false);
 reset role;
 do $$ begin
   if (select count(*) from public.health_access_log where person_id = current_setting('t.person_c')::uuid) <> 1 then

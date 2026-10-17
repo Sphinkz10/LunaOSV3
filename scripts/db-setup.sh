@@ -12,5 +12,6 @@ for f in supabase/migrations/*.sql; do
   "${PSQL[@]}" -f "$f"
 done
 "${PSQL[@]}" -f supabase/tests/rls_asserts.sql
+"${PSQL[@]}" -f supabase/tests/conta_asserts.sql
 "${PSQL[@]}" -f supabase/seed.sql
 echo "✅ db-setup concluído com sucesso"

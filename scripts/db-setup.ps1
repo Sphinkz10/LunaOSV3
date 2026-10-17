@@ -36,6 +36,7 @@ Get-ChildItem "supabase/migrations/*.sql" | Sort-Object Name | ForEach-Object {
 
 Write-Host "==> Provas SQL (RLS, partilhas, papéis)"
 Invoke-PsqlFile "supabase/tests/rls_asserts.sql"
+Invoke-PsqlFile "supabase/tests/conta_asserts.sql"
 
 Write-Host "==> Seeds de desenvolvimento"
 Invoke-PsqlFile "supabase/seed.sql"
