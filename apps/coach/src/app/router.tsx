@@ -6,6 +6,7 @@ import { Svg } from './Svg';
 import { Hello } from '../Hello';
 import { Poc } from '../Poc';
 import { Login } from '../pages/Login';
+import { CriarConta, Recuperar } from '../pages/Acesso';
 import { Today } from '../pages/Today';
 import { Schedule } from '../pages/Schedule';
 import { Clients } from '../pages/Clients';
@@ -29,6 +30,8 @@ const NotFound = () => (
  */
 const routes: RouteObject[] = [
   { path: '/login', element: <Login /> },
+  { path: '/recuperar', element: <Recuperar /> },
+  { path: '/criar-conta', element: <CriarConta /> },
   { path: '/', element: <Navigate to="/today" replace /> },
   { path: '/today', element: <Protected module="today"><ModuleLayout module="today" /></Protected>,
     children: [{ index: true, element: <Today /> }] },

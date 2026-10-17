@@ -147,3 +147,30 @@
 /* A coluna principal fica sempre na segunda coluna (o menu aberto por cima não a desloca) */
 .lg-coluna { grid-column: 2; grid-row: 1; }
 @media (max-width: 960px) { .lg-coluna { grid-column: 1; } }
+
+/* ── Entrar (X-01) ─────────────────────────────────────────────────────── */
+.lg-entrar {
+  position: relative; z-index: 10; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--espaco-32); padding: var(--espaco-24); background: var(--cor-fundo);
+}
+.lg-entrar__destaque {
+  display: flex; flex-direction: column; justify-content: flex-end; gap: var(--espaco-12); padding: var(--espaco-32);
+  border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
+}
+.lg-entrar__frase { margin: 0; max-width: 16ch; font: 600 40px/1.05 var(--fonte-titulo); letter-spacing: -0.03em; }
+.lg-entrar__form { display: flex; flex-direction: column; justify-content: center; gap: var(--espaco-24); max-width: 420px; width: 100%; justify-self: center; }
+.lg-entrar__campos { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-entrar__pass { position: relative; }
+.lg-entrar__ver {
+  position: absolute; right: var(--espaco-8); bottom: 0; min-height: var(--altura-botao-redondo);
+  background: none; border: 0; color: var(--cor-texto-secundario); font: 600 13px/1 var(--fonte-texto); cursor: pointer;
+}
+.lg-entrar__links { display: flex; justify-content: space-between; gap: var(--espaco-12); flex-wrap: wrap; }
+.lg-entrar__link {
+  background: none; border: 0; padding: 0; min-height: 44px; color: var(--cor-texto); font: 600 13px/1.4 var(--fonte-texto);
+  cursor: pointer; text-decoration: none; align-self: center;
+}
+@media (max-width: 960px) {
+  .lg-entrar { grid-template-columns: minmax(0, 1fr); padding: var(--margem-telemovel); }
+  .lg-entrar__destaque { display: none; }
+}

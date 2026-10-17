@@ -1,57 +1,139 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
-import { signInWithPassword, useAuthStore } from '@luna/core';
-import { Button, Card, Input } from '@luna/ui';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  aceitarConvite, pedirRecuperacao, precisaSegundoFator, signInWithPassword, useAuthStore, verificarSegundoFator,
+} from '@luna/core';
+import { Botao, Campo, Nota } from '@luna/ui/v3';
 import { getSupabaseClient } from '../lib/supabase';
+import '../app/gestao.css';
 
+type Passo = 'entrar' | 'codigo' | 'recuperar' | 'recuperar-enviado' | 'convite';
+
+/**
+ * Entrar e recuperar acesso (X-01, Figma 80:3489): email e palavra-passe; quem
+ * tem dois fatores vê o passo do código; recuperar envia um link que expira
+ * em 30 minutos; "Recebi um convite" leva ao código do convite.
+ */
 export function Login() {
   const status = useAuthStore((s) => s.status);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [passo, setPasso] = useState<Passo>(params.get('convite') ? 'convite' : 'entrar');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  // A porta da Gestão decide o resto (sem papel, erro…)
-  if (status === 'signedIn' || status === 'noRole' || status === 'error') return <Navigate to="/today" replace />;
-
+  const [ver, setVer] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [convite, setConvite] = useState(params.get('convite') ?? '');
+  const [erro, setErro] = useState<string | null>(null);
+  const [aCarregar, setACarregar] = useState(false);
   const client = getSupabaseClient();
 
-  const onSubmit = async (e: FormEvent) => {
+  // Já com sessão e sem passos por fazer: a porta da Gestão decide o resto
+  if ((status === 'signedIn' || status === 'noRole' || status === 'error') && passo === 'entrar') return <Navigate to="/today" replace />;
+
+  const correr = async (fn: () => Promise<void>) => {
+    setACarregar(true); setErro(null);
+    try { await fn(); } catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível concluir.'); } finally { setACarregar(false); }
+  };
+
+  const entrar = (e: FormEvent) => {
     e.preventDefault();
     if (!client) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await signInWithPassword(client, email, password);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      setError(/confirm/i.test(msg)
-        ? 'Confirma primeiro o teu email: abre a ligação que te enviámos.'
-        : /invalid/i.test(msg) ? 'Email ou palavra-passe errados.' : msg || 'Não foi possível entrar.');
-    } finally {
-      setLoading(false);
-    }
+    void correr(async () => {
+      try {
+        await signInWithPassword(client, email, password);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        throw new Error(/confirm/i.test(msg) ? 'Confirma primeiro o teu email: abre a ligação que te enviámos.'
+          : /invalid/i.test(msg) ? 'Email ou palavra-passe errados.' : msg || 'Não foi possível entrar.');
+      }
+      if (await precisaSegundoFator(client)) setPasso('codigo');
+      else if (convite) { await aceitarConvite(client, convite); window.location.assign('/today'); }
+    });
+  };
+
+  const confirmarCodigo = (e: FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    void correr(async () => {
+      await verificarSegundoFator(client, codigo);
+      if (convite) await aceitarConvite(client, convite);
+      window.location.assign('/today');
+    });
+  };
+
+  const recuperar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    void correr(async () => {
+      await pedirRecuperacao(client, email, `${window.location.origin}/recuperar`);
+      setPasso('recuperar-enviado');
+    });
   };
 
   return (
-    <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 'var(--sp-6)' }}>
-      <Card elevated style={{ width: 'min(100%, 24rem)' }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)', marginTop: 0 }}>LUNA.OS</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>Entrar na Gestão</p>
+    <main className="lv-root lg-entrar">
+      <section className="lg-entrar__destaque" aria-hidden>
+        <span className="lv-sobretitulo">LunaOS Gestão</span>
+        <p className="lg-entrar__frase">O teu trabalho com cada cliente, num só sítio.</p>
+      </section>
+      <section className="lg-entrar__form">
+        <div className="lg-logo"><span className="lg-logo__lua" aria-hidden /><span className="lg-logo__texto">LunaOS</span></div>
+
         {!client ? (
-          <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
-            Falta a ligação ao servidor: copia .env.example para .env na raiz do projeto, preenche
-            VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e reinicia a app.
-          </p>
-        ) : (
-          <form onSubmit={onSubmit} style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-            <Input label="Email" type="email" autoComplete="email" value={email} onChange={(ev) => setEmail(ev.target.value)} required />
-            <Input label="Palavra-passe" type="password" autoComplete="current-password" value={password} onChange={(ev) => setPassword(ev.target.value)} required />
-            {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: 0 }}>{error}</p>}
-            <Button type="submit" disabled={loading}>{loading ? 'A entrar…' : 'Entrar'}</Button>
+          <Nota>Falta a ligação ao servidor: copia .env.example para .env na raiz do projeto, preenche VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e reinicia a app.</Nota>
+        ) : passo === 'entrar' || passo === 'convite' ? (
+          <form onSubmit={entrar} className="lg-entrar__campos">
+            <h1 className="lv-titulo-ecra">Entrar</h1>
+            {passo === 'convite' && (
+              <Campo rotulo="Código do convite" value={convite} onChange={(e) => setConvite(e.target.value)}
+                ajuda="Está no email do convite. Entra com o email que o recebeu." required />
+            )}
+            <Campo rotulo="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="lg-entrar__pass">
+              <Campo rotulo="Palavra-passe" type={ver ? 'text' : 'password'} autoComplete="current-password"
+                value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="lg-entrar__ver" aria-pressed={ver} onClick={() => setVer((v) => !v)}>
+                {ver ? 'Esconder' : 'Mostrar'}
+              </button>
+            </div>
+            <div className="lg-entrar__links">
+              <button type="button" className="lg-entrar__link" onClick={() => { setErro(null); setPasso('recuperar'); }}>Esqueci-me da palavra-passe</button>
+              {passo === 'entrar' && <button type="button" className="lg-entrar__link" onClick={() => { setErro(null); setPasso('convite'); }}>Recebi um convite</button>}
+            </div>
+            {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
+            <Botao type="submit" fixo aCarregar={aCarregar}>Entrar</Botao>
+            {passo === 'convite' && (
+              <button type="button" className="lg-entrar__link" onClick={() => navigate(`/criar-conta?convite=${encodeURIComponent(convite)}`)}>
+                Ainda não tenho conta
+              </button>
+            )}
           </form>
+        ) : passo === 'codigo' ? (
+          <form onSubmit={confirmarCodigo} className="lg-entrar__campos">
+            <h1 className="lv-titulo-ecra">Dois fatores</h1>
+            <Campo rotulo="Código de 6 dígitos da app de autenticação" inputMode="numeric" autoComplete="one-time-code"
+              pattern="[0-9]{6}" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))} required />
+            {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
+            <Botao type="submit" fixo aCarregar={aCarregar} disabled={codigo.length !== 6}>Confirmar</Botao>
+          </form>
+        ) : passo === 'recuperar' ? (
+          <form onSubmit={recuperar} className="lg-entrar__campos">
+            <h1 className="lv-titulo-ecra">Recuperar acesso</h1>
+            <p className="lv-legenda" style={{ margin: 0 }}>Enviamos um link para escolheres uma palavra-passe nova. Expira em 30 minutos.</p>
+            <Campo rotulo="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
+            <Botao type="submit" fixo aCarregar={aCarregar}>Enviar link</Botao>
+            <button type="button" className="lg-entrar__link" onClick={() => setPasso('entrar')}>Voltar a entrar</button>
+          </form>
+        ) : (
+          <div className="lg-entrar__campos" role="status">
+            <h1 className="lv-titulo-ecra">Vê o teu email</h1>
+            <p className="lv-legenda" style={{ margin: 0 }}>Se {email} tiver conta, recebe um link que expira em 30 minutos.</p>
+            <button type="button" className="lg-entrar__link" onClick={() => setPasso('entrar')}>Voltar a entrar</button>
+          </div>
         )}
-      </Card>
+      </section>
     </main>
   );
 }
