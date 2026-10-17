@@ -24,7 +24,7 @@ export const ECRAS_G: EcraG[] = [
   { id: 'G-12', ecra: 'Preparar aula ou sessão', destino: 'Horário', fase: 'F1a' },
   { id: 'G-13', ecra: 'Aula ou sessão ao vivo', destino: 'Horário', fase: 'F1a', rota: '/live' },
   { id: 'G-14', ecra: 'Resumo, submissão e correção', destino: 'Horário', fase: 'F1a' },
-  { id: 'G-15', ecra: 'Biblioteca', destino: 'Treino', fase: 'F1a' },
+  { id: 'G-15', ecra: 'Biblioteca', destino: 'Treino', fase: 'F1a', rota: '/training/biblioteca' },
   { id: 'G-16', ecra: 'Construtor de exercício', destino: 'Treino', fase: 'F1a' },
   { id: 'G-17', ecra: 'Construtor de treino, aula e WOD', destino: 'Treino', fase: 'F1a' },
   { id: 'G-18', ecra: 'Construtor de plano e programa', destino: 'Treino', fase: 'F1a' },

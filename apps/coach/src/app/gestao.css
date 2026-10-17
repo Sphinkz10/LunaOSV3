@@ -432,3 +432,15 @@ button.lg-seg__linha { cursor: pointer; }
   .lg-import__linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .lg-passos { grid-template-columns: repeat(5, minmax(60px, 1fr)); overflow-x: auto; }
 }
+
+/* Biblioteca (G-15) */
+.lg-bib { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--espaco-16); align-items: start; }
+.lg-bib:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.lg-bib__grelha { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--espaco-12); }
+.lg-bib__cartao { display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left; border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); background: var(--cor-superficie); color: var(--cor-texto); font: inherit; cursor: pointer; }
+.lg-bib__cartao--aberto { border: 2px solid var(--cor-texto); }
+.lg-bib__foto { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: 0; }
+.lg-bib__foto--vazia { display: grid; place-items: center; background: var(--cor-selecao); color: var(--cor-texto); }
+.lg-bib__detalhe .lg-bib__foto { border-radius: var(--raio-linha); }
+.lg-bib__corpo { display: flex; flex-direction: column; gap: 2px; padding: var(--espaco-12); }
+@media (max-width: 1100px) { .lg-bib { grid-template-columns: minmax(0, 1fr); } .lg-bib__detalhe { order: -1; } }

@@ -43,6 +43,7 @@ Invoke-PsqlFile "supabase/tests/app_asserts.sql"
 Invoke-PsqlFile "supabase/tests/clientes_asserts.sql"
 Invoke-PsqlFile "supabase/tests/ficha_asserts.sql"
 Invoke-PsqlFile "supabase/tests/definicoes_asserts.sql"
+Invoke-PsqlFile "supabase/tests/biblioteca_asserts.sql"
 
 Write-Host "==> Seeds de desenvolvimento"
 Invoke-PsqlFile "supabase/seed.sql"

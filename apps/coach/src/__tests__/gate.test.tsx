@@ -67,7 +67,7 @@ describe('Menu por direitos (G-00)', () => {
     const plano = ['today', 'clients', 'schedule', 'training', 'settings'];
     // PT: Hoje, Clientes (os seus), Horário, Treino; nunca Definições
     expect(navItems(plano, ['clients.read_own', 'clients.write', 'schedule.write', 'training.write']).map((i) => i.to))
-      .toEqual(['/today', '/clients', '/schedule', '/live']);
+      .toEqual(['/today', '/clients', '/schedule', '/training/biblioteca']);
     // Receção: sem Treino
     expect(navItems(plano, ['clients.read_all', 'schedule.read_all', 'schedule.write']).map((i) => i.to))
       .toEqual(['/today', '/clients', '/schedule']);

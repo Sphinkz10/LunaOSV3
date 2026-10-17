@@ -14,6 +14,7 @@ export * from './api/appCliente';
 export * from './api/clientesP07';
 export * from './api/ficha';
 export * from './api/definicoes';
+export * from './api/biblioteca';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

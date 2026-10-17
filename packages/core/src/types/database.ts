@@ -123,6 +123,11 @@ export type LinkEventRow = {
 export type ImportRunRow = {
   id: Uuid; org_id: Uuid; file_name: string; total: number; ok: number; failed: number; report: Json; created_by: Uuid | null; created_at: Ts;
 };
+export type LibraryExerciseRow = {
+  key: string; version: number; sport: string; name: string; category: string; muscles: string[]; pattern: string | null;
+  equipment: string[]; level: 'iniciante' | 'intermedio' | 'avancado'; instructions: string | null; record_fields: string[];
+  alternatives: string[]; video_url: string | null; image_url: string | null; created_at: Ts;
+};
 export type DraftRow = { user_id: Uuid; key: string; payload: Json; updated_at: Ts };
 export type AccountDeletionRow = {
   id: Uuid; person_id: Uuid; user_id: Uuid; requested_at: Ts; scheduled_for: Ts; cancelled_at: Ts | null; done_at: Ts | null;
@@ -144,6 +149,8 @@ export type GroupMemberRowDb = { org_id: Uuid; group_id: Uuid; link_id: Uuid; ad
 export type ExerciseRow = {
   id: Uuid; org_id: Uuid; name: string; category: string; description: string | null; video_url: string | null;
   muscles: string[]; equipment: string[]; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+  origin_key: string | null; origin_version: number | null; pattern: string | null; level: string | null;
+  record_fields: string[]; image_url: string | null; copied_from: string | null;
 };
 export type WorkoutRow = {
   id: Uuid; org_id: Uuid; name: string; description: string | null; type: Enums['workout_type'];
@@ -299,6 +306,7 @@ export interface Database {
       login_history: Table<LoginHistoryRow, 'user_id'>;
       account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
       drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
+      library_exercises: Table<LibraryExerciseRow, 'key' | 'version' | 'name' | 'category'>;
       import_runs: Table<ImportRunRow, 'org_id' | 'file_name' | 'total' | 'ok' | 'failed' | 'report'>;
       goals: Table<GoalRow, 'org_id' | 'link_id' | 'title'>;
       milestones: Table<MilestoneRow, 'org_id' | 'goal_id' | 'title'>;
@@ -313,6 +321,7 @@ export interface Database {
     };
     Views: {
       clients: { Row: ClientViewRow; Relationships: [] };
+      library_current: { Row: LibraryExerciseRow; Relationships: [] };
       staff: { Row: StaffViewRow; Relationships: [] };
     };
     Functions: {
@@ -328,6 +337,7 @@ export interface Database {
       org_two_factor: { Args: { _org: string }; Returns: { membership_id: string; nome: string; obrigatorio: boolean; ativo: boolean }[] };
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
+      copy_library_exercise: { Args: { _org: string; _key: string; _nova?: boolean }; Returns: string };
       import_check: { Args: { _org: string; _rows: Json }; Returns: { linha: number; nome: string | null; motivo: string }[] };
       has_module: { Args: { _org: string; _module: string }; Returns: boolean };
       my_modules: { Args: { _org: string }; Returns: string[] };
