@@ -310,6 +310,10 @@ begin
         continue;   -- nunca sobrepõe em silêncio
       end if;
     end if;
+    -- Atribuir duas vezes não cria duas atribuições
+    if _workout_version is not null and exists (select 1 from public.assignments x where x.link_id = l and x.workout_id = v_wv.workout_id and x.status in ('active','scheduled')) then
+      continue;
+    end if;
     v_trocas := '[]';
     if _workout_version is not null then
       v_trocas := public._aplicar_restricoes(v_wv.snapshot, public._zonas_bloqueadas(l))->'trocas';
