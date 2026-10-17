@@ -108,7 +108,11 @@ export function CriarContaCliente() {
 }
 
 /** Para onde seguir depois de entrar: o pedido do encarregado ou os consentimentos. */
-const depoisDeEntrar = () => (lerPendente().tutela ? `/encarregado/${lerPendente().tutela}` : '/conta/consentimentos');
+// Com convite ou pedido de encarregado por acabar, segue esse caminho; senão abre a app
+const depoisDeEntrar = () => {
+  const p = lerPendente();
+  return p.tutela ? `/encarregado/${p.tutela}` : p.convite ? '/conta/consentimentos' : '/hoje';
+};
 
 export function EntrarCliente() {
   const navigate = useNavigate();
@@ -325,10 +329,10 @@ export function Pronto() {
     if (client && sessao) void minhaConta(client, sessao.user.id).then(setConta).catch(() => setConta(null));
   }, [sessao]);
   return (
-    <Passo titulo="A tua conta está pronta">
+    <Passo titulo="A tua conta está pronta" acao={<Botao fixo onClick={() => window.location.assign('/hoje')}>Ir para a app</Botao>}>
       {conta?.aEsperaEncarregado && <Nota>A ligação ao teu {t('responsavel')} fica à espera da autorização do teu encarregado.</Nota>}
       {atestado && <Nota>Antes do primeiro treino, o teu {t('responsavel')} precisa do atestado médico. Já recebeu o aviso, sem ver as tuas respostas.</Nota>}
-      <p className="lv-legenda">O teu plano e as tuas {t('sessao', { plural: true })} aparecem aqui assim que o teu {t('responsavel')} os atribuir.</p>
+      <p className="lv-legenda">O teu plano e as tuas {t('sessao', { plural: true })} aparecem no Hoje assim que o teu {t('responsavel')} os atribuir.</p>
     </Passo>
   );
 }

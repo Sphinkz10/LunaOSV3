@@ -102,6 +102,9 @@ export type InviteRow = {
 export type MembershipEventRow = {
   id: number; org_id: Uuid; membership_id: Uuid; action: string; reason: string | null; actor_user: Uuid | null; created_at: Ts;
 };
+export type AccountDeletionRow = {
+  id: Uuid; person_id: Uuid; user_id: Uuid; requested_at: Ts; scheduled_for: Ts; cancelled_at: Ts | null; done_at: Ts | null;
+};
 export type LoginHistoryRow = {
   id: Uuid; user_id: Uuid; ip: string | null; device: string | null; user_agent: string | null; success: boolean; created_at: Ts;
 };
@@ -272,6 +275,7 @@ export interface Database {
       invites: Table<InviteRow, 'org_id' | 'email' | 'role_id' | 'token_hash'>;
       membership_events: Table<MembershipEventRow, 'org_id' | 'membership_id' | 'action'>;
       login_history: Table<LoginHistoryRow, 'user_id'>;
+      account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
       consents: Table<ConsentRow, 'person_id' | 'kind' | 'version' | 'granted'>;
       pendencias: Table<PendenciaRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
       restrictions: Table<RestrictionRow, 'org_id' | 'link_id' | 'person_id' | 'kind'>;
@@ -294,6 +298,14 @@ export interface Database {
       my_orgs: { Args: Record<string, never>; Returns: MyOrgRow[] };
       seats_summary: { Args: { _org: string }; Returns: Json };
       export_my_data: { Args: Record<string, never>; Returns: Json };
+      my_today: { Args: { _now?: string }; Returns: Json };
+      my_links_overview: {
+        Args: Record<string, never>;
+        Returns: { link_id: string; org_name: string; responsible_name: string | null; since: string; shares: Enums['share_category'][] }[];
+      };
+      set_my_shares: { Args: { _link: string; _shares: Enums['share_category'][] }; Returns: undefined };
+      request_account_deletion: { Args: Record<string, never>; Returns: string };
+      cancel_account_deletion: { Args: Record<string, never>; Returns: undefined };
       export_org_data: { Args: { _org: string }; Returns: Json };
       has_booking_conflict: { Args: { _org: string; _membership: string; _starts: string; _ends: string; _ignore?: string | null }; Returns: boolean };
       get_security_score: { Args: Record<string, never>; Returns: number };

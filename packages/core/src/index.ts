@@ -10,6 +10,7 @@ export * from './api/aptidao';
 export * from './api/equipa';
 export * from './api/hoje';
 export * from './api/inbox';
+export * from './api/appCliente';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';
