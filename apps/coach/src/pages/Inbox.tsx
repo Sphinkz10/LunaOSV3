@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  adiarPendencias, atribuirPendencias, avisar, contarAdiadas, fetchInbox, fetchStaff, reabrirPendencia, toast,
+  adiarPendencias, atribuirPendencias, avisar, sincronizarAtrasos, contarAdiadas, fetchInbox, fetchStaff, reabrirPendencia, toast,
   type CategoriaInbox, type Pendencia, type StaffLite,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Janela } from '@luna/ui/v3';
@@ -49,7 +49,8 @@ export function Inbox() {
     const client = getSupabaseClient();
     if (!client) return;
     setErro(null);
-    void Promise.all([fetchInbox(client, scope, { resolvidas }), contarAdiadas(client, scope)])
+    void sincronizarAtrasos(client, scope).catch(() => undefined)
+      .then(() => Promise.all([fetchInbox(client, scope, { resolvidas }), contarAdiadas(client, scope)]))
       .then(([p, n]) => { setItens(p); setAdiadas(n); setSel(new Set()); })
       .catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
   }, [scope, resolvidas]);

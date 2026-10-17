@@ -245,6 +245,8 @@ export interface ClientProfile {
   status: ClientStatus; statusNote: string | null; avatarUrl: string | null; hasAccount: boolean;
   responsibleMembershipId: string | null; createdAt: string; updatedAt: string;
   groupName: string | null; planName: string | null;
+  /** Arquivado: a ficha fica só para leitura até reativar. */
+  archivedAt: string | null; archivedReason: string | null;
 }
 
 export interface AllergyItem { id: string; allergen: string; severity: string; reaction: string | null; notes: string | null }
@@ -313,7 +315,7 @@ export async function fetchClientProfile(client: LunaClient, scope: OrgScope, li
       id: row.id, personId: row.person_id, name: row.full_name, email: row.email, phone: row.phone,
       birthDate: row.birth_date, status: row.client_status, statusNote: row.status_note, avatarUrl: row.avatar_url,
       hasAccount: row.has_account, responsibleMembershipId: row.responsible_membership_id,
-      createdAt: row.created_at, updatedAt: row.updated_at, groupName,
+      createdAt: row.created_at, updatedAt: row.updated_at, groupName, archivedAt: row.archived_at, archivedReason: row.archived_reason,
       planName: row.current_plan_id ? planNames.get(row.current_plan_id) ?? null : null,
     },
     allergies, documents, metrics, bookings, assignments,

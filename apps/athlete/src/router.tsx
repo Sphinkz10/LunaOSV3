@@ -3,7 +3,7 @@ import {
   BoasVindas, Consentimentos, CriarContaCliente, EntrarCliente, Parq, Partilhas, PedirEncarregado, Pronto,
 } from './pages/Conta';
 import { Tutela } from './pages/Tutela';
-import { AppCliente, AvisosCliente, DefinicoesCliente, EuCliente, HojeCliente, PorChegar, PrivacidadeCliente } from './pages/App';
+import { AppCliente, AvisosCliente, DefinicoesCliente, EuCliente, HojeCliente, PorChegar, PrivacidadeCliente, ProgressoCliente } from './pages/App';
 import { t } from './vocab';
 
 /** App do cliente · F1a: conta, consentimentos, convite, PAR-Q e encarregado (C-01, C-25); Hoje, avisos, Eu e privacidade (C-03, C-20, C-21, C-24). */
@@ -25,7 +25,7 @@ export const router = createBrowserRouter([
       { path: '/avisos', element: <AvisosCliente /> },
       { path: '/aulas', element: <PorChegar titulo={t('aula', { plural: true, maiuscula: true })} texto={`Marcar ${t('sessao', { plural: true })} e ${t('aula', { plural: true })} chega com o horário.`} /> },
       { path: '/treino', element: <PorChegar titulo="Treino" texto="O treino do teu plano, exercício a exercício, chega com o módulo de treino." /> },
-      { path: '/progresso', element: <PorChegar titulo="Progresso" texto="Recordes, histórico e assiduidade chegam com o progresso." /> },
+      { path: '/progresso', element: <ProgressoCliente /> },
       { path: '/eu', element: <EuCliente /> },
       { path: '/eu/privacidade', element: <PrivacidadeCliente /> },
       { path: '/eu/definicoes', element: <DefinicoesCliente /> },

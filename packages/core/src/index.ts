@@ -12,6 +12,7 @@ export * from './api/hoje';
 export * from './api/inbox';
 export * from './api/appCliente';
 export * from './api/clientesP07';
+export * from './api/ficha';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

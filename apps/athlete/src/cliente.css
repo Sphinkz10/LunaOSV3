@@ -89,3 +89,5 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
 .lc-tema__amostra { display: flex; gap: 4px; background: transparent; }
 .lc-tema__amostra i { width: 12px; height: 12px; border-radius: 50%; background: var(--cor-principal); }
 .lc-tema__amostra i + i { background: var(--cor-acao); }
+.lc-marco { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cor-acao); flex: none; }
+.lc-marco--feito { background: var(--estado-ok); border-color: var(--estado-ok); }

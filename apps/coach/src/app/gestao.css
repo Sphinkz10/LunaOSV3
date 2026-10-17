@@ -371,3 +371,20 @@
   .lg-separadores { overflow-x: auto; scrollbar-width: none; }
   .lg-separadores button { flex: none; }
 }
+
+/* Ficha · progresso, objetivos e atividade (tarefa 22) */
+.lg-ficha__metricas { display: flex; flex-wrap: wrap; gap: var(--espaco-8); }
+.lg-grafico svg { width: 100%; height: 160px; display: block; }
+.lg-grafico__atual { fill: none; stroke: var(--cor-principal); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.lg-grafico__anterior { fill: none; stroke: var(--cor-texto-secundario); stroke-width: 2; stroke-dasharray: 6 6; vector-effect: non-scaling-stroke; }
+.lg-grafico__ponto { fill: var(--cor-acao); }
+.lg-grafico figcaption, .lg-grafico .lv-legenda { display: flex; align-items: center; gap: var(--espaco-8); flex-wrap: wrap; margin-top: var(--espaco-8); }
+.lg-grafico__leg { display: inline-block; width: 16px; height: 3px; border-radius: 2px; background: var(--cor-principal); }
+.lg-grafico__leg--anterior { background: var(--cor-texto-secundario); margin-left: var(--espaco-12); }
+.lg-objetivo { display: flex; gap: var(--espaco-12); align-items: flex-start; padding: var(--espaco-12) 0; border-bottom: 1px solid var(--cor-linha); }
+.lg-objetivo:last-child { border-bottom: 0; }
+.lg-objetivo__n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--cor-superficie-2); font: 600 13px/1 var(--fonte-texto); flex: none; }
+.lg-atividade__dia { display: flex; flex-direction: column; gap: var(--espaco-4); }
+.lg-atividade__dia + .lg-atividade__dia { margin-top: var(--espaco-12); }
+.lg-atividade__aberto { background: var(--cor-selecao); border-radius: var(--raio-linha); }
+@media (max-width: 760px) { .lg-objetivo { flex-wrap: wrap; } }

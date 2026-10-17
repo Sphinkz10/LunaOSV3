@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  addClient, apagarRascunhoServidor, archiveClient, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
+  addClient, apagarRascunhoServidor, arquivarCliente, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
   fetchAssiduidade, fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, guardarRascunhoServidor, lerRascunhoServidor, MOTIVO_ATENCAO,
-  convidarParaApp, procurarDuplicados, toast, unarchiveClient, useAuthStore,
+  convidarParaApp, procurarDuplicados, reativarCliente, toast, useAuthStore,
   type Assiduidade, type Duplicado, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
@@ -140,15 +140,18 @@ export function Clients() {
       texto: 'Deixa de aparecer na lista. O histórico fica e podes voltar a ativar.',
       efeitos: [`${alvos.length} ${muitos ? pp : p1} saem da carteira ativa`],
       verbo: 'Arquivar', manter: 'Cancelar',
-      motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: mudou de cidade' },
-      acao: async (motivo) => { for (const a of alvos) await archiveClient(client, scope, a.id, motivo ?? null); },
+      motivo: { rotulo: 'Motivo', placeholder: 'Ex.: mudou de cidade' },
+      acao: async (motivo) => {
+        if (!motivo?.trim()) throw new Error('Arquivar pede motivo.');
+        for (const a of alvos) await arquivarCliente(client, a.id, motivo.trim());
+      },
     });
     if (ok) { toast({ variant: 'success', title: muitos ? `${alvos.length} ${pp} arquivados` : `${P1} arquivado` }); setSel(new Set()); setResumo(null); carregar(); }
   };
   const reativar = async (a: ClienteArquivado) => {
     const client = getSupabaseClient();
     if (!client) return;
-    try { await unarchiveClient(client, scope, a.id); toast({ variant: 'success', title: `${a.name} voltou à carteira` }); carregar(); }
+    try { await reativarCliente(client, a.id, 'Reativado na lista de arquivados'); toast({ variant: 'success', title: `${a.name} voltou à carteira` }); carregar(); }
     catch (e) { toast({ variant: 'danger', title: 'Não foi possível reativar', description: e instanceof Error ? e.message : undefined }); }
   };
   const [nomeVista, setNomeVista] = useState<string | null>(null);

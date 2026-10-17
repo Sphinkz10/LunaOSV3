@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   cancelarApagarConta, definirPartilhas, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
-  marcarLidas, minhaConta, pedirApagarConta, toast,
-  type CategoriaPartilha, type MeuHoje, type MinhaConta, type MinhaLigacao, type Notificacao,
+  fetchMeusObjetivos, marcarLidas, minhaConta, pedirApagarConta, toast,
+  type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
 import {
   Atalho, Avatar, Botao, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Interruptor, NavegacaoInferior, Nota, Tema, type TemaId,
@@ -171,6 +171,40 @@ export function PorChegar({ titulo, texto }: { titulo: string; texto: string }) 
       <Tema tema="esboco">
         <EstadoPagina tipo="vazio" titulo="A chegar" texto={texto} />
       </Tema>
+    </main>
+  );
+}
+
+/* ── Progresso (F1a: os objetivos e marcos do treinador, só para leitura) ── */
+const ESTADO_OBJ: Record<string, string> = { no_caminho: 'No caminho', em_risco: 'Em risco', atingido: 'Atingido', parado: 'Parado' };
+export function ProgressoCliente() {
+  const [lista, setLista] = useState<MeuObjetivo[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const carregar = useCallback(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    void fetchMeusObjetivos(client).then(setLista).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
+  }, []);
+  useEffect(() => carregar(), [carregar]);
+  return (
+    <main className="lc-ecra">
+      <Cabeca sobre="A tua evolução" titulo="Progresso" />
+      {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
+        : !lista ? <Esqueleto />
+        : lista.length === 0 ? <EstadoPagina tipo="vazio" icone={ChartLineUp} titulo="Ainda sem objetivos" texto={`Os objetivos que combinares com o teu ${t('responsavel')} aparecem aqui.`} />
+        : lista.map((o) => (
+          <section key={o.id} className="lc-cartao" aria-label={o.titulo}>
+            <span className="lc-cartao__rotulo">{ESTADO_OBJ[o.estado] ?? o.estado}{o.nota ? ` · ${o.nota}` : ''}</span>
+            <h2 className="lc-cabeca__titulo" style={{ fontSize: 20 }}>{o.titulo}</h2>
+            {o.criterio && <span className="lv-legenda">{o.criterio}</span>}
+            {o.marcos.map((m) => (
+              <span key={m.titulo} className="lv-legenda" style={{ display: 'flex', gap: 'var(--espaco-8)', alignItems: 'center' }}>
+                <span className={m.feito ? 'lc-marco lc-marco--feito' : 'lc-marco'} aria-hidden />{m.titulo}{!m.feito && m.prazo ? ` · até ${new Date(`${m.prazo}T12:00:00Z`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}` : ''}
+              </span>
+            ))}
+          </section>
+        ))}
+      <Nota>Recordes, histórico e assiduidade chegam com o módulo de progresso.</Nota>
     </main>
   );
 }

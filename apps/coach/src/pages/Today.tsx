@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  fetchClientesAtencao, fetchDashboardKpis, fetchEquipaHoje, fetchInbox, fetchTodayBookings, MOTIVO_ATENCAO, useAuthStore, wallClock,
+  fetchClientesAtencao, fetchDashboardKpis, fetchEquipaHoje, fetchInbox, fetchTodayBookings, MOTIVO_ATENCAO, sincronizarAtrasos, useAuthStore, wallClock,
   type ClienteAtencao, type DashboardBooking, type DashboardKpis, type Pendencia, type SessoesPorPt,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, Tema, type EstadoTom } from '@luna/ui/v3';
@@ -51,7 +51,8 @@ export function Today() {
     correr(fetchDashboardKpis(client, scope).then((k) => { captureEvent('dashboard_loaded', { today: k.today, pending: k.pending }); return k; }), setKpis);
     correr(fetchTodayBookings(client, scope), setAgenda);
     correr(fetchClientesAtencao(client, scope), setAtencao);
-    correr(fetchInbox(client, scope), setPendencias);
+    // Revisões e marcos em atraso passam a pendências antes de ler a Inbox
+    correr(sincronizarAtrasos(client, scope).catch(() => undefined).then(() => fetchInbox(client, scope)), setPendencias);
     if (dono) correr(fetchEquipaHoje(client, scope), setEquipa);
   }, [scope, dono]);
   useEffect(() => carregar(), [carregar]);

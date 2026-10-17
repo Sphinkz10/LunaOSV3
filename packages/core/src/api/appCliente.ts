@@ -69,3 +69,17 @@ export async function cancelarApagarConta(client: LunaClient): Promise<void> {
   const { error } = await client.rpc('cancel_account_deletion', {});
   if (error) throw error;
 }
+
+/** Os meus objetivos e marcos (só leitura; quem os gere é o treinador). */
+export interface MeuObjetivo { id: string; titulo: string; criterio: string | null; estado: string; nota: string | null; marcos: { titulo: string; feito: boolean; prazo: string | null }[] }
+
+export async function fetchMeusObjetivos(client: LunaClient): Promise<MeuObjetivo[]> {
+  const { data, error } = await client.from('goals').select('id,title,criterion,status,status_note').is('archived_at', null).order('priority');
+  if (error) throw error;
+  const ids = (data ?? []).map((g) => g.id);
+  const { data: m } = ids.length ? await client.from('milestones').select('goal_id,title,done_at,due_on').in('goal_id', ids) : { data: [] };
+  return (data ?? []).map((g) => ({
+    id: g.id, titulo: g.title, criterio: g.criterion, estado: g.status, nota: g.status_note,
+    marcos: (m ?? []).filter((x) => x.goal_id === g.id).map((x) => ({ titulo: x.title, feito: !!x.done_at, prazo: x.due_on })),
+  }));
+}

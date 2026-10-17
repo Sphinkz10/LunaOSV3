@@ -102,6 +102,24 @@ export type InviteRow = {
 export type MembershipEventRow = {
   id: number; org_id: Uuid; membership_id: Uuid; action: string; reason: string | null; actor_user: Uuid | null; created_at: Ts;
 };
+export type GoalRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; title: string; criterion: string | null;
+  category: 'fisico' | 'habitos' | 'tecnico' | 'saude' | 'outro'; priority: number; owner_membership_id: Uuid | null;
+  status: 'no_caminho' | 'em_risco' | 'atingido' | 'parado'; status_note: string | null; status_at: Ts; status_by: Uuid | null;
+  due_on: string | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+export type MilestoneRow = {
+  id: Uuid; org_id: Uuid; goal_id: Uuid; title: string; due_on: string | null; done_at: Ts | null; done_by: Uuid | null;
+  evidence_kind: 'sessao' | 'avaliacao' | 'questionario' | 'medida' | 'nota' | null; evidence_id: Uuid | null; evidence_note: string | null; created_at: Ts;
+};
+export type GoalResourceRow = { id: Uuid; org_id: Uuid; goal_id: Uuid; kind: 'plano' | 'treino' | 'questionario'; ref_id: Uuid; label: string; created_at: Ts };
+export type ReviewRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; scheduled_on: string; every_weeks: number | null; owner_membership_id: Uuid | null;
+  goal_ids: Uuid[]; done_at: Ts | null; done_by: Uuid | null; decision: string | null; created_at: Ts;
+};
+export type LinkEventRow = {
+  id: number; org_id: Uuid; link_id: Uuid; kind: string; title: string; reason: string | null; ref_id: Uuid | null; actor_user: Uuid | null; created_at: Ts;
+};
 export type DraftRow = { user_id: Uuid; key: string; payload: Json; updated_at: Ts };
 export type AccountDeletionRow = {
   id: Uuid; person_id: Uuid; user_id: Uuid; requested_at: Ts; scheduled_for: Ts; cancelled_at: Ts | null; done_at: Ts | null;
@@ -278,6 +296,11 @@ export interface Database {
       login_history: Table<LoginHistoryRow, 'user_id'>;
       account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
       drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
+      goals: Table<GoalRow, 'org_id' | 'link_id' | 'title'>;
+      milestones: Table<MilestoneRow, 'org_id' | 'goal_id' | 'title'>;
+      goal_resources: Table<GoalResourceRow, 'org_id' | 'goal_id' | 'kind' | 'ref_id' | 'label'>;
+      reviews: Table<ReviewRow, 'org_id' | 'link_id' | 'scheduled_on'>;
+      link_events: Table<LinkEventRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
       consents: Table<ConsentRow, 'person_id' | 'kind' | 'version' | 'granted'>;
       pendencias: Table<PendenciaRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
       restrictions: Table<RestrictionRow, 'org_id' | 'link_id' | 'person_id' | 'kind'>;
@@ -313,6 +336,27 @@ export interface Database {
         Returns: { link_id: string | null; full_name: string; motivo: 'telefone' | 'email' | 'nif'; client_status: Enums['client_status']; archived: boolean; sessions: number; visible: boolean }[];
       };
       merge_clients: { Args: { _keep: string; _drop: string }; Returns: string };
+      set_goal_status: { Args: { _goal: string; _status: string; _note?: string | null }; Returns: undefined };
+      archive_goal: { Args: { _goal: string }; Returns: undefined };
+      complete_milestone: { Args: { _id: string; _kind: string; _ref?: string | null; _note?: string | null }; Returns: undefined };
+      conclude_review: { Args: { _id: string; _decision: string; _next_on?: string | null }; Returns: string | null };
+      sync_overdue: { Args: { _org: string }; Returns: number };
+      archive_client: { Args: { _link: string; _reason: string }; Returns: undefined };
+      reactivate_client: { Args: { _link: string; _reason: string }; Returns: undefined };
+      update_client_data: {
+        Args: { _link: string; _seen: string; _full_name: string; _phone: string | null; _email: string | null; _birth_date: string | null; _tax_id: string | null };
+        Returns: string;
+      };
+      client_activity: {
+        Args: { _link: string; _from: string; _to?: string };
+        Returns: { em: string; origem: string; titulo: string; detalhe: string; ref_kind: string; ref_id: string | null; quem: string | null }[];
+      };
+      client_upcoming: { Args: { _link: string; _days?: number }; Returns: { em: string; tipo: string; titulo: string; estado: string | null }[] };
+      client_progress: {
+        Args: { _link: string; _metric: string; _from: string; _to?: string };
+        Returns: { em: string; valor: number; detalhe: string; ref_kind: string; ref_id: string | null }[];
+      };
+      client_metrics: { Args: { _link: string }; Returns: { chave: string; nome: string; unidade: string | null; n: number }[] };
       undo_merge: { Args: { _merge: string }; Returns: undefined };
       send_link_invite: { Args: { _link: string; _canal: 'email' | 'sms' | 'codigo'; _destino?: string | null }; Returns: string };
       export_org_data: { Args: { _org: string }; Returns: Json };

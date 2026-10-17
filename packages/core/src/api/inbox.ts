@@ -19,6 +19,8 @@ const KIND: Record<string, { categoria: CategoriaInbox; acao: string; origem: st
   parq_atestado: { categoria: 'saude', acao: 'Pedir atestado', origem: 'PAR-Q pediu atestado', to: (l) => `/clients/${l}/aptidao` },
   restricao_a_rever: { categoria: 'saude', acao: 'Rever', origem: 'Restrição com data de revisão', to: (l) => `/clients/${l}/aptidao` },
   encarregado_em_falta: { categoria: 'clientes', acao: 'Ver', origem: 'Menor sem encarregado', to: (l) => `/clients/${l}` },
+  revisao_em_atraso: { categoria: 'clientes', acao: 'Rever', origem: 'Revisão em atraso', to: (l) => `/clients/${l}?sep=objetivos` },
+  marco_em_atraso: { categoria: 'clientes', acao: 'Ver marco', origem: 'Marco em atraso', to: (l) => `/clients/${l}?sep=objetivos` },
 };
 
 export async function fetchInbox(

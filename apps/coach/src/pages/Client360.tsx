@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  archiveClient, confirmarDestrutivo, fetchAptidao, fetchAssiduidade, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, toast,
+  fetchAptidao, fetchAssiduidade, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, sincronizarAtrasos,
   type Aptidao, type Assiduidade, type ClientDetail, type Section,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
-import { Archive, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
+import { Archive, ArrowCounterClockwise, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
+import { ArquivarCliente, AtividadeTab, EditarDados, ObjetivosTab, ProgressoTab, ReativarCliente } from './FichaSeparadores';
 import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
@@ -38,7 +39,7 @@ const DOC: Record<string, { texto: string; tom: EstadoTom }> = {
   missing: { texto: 'Em falta', tom: 'erro' }, pending: { texto: 'Pendente', tom: 'aviso' },
 };
 
-type Separador = 'geral' | 'treino' | 'avaliacoes' | 'saude' | 'documentos';
+type Separador = 'geral' | 'treino' | 'progresso' | 'objetivos' | 'avaliacoes' | 'saude' | 'documentos' | 'atividade';
 const dia = (iso: string | null) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 const diaHora = (iso: string) => new Date(iso).toLocaleString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const idade = (nasc: string | null) => {
@@ -69,15 +70,20 @@ export function Client360() {
   const [apt, setApt] = useState<Aptidao | null>(null);
   const [assid, setAssid] = useState<Assiduidade | null>(null);
   const [motivos, setMotivos] = useState<string[]>([]);
-  const [sep, setSep] = useState<Separador>('geral');
+  // ?sep=objetivos abre o separador (vem da Inbox e do Hoje)
+  const [sep, setSep] = useState<Separador>(() => (new URLSearchParams(window.location.search).get('sep') as Separador | null) ?? 'geral');
   const [convidar, setConvidar] = useState<ParaConvidar | null>(null);
   const [juntar, setJuntar] = useState(false);
+  const [editar, setEditar] = useState(false);
+  const [arquivar, setArquivar] = useState(false);
+  const [reativar, setReativar] = useState(false);
 
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client || !id) return;
     setErro(null);
     void fetchClientProfile(client, scope, id).then(setData).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
+    void sincronizarAtrasos(client, scope).catch(() => undefined);
     void fetchAptidao(client, scope, id).then(setApt).catch(() => setApt(null));
     void fetchAssiduidade(client, scope).then((m) => setAssid(m.get(id) ?? null)).catch(() => setAssid(null));
     void fetchClientesAtencao(client, scope)
@@ -94,20 +100,11 @@ export function Client360() {
   const ativa = data?.assignments.state === 'ok' ? data.assignments.data.find((a) => a.status === 'active') : undefined;
   const daqui = { state: { voltar: { rotulo: `à ficha de ${p?.name.split(' ')[0] ?? p1}`, href: `/clients/${id}` } } };
   const anos = idade(p?.birthDate ?? null);
-  const arquivar = async () => {
-    const client = getSupabaseClient();
-    if (!client || !p) return;
-    const ok = await confirmarDestrutivo({
-      titulo: `Arquivar ${p.name}?`, texto: 'Sai das listas e da app deixa de ver o plano. O histórico fica e pode voltar.',
-      efeitos: [proximas.length ? `${proximas.length} ${vocab.sessao({ plural: proximas.length !== 1 })} marcadas continuam no horário até as cancelares` : 'Sem marcações futuras'],
-      verbo: 'Arquivar', manter: 'Cancelar', motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: mudou de cidade' },
-      acao: (motivo) => archiveClient(client, scope, id, motivo ?? null),
-    });
-    if (ok) { toast({ variant: 'success', title: `${p.name} arquivado` }); navigate('/clients'); }
-  };
+  const arquivado = !!p?.archivedAt;
   const separadores: { id: Separador; rotulo: string }[] = [
-    { id: 'geral', rotulo: 'Visão geral' }, { id: 'treino', rotulo: 'Treino' }, { id: 'avaliacoes', rotulo: 'Avaliações' },
-    { id: 'saude', rotulo: 'Saúde' }, { id: 'documentos', rotulo: 'Documentos' },
+    { id: 'geral', rotulo: 'Visão geral' }, { id: 'treino', rotulo: 'Treino' }, { id: 'progresso', rotulo: 'Progresso' },
+    { id: 'objetivos', rotulo: 'Objetivos e revisões' }, { id: 'avaliacoes', rotulo: 'Avaliações' }, { id: 'saude', rotulo: 'Saúde' },
+    { id: 'documentos', rotulo: 'Documentos' }, { id: 'atividade', rotulo: 'Atividade' },
   ];
 
   return (
@@ -131,18 +128,21 @@ export function Client360() {
                   </div>
                 </div>
                 <div className="lg-ficha__acoes">
+                  {arquivado ? <Botao icone={ArrowCounterClockwise} onClick={() => setReativar(true)}>Reativar</Botao> : <>
+                  <Botao variante="secundario" onClick={() => setEditar(true)}>Editar dados</Botao>
                   <Botao variante="secundario" icone={CalendarBlank} onClick={() => navigate(`/schedule?nova=1&cliente=${id}`)}>Marcar</Botao>
                   <Botao icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
                   <MenuAcoes rotulo={`Mais ações para ${p.name}`} acoes={[
                     ...(p.hasAccount ? [] : [{ rotulo: 'Convidar para a app', icone: EnvelopeSimple, onClick: () => setConvidar({ id, nome: p.name, email: p.email, telefone: p.phone }) }]),
                     { rotulo: `Juntar com outro ${p1}`, icone: UsersThree, onClick: () => setJuntar(true) },
                     { rotulo: 'Restrição e aptidão', icone: Heartbeat, onClick: () => navigate(`/clients/${id}/aptidao`, daqui) },
-                    { rotulo: 'Arquivar', icone: Archive, perigo: true, onClick: () => void arquivar() },
-                  ]} />
+                    { rotulo: 'Arquivar', icone: Archive, perigo: true, onClick: () => setArquivar(true) },
+                  ]} /></>}
                 </div>
               </header>
 
-              {motivos.length > 0 && <Nota>Em atenção: {motivos.join(' · ')}</Nota>}
+              {arquivado && <Nota>Arquivado a {dia(p.archivedAt)}{p.archivedReason ? ` · ${p.archivedReason}` : ''}. A ficha fica só para leitura até reativar.</Nota>}
+              {!arquivado && motivos.length > 0 && <Nota>Em atenção: {motivos.join(' · ')}</Nota>}
 
               <div className="lg-separadores" role="tablist" aria-label="Secções da ficha">
                 {separadores.map((s) => (
@@ -250,6 +250,10 @@ export function Client360() {
                 </div>
               )}
 
+              {sep === 'progresso' && <ProgressoTab linkId={id} nome={p.name} />}
+              {sep === 'objetivos' && <ObjetivosTab linkId={id} nome={p.name} soLeitura={arquivado} />}
+              {sep === 'atividade' && <AtividadeTab linkId={id} nome={p.name} />}
+
               {sep === 'avaliacoes' && (
                 <section className="lv-lista" aria-label="Medidas">
                   <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Medidas</h3></div>
@@ -314,6 +318,10 @@ export function Client360() {
           )}
       </div>
       <ConvidarApp cliente={convidar} onFechar={() => { setConvidar(null); carregar(); }} />
+      <EditarDados linkId={id} aberta={editar} onFechar={() => setEditar(false)} onGuardado={carregar} onAbrir={(x) => navigate(`/clients/${x}`)} />
+      <ArquivarCliente cliente={arquivar && p ? { id, nome: p.name } : null} onFechar={() => setArquivar(false)} onFeito={carregar} />
+      <ReativarCliente cliente={reativar && p ? { id, nome: p.name, saiu: p.archivedReason } : null} onFechar={() => setReativar(false)}
+        onFeito={() => { carregar(); setSep('treino'); }} />
       {juntar && p && <JuntarClientes cliente={{ id, nome: p.name }} onFechar={() => setJuntar(false)}
         onFeito={(manter) => { if (manter === id) carregar(); else navigate(`/clients/${manter}`); }} />}
     </CoachShell>
