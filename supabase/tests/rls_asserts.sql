@@ -274,7 +274,13 @@ end $$;
 select set_config('app.aal', 'aal2', false);
 do $$ declare j jsonb;
 begin
-  j := public.get_person_health(current_setting('t.link_c')::uuid);
+  -- fora da carteira, abrir a saúde pede motivo (G-45)
+  begin
+    perform public.get_person_health(current_setting('t.link_c')::uuid);
+    raise exception 'PROVA 6 FALHOU: saúde fora da carteira sem motivo';
+  exception when check_violation then null;
+  end;
+  j := public.get_person_health(current_setting('t.link_c')::uuid, 'Vai treinar comigo hoje');
   if jsonb_array_length(j->'allergies') <> 1 then raise exception 'PROVA 6 FALHOU: alergia em falta'; end if;
   -- nem com dois fatores a tabela se lê diretamente (sem registo da leitura)
   if exists (select 1 from public.allergies) then raise exception 'PROVA 6 FALHOU: alergias lidas sem registo'; end if;

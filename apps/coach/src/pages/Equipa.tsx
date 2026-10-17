@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
-  cancelarConvite, confirmarDestrutivo, convidarMembro, desativarMembro, fetchEquipa, gerarCodigoRecuperacao,
-  LugaresEsgotadosError, reativarMembro, toast,
-  type ConviteEquipa, type EventoEquipa, type MembroEquipa,
+  AREAS_PERMISSAO, cancelarConvite, confirmarDestrutivo, convidarMembro, desativarMembro, fetchEquipa, fetchPapeis, fetchTitulos,
+  gerarCodigoRecuperacao, guardarTitulo, LugaresEsgotadosError, mudarPapeis, reativarMembro, sincronizarTitulos, toast,
+  type ConviteEquipa, type EventoEquipa, type MembroEquipa, type PapelCatalogo, type TituloMembro,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, SemPermissao } from '@luna/ui/v3';
-import { Copy, Key, Lock } from '@luna/icons';
+import { CheckCircle, Copy, IdentificationCard, Key, Lock, XCircle } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -38,12 +38,20 @@ export function Equipa() {
   const [desativar, setDesativar] = useState<MembroEquipa | null>(null);
   const [reativar, setReativar] = useState<MembroEquipa | null>(null);
   const [codigo, setCodigo] = useState<{ nome: string; codigo: string } | null>(null);
+  const [titulos, setTitulos] = useState<Map<string, TituloMembro>>(new Map());
+  const [catalogo, setCatalogo] = useState<PapelCatalogo[]>([]);
+  const [papelVer, setPapelVer] = useState('coach');
+  const [editar, setEditar] = useState<MembroEquipa | null>(null);
 
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client || !pode) return;
     setErro(null);
     void fetchEquipa(client, scope).then(setDados).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
+    void fetchTitulos(client, scope).then((t) => setTitulos(new Map(t.map((x) => [x.membershipId, x])))).catch(() => setTitulos(new Map()));
+    void fetchPapeis(client).then(setCatalogo).catch(() => setCatalogo([]));
+    // Título a expirar: avisa a gerência 30 dias antes
+    void sincronizarTitulos(client, scope).catch(() => undefined);
   }, [scope, pode]);
   useEffect(() => carregar(), [carregar]);
 
@@ -95,8 +103,10 @@ export function Equipa() {
                         <span className="lv-linha-lista__titulo">{m.nome}{m.souEu ? ' (tu)' : ''}</span>
                         <span className="lv-legenda">{m.papeis.map((p) => p.nome).join(' · ') || 'Sem papel'}{m.email ? ` · ${m.email}` : ''}</span>
                       </span>
+                      <EstadoTitulo t={titulos.get(m.id)} precisa={m.papeis.some((p) => p.ocupaLugar)} />
                       {!m.souEu && (
                         <MenuAcoes rotulo={`Ações para ${m.nome}`} acoes={[
+                          { rotulo: 'Papéis e título', icone: IdentificationCard, onClick: () => setEditar(m) },
                           { rotulo: 'Gerar código de recuperação', icone: Key, onClick: () => void gerarCodigo(m) },
                           { rotulo: 'Desativar acesso', icone: Lock, perigo: true, onClick: () => setDesativar(m) },
                         ]} />
@@ -137,6 +147,27 @@ export function Equipa() {
               </div>
 
               <div className="lg-conta__coluna">
+                <h2 className="lv-sobretitulo">O que cada papel pode fazer</h2>
+                <section className="lv-lista" aria-label="Permissões por papel">
+                  <div role="radiogroup" aria-label="Papel" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
+                    {catalogo.map((p) => <Chip key={p.key} role="radio" aria-checked={papelVer === p.key} ativo={papelVer === p.key} onClick={() => setPapelVer(p.key)}>{p.nome}</Chip>)}
+                  </div>
+                  <div className="lg-matriz" role="table" aria-label="Ver e mudar">
+                    <div role="row" className="lg-matriz__linha lg-matriz__cabeca"><span role="columnheader">Área</span><span role="columnheader">Ver</span><span role="columnheader">Mudar</span></div>
+                    {AREAS_PERMISSAO.map((a) => {
+                      const perms = catalogo.find((p) => p.key === papelVer)?.permissoes ?? [];
+                      const ver = a.ver.some((x) => perms.includes(x)); const mudar = ver && a.mudar.some((x) => perms.includes(x));
+                      return (
+                        <div key={a.area} role="row" className="lg-matriz__linha">
+                          <span role="cell">{a.area}</span>
+                          <span role="cell">{ver ? <CheckCircle size={18} aria-label="Sim" className="lg-matriz__sim" /> : <XCircle size={18} aria-label="Não" className="lg-matriz__nao" />}</span>
+                          <span role="cell">{mudar ? <CheckCircle size={18} aria-label="Sim" className="lg-matriz__sim" /> : <XCircle size={18} aria-label="Não" className="lg-matriz__nao" />}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Nota>A saúde do cliente só aparece se o cliente a partilhou e com dois fatores.</Nota>
+                </section>
                 <h2 className="lv-sobretitulo">Desativados</h2>
                 {desativados.length === 0
                   ? <section className="lv-lista"><p className="lv-legenda" style={{ margin: 0 }}>Ninguém desativado.</p></section>
@@ -174,6 +205,8 @@ export function Equipa() {
           )}
       </div>
 
+      <EditarMembro membro={editar} catalogo={catalogo} titulo={editar ? titulos.get(editar.id) ?? null : null}
+        onFechar={() => setEditar(null)} onFeito={carregar} />
       <Convidar aberta={convidar} papeis={dados?.papeis ?? []} onFechar={() => setConvidar(false)} onConvidado={carregar} />
       <PedirMotivo membro={desativar} titulo={(n) => `Desativar o acesso de ${n}?`} verbo="Desativar" perigo
         texto="Sai já de todos os aparelhos. O que fez fica no histórico."
@@ -279,6 +312,60 @@ function PedirMotivo({ membro, titulo, texto, verbo, perigo, motivos = MOTIVOS_S
         {escolha === 'Outro' && <Campo rotulo="Qual?" value={outro} onChange={(e) => setOutro(e.target.value)} />}
         {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
       </div>
+    </Janela>
+  );
+}
+
+/** Título profissional: válido, a expirar (30 dias) ou por confirmar. */
+function EstadoTitulo({ t, precisa }: { t: TituloMembro | undefined; precisa: boolean }) {
+  if (!precisa) return <span className="lv-legenda lg-equipa__titulo">Não precisa</span>;
+  if (!t?.titulo) return <span className="lv-pill lg-equipa__titulo">Por confirmar</span>;
+  if (!t.validoAte) return <span className="lg-equipa__titulo"><Estado tom="ok">{t.titulo}</Estado></span>;
+  const dias = Math.ceil((Date.parse(`${t.validoAte}T23:59:59Z`) - Date.now()) / 86_400_000);
+  const data = new Date(`${t.validoAte}T12:00:00Z`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: dias > 365 ? 'numeric' : undefined });
+  return (
+    <span className="lg-equipa__titulo">
+      <Estado tom={dias < 0 ? 'erro' : dias <= 30 ? 'aviso' : 'ok'}>{dias < 0 ? `Expirou a ${data}` : dias <= 30 ? `Expira a ${data}` : `Válido até ${data}`}</Estado>
+    </span>
+  );
+}
+
+function EditarMembro({ membro, catalogo, titulo, onFechar, onFeito }: {
+  membro: MembroEquipa | null; catalogo: PapelCatalogo[]; titulo: TituloMembro | null; onFechar: () => void; onFeito: () => void;
+}) {
+  const scope = useScope();
+  const [papeis, setPapeis] = useState<string[]>([]);
+  const [t, setT] = useState(''); const [ate, setAte] = useState('');
+  const [aGravar, setAGravar] = useState(false);
+  useEffect(() => {
+    if (!membro) return;
+    setPapeis(membro.papeis.map((p) => p.key)); setT(titulo?.titulo ?? ''); setAte(titulo?.validoAte ?? '');
+  }, [membro, titulo]);
+  const gravar = async (e: FormEvent) => {
+    e.preventDefault();
+    const client = getSupabaseClient();
+    if (!client || !membro) return;
+    if (papeis.length === 0) { toast({ variant: 'warning', title: 'Escolhe pelo menos um papel' }); return; }
+    setAGravar(true);
+    try {
+      await mudarPapeis(client, scope, membro.id, membro.papeis.map((p) => p.key), papeis);
+      await guardarTitulo(client, membro.id, t.trim() || null, ate || null);
+      toast({ variant: 'success', title: `${membro.nome} atualizado` }); onFechar(); onFeito();
+    } catch (err) { toast({ variant: 'danger', title: 'Não foi possível gravar', description: err instanceof Error ? err.message : undefined }); }
+    finally { setAGravar(false); }
+  };
+  return (
+    <Janela aberta={!!membro} onFechar={onFechar} titulo={`Papéis e título de ${membro?.nome ?? ''}`} sub="Os papéis decidem o que vê e muda; o título profissional é pedido a quem dá treino.">
+      <form onSubmit={(e) => void gravar(e)} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <div role="group" aria-label="Papéis" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
+          {catalogo.filter((p) => p.key !== 'owner').map((p) => (
+            <Chip key={p.key} ativo={papeis.includes(p.key)} onClick={() => setPapeis((x) => (x.includes(p.key) ? x.filter((y) => y !== p.key) : [...x, p.key]))}>{p.nome}</Chip>
+          ))}
+        </div>
+        <Campo rotulo="Título profissional" value={t} onChange={(e) => setT(e.target.value)} placeholder="Ex.: Cédula de Treinador de Desporto, TPTE" />
+        <Campo rotulo="Válido até" type="date" value={ate} onChange={(e) => setAte(e.target.value)} ajuda="Avisamos a gerência 30 dias antes" />
+        <Botao type="submit" aCarregar={aGravar}>Guardar</Botao>
+      </form>
     </Janela>
   );
 }

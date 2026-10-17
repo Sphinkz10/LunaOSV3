@@ -36,6 +36,8 @@ export function summarizeClientDocs(statuses: DocumentStatus[]): {
 export type Section<T> =
   | { state: 'ok'; data: T }
   | { state: 'no_permission' }
+  /** Fora da carteira: abrir pede um motivo, que fica registado (G-45). */
+  | { state: 'needs_reason' }
   | { state: 'not_shared' }
   | { state: 'error'; message: string };
 
@@ -323,10 +325,11 @@ export async function fetchClientProfile(client: LunaClient, scope: OrgScope, li
 }
 
 /** Saúde pela função que verifica papel + partilha e regista a leitura. */
-export async function fetchClientHealth(client: LunaClient, scope: OrgScope, linkId: string): Promise<Section<AllergyItem[]>> {
+export async function fetchClientHealth(client: LunaClient, scope: OrgScope, linkId: string, motivo?: string | null): Promise<Section<AllergyItem[]>> {
   if (!scope.permissions.includes('health.read')) return { state: 'no_permission' };
-  const { data, error } = await client.rpc('get_person_health', { _link: linkId });
+  const { data, error } = await client.rpc('get_person_health', { _link: linkId, _reason: motivo ?? null });
   if (error) {
+    if (/motivo_obrigatorio/.test(error.message)) return { state: 'needs_reason' };
     // Com papel clínico, a recusa só pode ser falta de partilha do cliente
     return isDenied(error) ? { state: 'not_shared' } : { state: 'error', message: errMsg(error) };
   }

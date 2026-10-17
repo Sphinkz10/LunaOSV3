@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  fetchAptidao, fetchAssiduidade, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, sincronizarAtrasos,
+  fetchAptidao, fetchAssiduidade, fetchClientHealth, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, sincronizarAtrasos,
   type Aptidao, type Assiduidade, type ClientDetail, type Section,
 } from '@luna/core';
-import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
+import { AvisoSecao, Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
 import { Archive, ArrowCounterClockwise, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
 import { ArquivarCliente, AtividadeTab, EditarDados, ObjetivosTab, ProgressoTab, ReativarCliente } from './FichaSeparadores';
 import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
@@ -49,11 +49,24 @@ const idade = (nasc: string | null) => {
 };
 
 /** Secção que pode falhar sozinha (X-02): em falta nunca é zero. */
-function Secao<T>({ s, o, children }: { s: Section<T>; o: string; children: (d: T) => ReactNode }) {
+function Secao<T>({ s, o, children, onMotivo }: { s: Section<T>; o: string; children: (d: T) => ReactNode; onMotivo?: (m: string) => void }) {
   if (s.state === 'ok') return <>{children(s.data)}</>;
   if (s.state === 'no_permission') return <SemPermissao area={o} />;
   if (s.state === 'not_shared') return <Nota>O {p1} não partilhou {o} com a organização.</Nota>;
+  if (s.state === 'needs_reason') return <PedirMotivoSaude onEnviar={onMotivo} />;
   return <AvisoSecao tipo="falha-parcial" texto={`Não foi possível carregar ${o}: ${s.message}`} />;
+}
+
+/** Fora da carteira: abrir a saúde pede um motivo, que fica registado (G-45). */
+function PedirMotivoSaude({ onEnviar }: { onEnviar?: (m: string) => void }) {
+  const [m, setM] = useState('');
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (m.trim()) onEnviar?.(m.trim()); }} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+      <Nota>Este {p1} não é da tua carteira. Diz porque precisas de ver a saúde; fica registado em Segurança.</Nota>
+      <Campo rotulo="Motivo" value={m} onChange={(e) => setM(e.target.value)} placeholder="Ex.: vai fazer aula comigo hoje" required />
+      <Botao type="submit" variante="secundario" disabled={!m.trim()}>Abrir a saúde</Botao>
+    </form>
+  );
 }
 
 /**
@@ -276,7 +289,10 @@ export function Client360() {
                 <div className="lg-ficha__grelha">
                   <section className="lv-lista" aria-label="Alergias">
                     <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Alergias</h3></div>
-                    <Secao s={data.allergies} o="a saúde">
+                    <Secao s={data.allergies} o="a saúde" onMotivo={(motivo) => {
+                      const client = getSupabaseClient();
+                      if (client) void fetchClientHealth(client, scope, id, motivo).then((allergies) => setData((d) => (d ? { ...d, allergies } : d)));
+                    }}>
                       {(a) => a.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Sem alergias registadas.</p>
                         : a.map((x) => (
                           <div key={x.id} className="lv-linha-lista" style={{ cursor: 'default' }}>

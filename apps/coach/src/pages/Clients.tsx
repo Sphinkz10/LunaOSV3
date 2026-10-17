@@ -163,7 +163,7 @@ export function Clients() {
 
   return (
     <CoachShell headStrong={PP} headSub={rows ? `${rows.length} na carteira` : scope.orgName} legado={false}
-      topActions={<Botao icone={Plus} onClick={() => setNovo(true)}>Novo {p1}</Botao>}>
+      topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}><Botao variante="secundario" onClick={() => navigate('/clients/importar')}>Importar</Botao><Botao icone={Plus} onClick={() => setNovo(true)}>Novo {p1}</Botao></span>}>
       <div className="lv-root lg-clientes">
         <div className="lg-separadores" role="tablist" aria-label={PP}>
           <button type="button" role="tab" aria-selected={separador === 'ativos'} onClick={() => { setSeparador('ativos'); setSel(new Set()); }}>

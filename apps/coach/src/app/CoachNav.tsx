@@ -31,7 +31,7 @@ export const DESTINOS: Destino[] = [
   { to: '/business', label: 'Negócio', icone: Wallet, module: 'business', perms: ['org.manage', 'schedule.read_all'], pronto: false },
   { to: '/reports', label: 'Relatórios', icone: ClipboardText, module: 'reports', perms: ['org.manage', 'clients.read_own'], pronto: false },
   { to: '/documents', label: 'Documentos', icone: ClipboardText, module: 'documents', perms: ['org.manage', 'schedule.read_all', 'health.read'], pronto: false },
-  { to: '/settings', label: 'Definições', icone: Gear, module: 'settings', perms: ['org.manage'], pronto: false },
+  { to: '/settings', label: 'Definições', icone: Gear, module: 'settings', perms: ['org.manage', 'team.manage'], pronto: true },
 ];
 
 export interface NavItem { to: string; label: string; icone: IconComponent }

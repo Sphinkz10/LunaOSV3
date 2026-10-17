@@ -120,6 +120,9 @@ export type ReviewRow = {
 export type LinkEventRow = {
   id: number; org_id: Uuid; link_id: Uuid; kind: string; title: string; reason: string | null; ref_id: Uuid | null; actor_user: Uuid | null; created_at: Ts;
 };
+export type ImportRunRow = {
+  id: Uuid; org_id: Uuid; file_name: string; total: number; ok: number; failed: number; report: Json; created_by: Uuid | null; created_at: Ts;
+};
 export type DraftRow = { user_id: Uuid; key: string; payload: Json; updated_at: Ts };
 export type AccountDeletionRow = {
   id: Uuid; person_id: Uuid; user_id: Uuid; requested_at: Ts; scheduled_for: Ts; cancelled_at: Ts | null; done_at: Ts | null;
@@ -296,6 +299,7 @@ export interface Database {
       login_history: Table<LoginHistoryRow, 'user_id'>;
       account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
       drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
+      import_runs: Table<ImportRunRow, 'org_id' | 'file_name' | 'total' | 'ok' | 'failed' | 'report'>;
       goals: Table<GoalRow, 'org_id' | 'link_id' | 'title'>;
       milestones: Table<MilestoneRow, 'org_id' | 'goal_id' | 'title'>;
       goal_resources: Table<GoalResourceRow, 'org_id' | 'goal_id' | 'kind' | 'ref_id' | 'label'>;
@@ -317,7 +321,14 @@ export interface Database {
       accept_invite: { Args: { _token: string }; Returns: string };
       add_client: { Args: { _org: string; _full_name: string; _email?: string | null; _phone?: string | null; _birth_date?: string | null; _responsible?: string | null; _type?: Enums['link_type']; _tax_id?: string | null }; Returns: string };
       end_link: { Args: { _link: string }; Returns: undefined };
-      get_person_health: { Args: { _link: string }; Returns: Json };
+      get_person_health: { Args: { _link: string; _reason?: string | null }; Returns: Json };
+      org_audit: { Args: { _org: string; _limit?: number }; Returns: { em: string; quem: string; acao: string; entidade: string; entity_id: string | null; diff: Json }[] };
+      org_health_access: { Args: { _org: string }; Returns: { em: string; quem: string; cliente: string; motivo: string | null; fora_da_carteira: boolean }[] };
+      org_logins: { Args: { _org: string }; Returns: { em: string; quem: string; aparelho: string | null; sucesso: boolean }[] };
+      org_two_factor: { Args: { _org: string }; Returns: { membership_id: string; nome: string; obrigatorio: boolean; ativo: boolean }[] };
+      sync_title_alerts: { Args: { _org: string }; Returns: number };
+      import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
+      import_check: { Args: { _org: string; _rows: Json }; Returns: { linha: number; nome: string | null; motivo: string }[] };
       has_module: { Args: { _org: string; _module: string }; Returns: boolean };
       my_modules: { Args: { _org: string }; Returns: string[] };
       my_orgs: { Args: Record<string, never>; Returns: MyOrgRow[] };
