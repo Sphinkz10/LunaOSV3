@@ -92,7 +92,18 @@ export type UserSettingsRow = {
   user_id: Uuid; theme_mode: string; density: string; text_size: number; reduced_motion: boolean;
   date_format: string; time_format: string; live_timer_enabled: boolean; live_sound_enabled: boolean;
   notif_push: boolean; notif_email: boolean; notif_sms: boolean; quiet_hours_start: string; quiet_hours_end: string;
-  last_org_id: Uuid | null; created_at: Ts; updated_at: Ts;
+  last_org_id: Uuid | null; tema: 'oceano' | 'ouro' | 'limao' | null; week_start: number; language: string;
+  created_at: Ts; updated_at: Ts;
+};
+export type InviteRow = {
+  id: Uuid; org_id: Uuid; email: string; role_id: Uuid; unit_id: Uuid | null; token_hash: string; invited_by: Uuid | null;
+  expires_at: Ts; accepted_at: Ts | null; revoked_at: Ts | null; created_at: Ts;
+};
+export type MembershipEventRow = {
+  id: number; org_id: Uuid; membership_id: Uuid; action: string; reason: string | null; actor_user: Uuid | null; created_at: Ts;
+};
+export type LoginHistoryRow = {
+  id: Uuid; user_id: Uuid; ip: string | null; device: string | null; user_agent: string | null; success: boolean; created_at: Ts;
 };
 export type NotificationRow = {
   id: Uuid; user_id: Uuid; org_id: Uuid | null; type: string; title: string; body: string | null; data: Json;
@@ -257,6 +268,9 @@ export interface Database {
       sessions: Table<SessionRow, 'person_id'>;
       session_exercises: Table<SessionExerciseRow, 'session_id'>;
       session_sets: Table<SessionSetRow, 'session_id' | 'session_exercise_id'>;
+      invites: Table<InviteRow, 'org_id' | 'email' | 'role_id' | 'token_hash'>;
+      membership_events: Table<MembershipEventRow, 'org_id' | 'membership_id' | 'action'>;
+      login_history: Table<LoginHistoryRow, 'user_id'>;
       consents: Table<ConsentRow, 'person_id' | 'kind' | 'version' | 'granted'>;
       pendencias: Table<PendenciaRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
       restrictions: Table<RestrictionRow, 'org_id' | 'link_id' | 'person_id' | 'kind'>;
@@ -286,6 +300,10 @@ export interface Database {
       submit_parq: { Args: { _answers: Json; _person?: string | null }; Returns: boolean };
       record_restriction: { Args: { _link: string; _kind: string; _notes?: string | null; _valid_until?: string | null; _zone?: string | null; _review_on?: string | null }; Returns: string };
       revoke_restriction: { Args: { _id: string }; Returns: undefined };
+      deactivate_member: { Args: { _membership: string; _reason: string }; Returns: undefined };
+      reactivate_member: { Args: { _membership: string; _reason: string }; Returns: undefined };
+      cancel_invite: { Args: { _invite: string }; Returns: undefined };
+      create_recovery_code: { Args: { _membership: string }; Returns: string };
       client_restricoes_efeito: { Args: { _link: string }; Returns: { zone: string | null; kind: string; review_on: string | null }[] };
       client_aptidao: { Args: { _link: string }; Returns: string };
       request_guardian: { Args: { _email: string; _phone?: string | null }; Returns: string };
