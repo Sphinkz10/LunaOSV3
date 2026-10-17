@@ -22,5 +22,6 @@ done
 "${PSQL[@]}" -f supabase/tests/biblioteca_asserts.sql
 "${PSQL[@]}" -f supabase/tests/treino_asserts.sql
 "${PSQL[@]}" -f supabase/tests/treino2_asserts.sql
+"${PSQL[@]}" -f supabase/tests/horario_asserts.sql
 "${PSQL[@]}" -f supabase/seed.sql
 echo "✅ db-setup concluído com sucesso"
