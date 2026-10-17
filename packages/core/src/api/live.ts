@@ -260,6 +260,9 @@ export async function startLiveSession(client: LunaClient, scope: OrgScope, inpu
   }).select('id').single();
   if (error) {
     if ((error as { code?: string }).code === '42501') throw new NoTrainingShareError();
+    if (/aptidao_em_falta/.test(error.message)) {
+      throw new Error('Este cliente precisa de atestado ou restrição registada (PAR-Q) antes da primeira sessão.');
+    }
     throw error;
   }
   const rows = (input.workout?.exercises ?? []).map((e, i) => ({

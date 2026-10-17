@@ -207,4 +207,26 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------- PROVA C6: G-29 por zona; a equipa vê o efeito, não a causa ----------
+set role authenticated;
+select set_config('app.uid', '00000000-0000-0000-0000-0000000e0001', false);
+select set_config('app.aal', 'aal2', false);
+select public.record_restriction(current_setting('c.link')::uuid, 'adaptar', 'Rotura do LCA (2024)', null, 'Joelho esquerdo', current_date + 20);
+select set_config('app.aal', '', false);
+select set_config('app.uid', '00000000-0000-0000-0000-0000000e0002', false);   -- PT sem papel clínico
+do $$ declare r record;
+begin
+  if public.client_aptidao(current_setting('c.link')::uuid) <> 'restricao' then
+    raise exception 'PROVA C6 FALHOU: adaptar uma zona devia dar restricao';
+  end if;
+  select * into r from public.client_restricoes_efeito(current_setting('c.link')::uuid);
+  if r.zone <> 'Joelho esquerdo' or r.kind <> 'adaptar' then
+    raise exception 'PROVA C6 FALHOU: o PT devia ver o efeito por zona';
+  end if;
+  if exists (select 1 from public.restrictions) then
+    raise exception 'PROVA C6 FALHOU: o PT vê a causa (diagnóstico)';
+  end if;
+end $$;
+reset role;
+
 select '✅ Conta, PAR-Q, G-29 e encarregado: TODAS AS PROVAS PASSARAM' as resultado;

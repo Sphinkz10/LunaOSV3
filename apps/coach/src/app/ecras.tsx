@@ -38,7 +38,7 @@ export const ECRAS_G: EcraG[] = [
   { id: 'G-26', ecra: 'Worklist clínica', destino: 'Saúde', fase: 'F4' },
   { id: 'G-27', ecra: 'Ficha clínica e nutricional', destino: 'Saúde', fase: 'F4' },
   { id: 'G-28', ecra: 'Episódio', destino: 'Saúde', fase: 'F4' },
-  { id: 'G-29', ecra: 'Restrição e aptidão', destino: 'Saúde', fase: 'F1a' },
+  { id: 'G-29', ecra: 'Restrição e aptidão', destino: 'Saúde', fase: 'F1a', rota: '/clients/:id/aptidao' },
   { id: 'G-30', ecra: 'Plano alimentar e hábitos', destino: 'Saúde', fase: 'F4' },
   { id: 'G-31', ecra: 'Mensagens', destino: 'Mensagens', fase: 'F1b' },
   { id: 'G-32', ecra: 'Anúncios, campanhas e automatismos', destino: 'Mensagens', fase: 'F3' },

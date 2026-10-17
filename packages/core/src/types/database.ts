@@ -195,7 +195,7 @@ export type PendenciaRow = {
 };
 export type RestrictionRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; person_id: Uuid; kind: 'atestado' | 'permitir' | 'adaptar' | 'bloquear';
-  notes: string | null; valid_until: string | null; recorded_by: Uuid | null; created_at: Ts; revoked_at: Ts | null;
+  zone: string | null; notes: string | null; valid_until: string | null; review_on: string | null; recorded_by: Uuid | null; created_at: Ts; revoked_at: Ts | null;
 };
 export type ParqRow = { id: Uuid; person_id: Uuid; answers: Json; has_risk: boolean; created_at: Ts };
 export type GuardianshipRow = {
@@ -284,7 +284,9 @@ export interface Database {
       get_security_score: { Args: Record<string, never>; Returns: number };
       record_consent: { Args: { _kind: string; _version: string; _granted: boolean; _person?: string | null; _org?: string | null }; Returns: undefined };
       submit_parq: { Args: { _answers: Json; _person?: string | null }; Returns: boolean };
-      record_restriction: { Args: { _link: string; _kind: string; _notes?: string | null; _valid_until?: string | null }; Returns: string };
+      record_restriction: { Args: { _link: string; _kind: string; _notes?: string | null; _valid_until?: string | null; _zone?: string | null; _review_on?: string | null }; Returns: string };
+      revoke_restriction: { Args: { _id: string }; Returns: undefined };
+      client_restricoes_efeito: { Args: { _link: string }; Returns: { zone: string | null; kind: string; review_on: string | null }[] };
       client_aptidao: { Args: { _link: string }; Returns: string };
       request_guardian: { Args: { _email: string; _phone?: string | null }; Returns: string };
       accept_guardianship: { Args: { _token: string; _is_payer?: boolean }; Returns: string };

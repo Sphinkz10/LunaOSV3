@@ -245,6 +245,7 @@ export function Client360() {
                   </div>
                 </div>
                 <div className="athlete360-actions">
+                  <button type="button" className="athlete360-back" onClick={() => navigate(`/clients/${p.id}/aptidao`)}>Restrição e aptidão</button>
                   <button type="button" className="athlete360-back" onClick={() => navigate('/clients')}>← Voltar</button>
                 </div>
               </div>

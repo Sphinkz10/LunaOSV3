@@ -11,6 +11,7 @@ import { Today } from '../pages/Today';
 import { Schedule } from '../pages/Schedule';
 import { Clients } from '../pages/Clients';
 import { Client360 } from '../pages/Client360';
+import { Aptidao } from '../pages/Aptidao';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { Live } from '../pages/Live';
@@ -43,6 +44,7 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Clients /> },
       { path: ':id', element: <Client360 /> },
+      { path: ':id/aptidao', element: <Aptidao /> },
     ] },
   { path: '/groups', element: <Protected module="clients"><ModuleLayout module="groups" /></Protected>,
     children: [

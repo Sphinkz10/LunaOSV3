@@ -6,6 +6,7 @@ export * from './api/calendar';
 export * from './api/clients';
 export * from './api/live';
 export * from './api/notifications';
+export * from './api/aptidao';
 export * from './auth';
 export * from './authStore';
 export * from './time';

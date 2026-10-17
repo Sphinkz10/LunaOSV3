@@ -4,6 +4,7 @@ import { hasModule, useAuthStore, type OrgScope } from '@luna/core';
 import { Skeleton } from '@luna/ui';
 import { getSupabaseClient } from '../lib/supabase';
 import { signOutEverywhere } from './session';
+import { DoisFatores } from './DoisFatores';
 
 /** Acento por módulo (Guia §3.6): UMA var; componentes só conhecem `accent`. */
 const ACCENT: Record<string, string> = {
@@ -74,7 +75,8 @@ export function Protected({ children, module: mod }: { children: ReactNode; modu
   }
   // Direitos ainda por carregar: mostra; módulo desligado: não aparece
   if (mod && modules.length > 0 && !hasModule(modules, mod)) return <Navigate to="/today" replace />;
-  return <>{children}</>;
+  // Papéis que veem saúde só entram com dois fatores (D18)
+  return <DoisFatores>{children}</DoisFatores>;
 }
 
 /** Âmbito da organização ativa. Só se usa dentro de <Protected>. */

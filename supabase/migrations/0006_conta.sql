@@ -247,8 +247,10 @@ create table public.restrictions (
   link_id       uuid not null,
   person_id     uuid not null references public.persons(id) on delete cascade,
   kind          text not null check (kind in ('atestado','permitir','adaptar','bloquear')),
-  notes         text,
+  zone          text,                 -- zona do corpo (joelho esquerdo…); null = geral
+  notes         text,                 -- diagnóstico/causa: só papel clínico
   valid_until   date,
+  review_on     date,                 -- rever a restrição
   recorded_by   uuid,
   created_at    timestamptz not null default now(),
   revoked_at    timestamptz,
@@ -262,21 +264,35 @@ create index on public.restrictions (link_id, created_at desc);
 -- 'livre' | 'restricao' | 'bloqueado' | 'atestado_em_falta'
 create or replace function public._link_aptidao(_link uuid)
 returns text language sql stable security definer set search_path = '' as $$
-  with r as (
-    select r.kind from public.restrictions r
+  with ativas as (
+    select r.kind, r.zone from public.restrictions r
     where r.link_id = _link and r.revoked_at is null
       and (r.valid_until is null or r.valid_until >= current_date)
-    order by r.created_at desc limit 1
   )
   select case
-    when (select kind from r) = 'bloquear' then 'bloqueado'
-    when (select kind from r) = 'adaptar' then 'restricao'
-    when (select kind from r) in ('atestado','permitir') then 'livre'
+    when exists (select 1 from ativas where kind = 'bloquear' and zone is null) then 'bloqueado'
     when exists (select 1 from public.pendencias p
                  where p.link_id = _link and p.kind = 'parq_atestado' and p.status = 'aberta') then 'atestado_em_falta'
+    when exists (select 1 from ativas where kind in ('adaptar', 'bloquear')) then 'restricao'
     else 'livre'
   end;
 $$;
+
+-- Efeito das restrições por zona, sem a causa (para toda a equipa que vê o cliente)
+create or replace function public.client_restricoes_efeito(_link uuid)
+returns table (zone text, kind text, review_on date)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not (public.can_see_link(_link) or public.is_my_link(_link)) then
+    raise exception 'sem permissão' using errcode = 'insufficient_privilege';
+  end if;
+  return query
+    select distinct on (coalesce(r.zone, '')) r.zone, r.kind, r.review_on
+    from public.restrictions r
+    where r.link_id = _link and r.revoked_at is null and r.kind in ('permitir','adaptar','bloquear')
+      and (r.valid_until is null or r.valid_until >= current_date)
+    order by coalesce(r.zone, ''), r.created_at desc;
+end $$;
 
 create or replace function public.client_aptidao(_link uuid)
 returns text language plpgsql stable security definer set search_path = '' as $$
@@ -337,7 +353,8 @@ end $$;
 
 -- Registar atestado ou restrição (papel clínico, dois fatores); resolve a pendência
 create or replace function public.record_restriction(
-  _link uuid, _kind text, _notes text default null, _valid_until date default null
+  _link uuid, _kind text, _notes text default null, _valid_until date default null,
+  _zone text default null, _review_on date default null
 ) returns uuid language plpgsql security definer set search_path = '' as $$
 declare l public.links%rowtype; v_id uuid;
 begin
@@ -348,12 +365,26 @@ begin
   if public.current_aal() <> 'aal2' then
     raise exception 'mfa_required' using errcode = 'insufficient_privilege', hint = 'Ativa os dois fatores.';
   end if;
-  insert into public.restrictions (org_id, link_id, person_id, kind, notes, valid_until, recorded_by)
-    values (l.org_id, l.id, l.person_id, _kind, _notes, _valid_until, public.my_membership_id(l.org_id))
+  insert into public.restrictions (org_id, link_id, person_id, kind, zone, notes, valid_until, review_on, recorded_by)
+    values (l.org_id, l.id, l.person_id, _kind, nullif(trim(_zone), ''), _notes, _valid_until, _review_on, public.my_membership_id(l.org_id))
     returning id into v_id;
   update public.pendencias set status = 'resolvida', resolved_at = now(), resolved_by = auth.uid()
     where link_id = _link and kind = 'parq_atestado' and status = 'aberta';
   return v_id;
+end $$;
+
+create or replace function public.revoke_restriction(_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare r public.restrictions%rowtype;
+begin
+  select * into r from public.restrictions where id = _id;
+  if not found or not public.can_see_link(r.link_id) or not public.has_perm(r.org_id, 'health.read') then
+    raise exception 'sem permissão' using errcode = 'insufficient_privilege';
+  end if;
+  if public.current_aal() <> 'aal2' then
+    raise exception 'mfa_required' using errcode = 'insufficient_privilege';
+  end if;
+  update public.restrictions set revoked_at = now() where id = _id and revoked_at is null;
 end $$;
 
 -- ---------------------------------------------------------------------------

@@ -174,3 +174,17 @@
   .lg-entrar { grid-template-columns: minmax(0, 1fr); padding: var(--margem-telemovel); }
   .lg-entrar__destaque { display: none; }
 }
+
+/* ── Restrição e aptidão (G-29) ────────────────────────────────────────── */
+.lg-aptidao { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-aptidao__grelha { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-aptidao__tipos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--espaco-8); }
+.lg-aptidao__tipo {
+  display: flex; flex-direction: column; gap: var(--espaco-4); min-height: 56px; padding: var(--espaco-8) var(--espaco-12);
+  border-radius: var(--raio-linha); border: 1px solid var(--cor-linha); background: var(--cor-superficie);
+  color: var(--cor-texto); text-align: left; cursor: pointer; font: inherit;
+}
+.lg-aptidao__tipo[aria-checked='true'] { border: 2px solid var(--cor-texto); }
+@media (max-width: 960px) {
+  .lg-aptidao__grelha, .lg-aptidao__tipos { grid-template-columns: minmax(0, 1fr); }
+}
