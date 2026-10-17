@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  confirmarDestrutivo, conflitosAntes, fetchClients, fetchSemana, fetchStaff, fetchUnidades, guardarMarcacao, instante, setBookingStatus, toast,
+  avisoPack, confirmarDestrutivo, conflitosAntes, fetchClients, fetchSaldo, fetchSemana, fetchStaff, fetchUnidades, guardarMarcacao, instante, setBookingStatus, toast,
   wallClock, type ClientRow, type MarcacaoEditavel, type MarcacaoSemana, type StaffLite, type Unidade,
 } from '@luna/core';
 import { Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Nota, type EstadoTom } from '@luna/ui/v3';
@@ -161,6 +161,12 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
   const [e, setE] = useState(marcacao);
   const [repetir, setRepetir] = useState(false);
   const [conflitos, setConflitos] = useState<string[]>([]);
+  const [aviso, setAviso] = useState<string | null>(null);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !e.clienteId || e.tipo !== 'training') { setAviso(null); return; }
+    void fetchSaldo(client, e.clienteId).then((s) => setAviso(avisoPack(s))).catch(() => setAviso(null));
+  }, [e.clienteId, e.tipo]);
   const [aGravar, setAGravar] = useState(false);
   useEffect(() => { setE(marcacao); setRepetir(false); }, [marcacao]);
   // Conflitos de PT, sala, férias e folgas antes de guardar
@@ -229,6 +235,7 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
         </>
       )}
       <Campo rotulo="Notas" value={e.notas} onChange={(x) => set({ notas: x.target.value })} />
+      {aviso && <Nota icone={Warning}>{aviso}</Nota>}
       {conflitos.length > 0 && <div className="lg-duplicado" role="alert"><Warning size={18} aria-hidden /><span>{conflitos.join(' · ')}</span></div>}
       <div className="lg-import__acoes" style={{ padding: 0 }}>
         <Botao variante="secundario" onClick={onFechar}>Fechar</Botao>

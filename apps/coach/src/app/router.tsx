@@ -10,6 +10,7 @@ import { CriarConta, Recuperar } from '../pages/Acesso';
 import { Today } from '../pages/Today';
 import { Horario } from '../pages/Horario';
 import { Disponibilidade } from '../pages/Disponibilidade';
+import { Packs } from '../pages/Packs';
 import { Clients } from '../pages/Clients';
 import { Client360 } from '../pages/Client360';
 import { Aptidao } from '../pages/Aptidao';
@@ -67,6 +68,7 @@ const routes: RouteObject[] = [
   { path: '/settings/seguranca', element: <Protected module="settings"><Seguranca /></Protected> },
   { path: '/settings/ginasio', element: <Protected module="settings"><Ginasio /></Protected> },
   { path: '/clients/importar', element: <Protected module="clients"><Importar /></Protected> },
+  { path: '/business/packs', element: <Protected module="clients"><Packs /></Protected> },
   { path: '/training/biblioteca', element: <Protected module="training"><Biblioteca /></Protected> },
   { path: '/training/exercicio/:id', element: <Protected module="training"><ConstrutorExercicio /></Protected> },
   { path: '/training/treino/:id', element: <Protected module="training"><ConstrutorTreino /></Protected> },

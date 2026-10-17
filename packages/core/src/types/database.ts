@@ -167,6 +167,11 @@ export type WorkoutBlockRow = {
   mode: 'normal' | 'superset' | 'circuito' | 'emom' | 'amrap' | 'for_time'; rounds: number | null; minutes: number | null; notes: string | null;
   rest_between_rounds: number | null; rest_after: number | null;
 };
+export type PackProductRow = { id: Uuid; org_id: Uuid; name: string; sessions: number; validity_days: number; price_cents: number; archived_at: Ts | null; created_at: Ts };
+export type ClientPackRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; product_id: Uuid | null; name: string; sessions_total: number; sessions_used: number;
+  starts_on: string; valid_until: string; price_cents: number; sold_by: Uuid | null; created_at: Ts;
+};
 export type BookingRulesRow = { org_id: Uuid; slot_minutes: number; min_notice_hours: number; cancel_hours: number; auto_confirm: boolean; horizon_days: number; updated_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
@@ -331,6 +336,8 @@ export interface Database {
       workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
       exercise_fields: Table<ExerciseFieldRow, 'org_id' | 'exercise_id' | 'label' | 'kind'>;
       booking_rules: Table<BookingRulesRow, 'org_id'>;
+      pack_products: Table<PackProductRow, 'org_id' | 'name' | 'sessions' | 'validity_days'>;
+      client_packs: Table<ClientPackRow, 'org_id' | 'link_id' | 'name' | 'sessions_total' | 'valid_until'>;
       session_set_edits: Table<SessionSetEditRow, 'set_id' | 'session_id' | 'person_id' | 'before' | 'after'>;
       plan_workouts: Table<PlanWorkoutRow, 'org_id' | 'plan_id' | 'workout_id'>;
       exercise_alternatives: Table<ExerciseAlternativeRow, 'org_id' | 'exercise_id' | 'alternative_id'>;
@@ -367,6 +374,9 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      sell_pack: { Args: { _link: string; _product: string; _starts_on?: string }; Returns: string };
+      pack_balance: { Args: { _link: string }; Returns: { pack_id: string; nome: string; restam: number; total: number; valido_ate: string; estado: string }[] };
+      my_packs: { Args: Record<string, never>; Returns: { org: string; nome: string; restam: number; total: number; valido_ate: string }[] };
       schedule_conflicts: {
         Args: { _org: string; _membership: string | null; _room: string | null; _starts: string; _ends: string; _ignore?: string | null };
         Returns: { motivo: string }[];

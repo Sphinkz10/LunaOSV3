@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  desmarcar, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
-  type MinhaLigacao, type MinhaMarcacao,
+  desmarcar, fetchMeusPacks, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
+  type MeuPack, type MinhaLigacao, type MinhaMarcacao,
 } from '@luna/core';
 import { BotaoFixo, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
 import { CalendarBlank, CaretRight } from '@luna/icons';
@@ -28,6 +28,7 @@ export function MarcarPT() {
   const [marcadas, setMarcadas] = useState<MinhaMarcacao[]>([]);
   const [desm, setDesm] = useState<MinhaMarcacao | null>(null);
   const [aGravar, setAGravar] = useState(false);
+  const [packs, setPacks] = useState<MeuPack[]>([]);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -40,6 +41,7 @@ export function MarcarPT() {
     setHoras(null); setEscolha(null);
     void horasLivres(client, link.linkId, iso(dias[0]), 7).then(setHoras).catch(() => setHoras([]));
     void minhasMarcacoes(client).then(setMarcadas).catch(() => setMarcadas([]));
+    void fetchMeusPacks(client).then(setPacks).catch(() => setPacks([]));
   }, [link, dias]);
   useEffect(() => carregar(), [carregar]);
 
@@ -67,8 +69,10 @@ export function MarcarPT() {
   const d = new Date(`${dia}T12:00:00`);
   return (
     <main className="lc-ecra">
-      <header className="lc-cabeca"><div style={{ flex: 1 }}><span className="lv-legenda">{link.org}</span>
+      <header className="lc-cabeca"><div style={{ flex: 1 }}><span className="lv-legenda">{(() => { const pk = packs.find((x) => x.org === link.org && x.restam > 0 && x.validoAte >= iso(new Date())); return pk ? `${pk.nome} · ${pk.restam} de ${pk.total} ${t('sessao', { plural: true })}` : link.org; })()}</span>
         <h1 className="lc-cabeca__titulo">Marcar{link.responsavel ? ` com o ${link.responsavel.split(' ')[0]}` : ''}</h1></div></header>
+      {(!packs.some((x) => x.org === link.org && x.restam > 0 && x.validoAte >= iso(new Date()))
+        && <Nota>Não tens pack com {t('sessao', { plural: true })} válido: a {t('sessao')} fica por pagar ao teu {t('responsavel')}.</Nota>)}
       {ligacoes.length > 1 && (
         <div className="lg-ficha__metricas">{ligacoes.map((l) => <button key={l.linkId} type="button" className="lv-chip" aria-pressed={l.linkId === link.linkId} onClick={() => setLink(l)}>{l.org}</button>)}</div>
       )}

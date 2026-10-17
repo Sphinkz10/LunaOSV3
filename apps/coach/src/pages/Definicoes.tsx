@@ -30,6 +30,7 @@ export function Definicoes() {
     { icone: UsersThree, titulo: 'Equipa e acessos', texto: 'Quem faz o quê, convites, títulos e diretor técnico', to: '/settings/equipa', ver: pode('team.manage') },
     { icone: ShieldCheck, titulo: 'Segurança e auditoria', texto: 'Quem fez o quê, acessos à saúde e dois fatores', to: '/settings/seguranca', ver: pode('org.manage') },
     { icone: Sliders, titulo: 'Ginásio e preferências', texto: 'Unidades e salas, horários, marca da app e módulos', to: '/settings/ginasio', ver: pode('org.manage') },
+    { icone: Wallet, titulo: 'Planos e preços', texto: 'Packs de sessões: criar, preço e validade', to: '/business/packs', ver: pode('clients.write') },
     { icone: UploadSimple, titulo: `Importar ${vocab.pessoa({ plural: true })}`, texto: 'De Excel ou de outra app, com relatório de falhas', to: '/clients/importar', ver: pode('clients.write') },
     { icone: UserCircle, titulo: 'A minha conta', texto: 'Perfil, palavra-passe, sessões e preferências', to: '/conta', ver: true },
   ];

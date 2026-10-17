@@ -19,6 +19,7 @@ export * from './api/treino';
 export * from './api/treinoApp';
 export * from './api/treinoAntigas';
 export * from './api/horario';
+export * from './api/packs';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';
