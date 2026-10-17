@@ -71,6 +71,7 @@ export function CoachShell({
   const modules = useAuthStore((s) => s.modules);
   const me = useAuthStore((s) => s.me);
   const [procura, setProcura] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
   const orgPop = usePop();
   const contaPop = usePop();
   const novoPop = usePop();
@@ -83,6 +84,14 @@ export function CoachShell({
   useEffect(() => {
     if (scope) document.documentElement.dataset.tema = scope.theme;
   }, [scope]);
+
+  // Esc fecha o menu aberto por cima (tablet)
+  useEffect(() => {
+    if (!menuAberto) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuAberto(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuAberto]);
 
   // Ctrl/⌘K abre a procura
   useEffect(() => {
@@ -126,8 +135,14 @@ export function CoachShell({
 
   return (
     <div className="lg-app">
-      <aside className="lg-side" aria-label="Menu">
-        <Link to="/today" className="lg-logo" aria-label="LunaOS, voltar a Hoje"><span className="lg-logo__lua" aria-hidden />LunaOS</Link>
+      {menuAberto && <button type="button" className="lg-scrim" aria-label="Fechar o menu" onClick={() => setMenuAberto(false)} />}
+      <aside className={`lg-side${menuAberto ? ' lg-side--aberto' : ''}`} aria-label="Menu">
+        {/* Tablet (X-05): a barra de ícones abre o menu inteiro por cima */}
+        <button type="button" className="lg-logo-botao" aria-label="Abrir o menu" aria-expanded={menuAberto}
+          onClick={() => setMenuAberto(true)}>L</button>
+        <Link to="/today" className="lg-logo" aria-label="LunaOS, voltar a Hoje" onClick={() => setMenuAberto(false)}>
+          <span className="lg-logo__lua" aria-hidden /><span className="lg-logo__texto">LunaOS</span>
+        </Link>
 
         {scope && (
           <div className="lg-pop" ref={orgPop.ref}>
@@ -155,7 +170,8 @@ export function CoachShell({
 
         <nav className="lg-menu" aria-label="Destinos">
           {itens.map((i) => (
-            <MenuItem key={i.to} icone={i.icone} ativo={ativo(i.to)} onClick={() => navigate(i.to)}>{i.label}</MenuItem>
+            <MenuItem key={i.to} icone={i.icone} ativo={ativo(i.to)} rotulo={i.label}
+              onClick={() => { setMenuAberto(false); navigate(i.to); }}>{i.label}</MenuItem>
           ))}
         </nav>
 

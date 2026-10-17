@@ -107,3 +107,43 @@
   .lg-conteudo { padding: var(--espaco-16) var(--margem-telemovel) calc(var(--altura-navegacao) + 48px); }
   .lg-legado { padding: var(--espaco-12); }
 }
+
+/* ── Regra de tablet (X-05): 961–1279 px ───────────────────────────────────
+   O menu recolhe numa barra de ícones de 76 px; o logótipo abre o menu inteiro
+   por cima. O resumo lateral passa para baixo do conteúdo (só muda a arrumação). */
+@media (min-width: 961px) and (max-width: 1279px) {
+  .lg-app { grid-template-columns: 76px minmax(0, 1fr); }
+  .lg-side:not(.lg-side--aberto) { padding: var(--espaco-16) var(--espaco-12); align-items: center; }
+  .lg-side:not(.lg-side--aberto) .lg-org__corpo,
+  .lg-side:not(.lg-side--aberto) .lg-org > svg,
+  .lg-side:not(.lg-side--aberto) .lg-eu__corpo,
+  .lg-side:not(.lg-side--aberto) .lg-eu > .lv-btn,
+  .lg-side:not(.lg-side--aberto) .lg-logo__texto,
+  .lg-side:not(.lg-side--aberto) .lv-menu-item__texto {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+  }
+  .lg-side:not(.lg-side--aberto) .lg-org { width: auto; padding: var(--espaco-4); border: 0; background: none; }
+  .lg-side:not(.lg-side--aberto) .lv-menu-item { justify-content: center; width: 52px; padding: 0; }
+  .lg-side--aberto {
+    position: fixed; inset: 0 auto 0 0; width: 280px; z-index: 50;
+    box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--cor-texto) 35%, transparent);
+  }
+  .lg-corpo { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+  .lg-conteudo { overflow: visible; }
+  .lg-lateral { width: auto; border-left: 0; border-top: 1px solid var(--cor-linha); overflow: visible; }
+  .lg-procura { width: 220px; }
+}
+.lg-logo-botao { display: none; }
+@media (min-width: 961px) and (max-width: 1279px) {
+  .lg-logo-botao {
+    display: grid; place-items: center; width: 52px; height: 52px; border: 0; border-radius: var(--raio-linha);
+    background: var(--cor-acao); color: var(--cor-sobre-acao); font: 600 18px/1 var(--fonte-titulo); cursor: pointer;
+  }
+  .lg-side:not(.lg-side--aberto) .lg-logo { display: none; }
+  .lg-side--aberto .lg-logo-botao { display: none; }
+}
+
+.lg-scrim { position: fixed; inset: 0; z-index: 49; border: 0; background: transparent; }
+/* A coluna principal fica sempre na segunda coluna (o menu aberto por cima não a desloca) */
+.lg-coluna { grid-column: 2; grid-row: 1; }
+@media (max-width: 960px) { .lg-coluna { grid-column: 1; } }

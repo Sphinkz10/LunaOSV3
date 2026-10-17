@@ -5,7 +5,7 @@
  */
 export {
   ArrowCounterClockwise, ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, CheckCircle,
-  ClipboardText, Clock, DotsThree, ListChecks, MapPin, ShieldCheck,
+  ClipboardText, Clock, DotsThree, ListChecks, MapPin, ShieldCheck, Sliders,
   Fire, Gear, Heartbeat, House, Info, List, Lock, MagnifyingGlass, Play, Plus, QrCode, SignOut, Sun, User, Users,
   Wallet, Warning, WifiSlash, X,
 } from '@phosphor-icons/react';

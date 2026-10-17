@@ -64,13 +64,15 @@ export function Avatar({ nome, foto, tamanho = 40 }: { nome: string; foto?: stri
 }
 
 /* ── Menu / item ativo (86:1048) ───────────────────────────────────────── */
-export function MenuItem({ icone: Icone, ativo, children, href, onClick }: {
+export function MenuItem({ icone: Icone, ativo, children, href, onClick, rotulo }: {
   icone?: IconComponent; ativo?: boolean; children: ReactNode; href?: string; onClick?: () => void;
+  /** Nome acessível e dica quando o texto está escondido (barra de ícones do tablet). */
+  rotulo?: string;
 }) {
-  const content = <>{Icone && <Icone size={20} aria-hidden />}{children}</>;
+  const content = <>{Icone && <Icone size={20} aria-hidden />}<span className="lv-menu-item__texto">{children}</span></>;
   return href
-    ? <a className="lv-menu-item" href={href} aria-current={ativo ? 'page' : undefined} onClick={onClick}>{content}</a>
-    : <button type="button" className="lv-menu-item" aria-current={ativo ? 'page' : undefined} onClick={onClick}>{content}</button>;
+    ? <a className="lv-menu-item" href={href} title={rotulo} aria-current={ativo ? 'page' : undefined} onClick={onClick}>{content}</a>
+    : <button type="button" className="lv-menu-item" title={rotulo} aria-current={ativo ? 'page' : undefined} onClick={onClick}>{content}</button>;
 }
 
 /* ── Métrica / destaque (86:1058) ──────────────────────────────────────── */

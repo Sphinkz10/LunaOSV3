@@ -314,3 +314,27 @@
   display: flex; align-items: center; gap: var(--espaco-8); padding: var(--espaco-8) var(--margem-telemovel);
   background: var(--cor-cartao-numero); color: var(--cor-sobre-cartao-numero); font-size: 13px;
 }
+
+/* ── Estados por lista (X-06) ───────────────────────────────────────────── */
+.lv-lista {
+  display: flex; flex-direction: column; gap: var(--espaco-12); padding: var(--espaco-20);
+  border-radius: var(--raio-cartao); background: var(--cor-superficie); border: 1px solid var(--cor-linha);
+}
+.lv-lista__cabeca { display: flex; justify-content: space-between; align-items: baseline; gap: var(--espaco-12); }
+.lv-lista__vazio { display: flex; flex-direction: column; align-items: center; gap: var(--espaco-8); padding: var(--espaco-16); text-align: center; }
+.lv-lista__vazio-titulo { margin: 0; font: 600 16px/1.3 var(--fonte-titulo); }
+.lv-lista__erro {
+  display: flex; align-items: center; gap: var(--espaco-8); padding-top: var(--espaco-8);
+  border-top: 1px solid var(--cor-linha); color: var(--estado-erro); font-size: 13px;
+}
+.lv-lista__erro span { flex: 1; }
+.lv-lista__erro .lv-aviso-secao__acao { color: var(--cor-texto); text-decoration: none; }
+.lv-lista--esbatida { opacity: .6; }
+.lv-lista__esq { display: flex; align-items: center; gap: var(--espaco-12); min-height: 56px; border-top: 1px solid var(--cor-linha); }
+.lv-lista__esq-av { width: 36px; height: 36px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); flex: none; }
+.lv-lista__esq-txt { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.lv-lista__esq-txt span { height: 10px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); width: 60%; }
+.lv-lista__esq-txt span + span { width: 35%; }
+.lv-lista__esq-pill { width: 60px; height: 24px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); }
+.lv-lista__esq * , .lv-lista__esq-av, .lv-lista__esq-pill { animation: lv-pulsa 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .lv-lista__esq *, .lv-lista__esq-av, .lv-lista__esq-pill { animation: none; } }
