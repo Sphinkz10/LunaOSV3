@@ -283,3 +283,42 @@
 .lg-inbox__detalhe { position: sticky; top: var(--espaco-16); min-height: 320px; }
 @media (max-width: 1100px) { .lg-inbox__grelha { grid-template-columns: minmax(0, 1fr); } .lg-inbox__detalhe { position: static; } }
 @media (max-width: 640px) { .lg-inbox__quando, .lg-inbox__linha > span[title] { display: none; } }
+
+/* Clientes (G-03) */
+.lg-clientes { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-separadores { display: flex; gap: var(--espaco-24); border-bottom: 1px solid var(--cor-linha); }
+.lg-separadores button { background: none; border: 0; padding: var(--espaco-8) 0; margin-bottom: -1px; border-bottom: 2px solid transparent; font: 600 14px/1.4 var(--fonte-texto); color: var(--cor-texto-secundario); cursor: pointer; display: inline-flex; gap: var(--espaco-8); align-items: center; }
+.lg-separadores button[aria-selected='true'] { color: var(--cor-texto); border-bottom-color: var(--cor-texto); }
+.lg-separadores button span { font-size: 12px; padding: 0 6px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); }
+.lg-clientes__barra { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--espaco-8); }
+.lg-clientes__chips { display: flex; flex-wrap: wrap; gap: var(--espaco-8); align-items: center; }
+.lg-clientes__procura { min-width: 220px; }
+.lg-clientes__grelha { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--espaco-16); align-items: start; }
+.lg-clientes__grelha:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.lg-clientes__resumo { position: sticky; top: var(--espaco-16); align-items: flex-start; }
+.lg-clientes__numeros { display: grid; grid-template-columns: 1fr 1fr; gap: var(--espaco-8); width: 100%; }
+.lg-clientes__numeros > div { display: flex; flex-direction: column; gap: 2px; padding: var(--espaco-8) var(--espaco-12); background: var(--cor-superficie-2); border-radius: var(--raio-linha); }
+.lg-tabela { padding: 0; gap: 0; overflow: hidden; }
+.lg-tabela__cabeca, .lg-tabela__linha { display: grid; grid-template-columns: 24px minmax(180px, 2fr) minmax(100px, 1.2fr) 110px 100px 76px; gap: var(--espaco-12); align-items: center; padding: var(--espaco-8) var(--espaco-16); }
+.lg-tabela__cabeca { font: 600 12px/1.4 var(--fonte-texto); color: var(--cor-texto-secundario); border-bottom: 1px solid var(--cor-linha); }
+.lg-tabela__linha { border-bottom: 1px solid var(--cor-linha); min-height: 56px; }
+.lg-tabela__linha:last-child { border-bottom: 0; }
+.lg-tabela__linha--sel { background: var(--cor-selecao); }
+.lg-tabela input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--cor-texto); }
+.lg-tabela__nome { display: flex; align-items: center; gap: var(--espaco-12); min-width: 0; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lg-tabela__nome > span { display: flex; flex-direction: column; }
+.lg-tabela__nome .lv-linha-lista__titulo, .lg-tabela__motivo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-tabela__motivo { color: var(--estado-aviso); }
+.lg-tabela__plano { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-num { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.lg-tabela__massa { display: flex; align-items: center; gap: var(--espaco-16); padding: var(--espaco-12) var(--espaco-16); background: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lg-tabela__massa button { background: none; border: 0; color: inherit; font: 600 13px/1.4 var(--fonte-texto); cursor: pointer; }
+.lg-semanas { display: inline-flex; align-items: flex-end; gap: 3px; height: 22px; }
+.lg-semanas i { width: 5px; border-radius: 2px; background: var(--cor-principal); }
+.lg-semanas i[data-zero] { background: var(--cor-linha); }
+@media (max-width: 1100px) { .lg-clientes__grelha { grid-template-columns: minmax(0, 1fr); } .lg-clientes__resumo { position: static; } }
+@media (max-width: 760px) {
+  .lg-tabela__cabeca { display: none; }
+  .lg-tabela__linha { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .lg-tabela__plano, .lg-tabela__linha .lg-num, .lg-tabela__linha .lg-semanas { display: none; }
+}

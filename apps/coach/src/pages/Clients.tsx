@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  archiveClient, assignPlanToClients, confirmarDestrutivo, addClient, DuplicateClientError, fetchClients, fetchClientesAtencao, MOTIVO_ATENCAO, fetchPlans, fetchStaff, toast, updateClientStatus,
-  type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
+  addClient, archiveClient, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients, fetchAssiduidade,
+  fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, MOTIVO_ATENCAO, toast, unarchiveClient,
+  type Assiduidade, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
+import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
+import { Plus } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
+import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 
 // Nomes da modalidade (regra 4): nunca "atleta" escrito à mão
@@ -13,1144 +17,346 @@ const P1 = vocab.pessoa({ maiuscula: true });
 const p1 = vocab.pessoa();
 const PP = vocab.pessoa({ plural: true, maiuscula: true });
 const pp = vocab.pessoa({ plural: true });
-const RESP = vocab.responsavel();
-import { ProtoDrawer } from '../app/ProtoDrawer';
-import { ProtoModal } from '../app/ProtoModal';
-import { useMediaQuery } from '../app/useMediaQuery';
-import { getSupabaseClient } from '../lib/supabase';
 
-const STATUS_META: Record<ClientStatus, { label: string; tone: string }> = {
-  active: { label: 'Ativo', tone: 'bsuccess' },
-  blocked: { label: 'Bloqueado', tone: 'bdanger' },
-  return_to_play: { label: 'RTP', tone: 'bt' },
-  injured: { label: 'Lesionado', tone: 'bwarn' },
-  inactive: { label: 'Inativo', tone: 'bm' },
+const ESTADO: Record<ClientStatus, { texto: string; tom: EstadoTom }> = {
+  active: { texto: 'Ativo', tom: 'ok' }, blocked: { texto: 'Bloqueado', tom: 'erro' }, return_to_play: { texto: 'Regresso', tom: 'aviso' },
+  injured: { texto: 'Lesionado', tom: 'aviso' }, inactive: { texto: 'Inativo', tom: 'neutro' },
 };
+type Filtro = 'all' | 'attention' | 'noplan' | 'semconta';
+const VISTAS_KEY = 'luna.clientes.vistas';
+interface Vista { nome: string; filtro: Filtro; q: string }
+const lerVistas = (): Vista[] => { try { return JSON.parse(localStorage.getItem(VISTAS_KEY) ?? '[]') as Vista[]; } catch { return []; } };
 
-interface AdvFilters { status: 'all' | ClientStatus; plan: 'all' | 'with' | 'without'; responsible: string; group: string }
-const DEFAULT_ADV: AdvFilters = { status: 'all', plan: 'all', responsible: '', group: '' };
-const SAVED_VIEWS_KEY = 'lunaSavedClientViews';
-
-interface SavedView {
-  id: string;
-  name: string;
-  filter: string;
-  query: string;
-  sort: string;
-  advanced: AdvFilters;
+function ultimaVez(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const dias = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (dias <= 0) return `hoje ${d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
+  if (dias === 1) return 'ontem';
+  if (dias < 7) return d.toLocaleDateString('pt-PT', { weekday: 'long' });
+  return `há ${dias} dias`;
 }
 
-function loadSavedViews(): SavedView[] {
-  try {
-    const raw = localStorage.getItem(SAVED_VIEWS_KEY);
-    return raw ? (JSON.parse(raw) as SavedView[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function storeSavedViews(list: SavedView[]) {
-  try {
-    localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(list.slice(0, 8)));
-  } catch { /* ignore */ }
-}
-
-function stubModuleAction(label: string) {
-  toast({ variant: 'info', title: 'Em breve', description: `${label} ficará disponível no módulo próprio.` });
-}
-
-function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
-}
-
-function formatLast(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
-}
-
-function phase3ViewLabel(filter: string) {
-  const map: Record<string, string> = {
-    all: 'Todos', attention: 'Atenção', noplan: 'Sem plano', pending: 'Pendentes',
-    blocked: 'Bloqueados', onboarding: 'Onboarding', rtp: 'RTP', selected: 'Selecionados',
-    forms: 'Forms pendentes', docs: 'Docs pendentes', advanced: 'Mais filtros',
-  };
-  return map[filter] ?? 'Vista atual';
-}
-
-function phase3Counts(rows: ClientRow[]) {
-  return {
-    total: rows.length,
-    noplan: rows.filter((a) => !a.hasPlan).length,
-    pending: rows.reduce((s, a) => s + a.pending, 0),
-    blocked: rows.filter((a) => a.status === 'blocked').length,
-    rtp: rows.filter((a) => a.status === 'return_to_play').length,
-    forms: 0,
-    docs: rows.filter((a) => !a.docsOk).length,
-  };
-}
-
-function phase3Problem(a: ClientRow) {
-  if (a.status === 'blocked') {
-    return { label: 'Bloqueio ativo', tone: 'bdanger', detail: a.statusNote || 'Impede novas atribuições.' };
-  }
-  if (!a.docsOk) {
-    return { label: 'Documento pendente', tone: 'bwarn', detail: `Docs ${a.docsLabel}` };
-  }
-  if (!a.hasPlan) return { label: 'Sem plano ativo', tone: 'bwarn', detail: 'Precisa de conteúdo base.' };
-  if (a.status === 'return_to_play') return { label: 'RTP em curso', tone: 'bm', detail: 'Validar progressão antes da próxima carga.' };
-  if (a.status === 'injured') return { label: 'Lesionado', tone: 'bwarn', detail: a.statusNote || 'Rever antes de nova carga.' };
-  if (a.status === 'inactive') return { label: 'Inativo', tone: 'bm', detail: a.statusNote || 'Sem atividade recente.' };
-  if (a.pending > 0) return { label: 'Pendências abertas', tone: 'bwarn', detail: `${a.pending} item(ns) a fechar` };
-  return { label: 'Operacional', tone: 'bsuccess', detail: 'Sem bloqueios críticos.' };
-}
-
-function phase3Content(a: ClientRow) {
-  if (!a.hasPlan) return { main: 'Sem plano', sub: 'Atribuição recomendada' };
-  const parts: string[] = [];
-  if (!a.docsOk) parts.push(`Docs ${a.docsLabel}`);
-  if (a.pending > 0) parts.push(`${a.pending} pend.`);
-  return { main: a.planName ?? 'Plano ativo', sub: parts.length ? parts.join(' · ') : 'Conteúdo ativo' };
-}
-
-function phase3Action(a: ClientRow) {
-  if (a.status === 'blocked') return { label: 'Rever bloqueio', action: 'review-block' as const };
-  if (!a.docsOk) return { label: 'Pedir doc', action: 'request-doc' as const };
-  if (!a.hasPlan) return { label: 'Atribuir plano', action: 'assign' as const };
-  return { label: 'Abrir 360', action: 'open-athlete' as const };
-}
-
-function rowIssueMain(a: ClientRow, p: ReturnType<typeof phase3Problem>) {
-  if (a.statusNote) return a.statusNote;
-  if (!a.docsOk) return `Documento ${a.docsLabel.toLowerCase()}`;
-  return p.label;
-}
-
-function recommend(a: ClientRow) {
-  if (a.status === 'blocked') return `Resolver bloqueios antes de novas atribuições. Começa por documentos e ${RESP} responsável.`;
-  if (!a.docsOk) return 'Pedir renovação ou upload antes de novas atribuições.';
-  if (a.status === 'return_to_play') return 'Rever aprovação do fisio antes de atribuir sessões RTP.';
-  if (a.status === 'inactive') return `Enviar follow-up e reativar o ${p1} se necessário.`;
-  if (!a.hasPlan) return 'Atribuir conteúdo base antes de novas cargas.';
-  return 'Tudo em dia. Podes atribuir novo conteúdo ou abrir perfil.';
-}
-
-function ClientAvatar({ a }: { a: ClientRow }) {
-  if (a.avatarUrl) return <img className="avatar" src={a.avatarUrl} alt="" loading="lazy" />;
-  return <div className="avatar initials">{initials(a.name)}</div>;
-}
-
-function mobileActionLabel(a: ClientRow): string {
-  const pa = phase3Action(a);
-  if (pa.action === 'review-block') return 'Rever';
-  if (pa.action === 'request-doc') return 'Doc';
-  if (pa.action === 'assign') return 'Atribuir';
-  return 'Abrir';
-}
-
-function ClientRowDetailModal({
-  athlete, onClose, onPrimary,
-}: {
-  athlete: ClientRow | null;
-  onClose: () => void;
-  onPrimary: (a: ClientRow) => void;
-}) {
-  if (!athlete) return null;
-  const p = phase3Problem(athlete);
-  const content = phase3Content(athlete);
-  const pa = phase3Action(athlete);
-  const issueMain = rowIssueMain(athlete, p);
+/** Assiduidade das últimas 8 semanas: uma barra por semana, sem eixos. */
+function Semanas({ s }: { s: number[] | undefined }) {
+  if (!s) return <span className="lv-legenda">—</span>;
+  const max = Math.max(1, ...s);
   return (
-    <ProtoModal
-      open={!!athlete}
-      onClose={onClose}
-      title={athlete.name}
-      sub={[athlete.groupName, athlete.responsibleName].filter(Boolean).join(' · ') || '—'}
-      size="sm"
-      footer={(
-        <>
-          <button type="button" className="btn ghost" onClick={onClose}>Fechar</button>
-          <button type="button" className="btn primary" onClick={() => { onPrimary(athlete); onClose(); }}>{pa.label}</button>
-        </>
-      )}
-    >
-      <div className="proto-form" style={{ gap: 10 }}>
-        <div className="phase3-selected-status"><span className={`badge ${p.tone}`}>{p.label}</span></div>
-        <div className="mini-row"><span>Estado</span><b>{p.detail}</b></div>
-        <div className="mini-row"><span>Problema</span><b>{issueMain}</b></div>
-        <div className="mini-row"><span>Recomendação</span><b style={{ whiteSpace: 'normal', textAlign: 'right', lineHeight: 1.35 }}>{recommend(athlete)}</b></div>
-        <div className="mini-row"><span>Conteúdo</span><b>{content.main}</b></div>
-        <div className="mini-row"><span>Subtexto</span><b>{content.sub}</b></div>
-      </div>
-    </ProtoModal>
+    <span className="lg-semanas" role="img" aria-label={`Últimas 8 semanas: ${s.join(', ')}`}>
+      {s.map((n, i) => <i key={i} style={{ height: n === 0 ? 3 : 6 + Math.round((n / max) * 14) }} data-zero={n === 0 || undefined} />)}
+    </span>
   );
 }
 
-function ClientsBoardPanel({
-  rows, selList, hasSelection, savedViews, onAssign, onClear, onFilter, onOpen360, onNavigateGroups, onSaveView, onLoadView, onRowAction, onArchive,
-}: {
-  rows: ClientRow[];
-  selList: ClientRow[];
-  hasSelection: boolean;
-  savedViews: SavedView[];
-  onAssign: () => void;
-  onClear: () => void;
-  onFilter: (id: string) => void;
-  onOpen360: (a: ClientRow) => void;
-  onNavigateGroups: () => void;
-  onSaveView: () => void;
-  onLoadView: (view: SavedView) => void;
-  onRowAction: (a: ClientRow) => void;
-  onArchive: (targets: ClientRow[]) => void;
-}) {
-  const c = phase3Counts(rows);
-
-  if (!hasSelection) {
-    const alerts: [string, number, string, string][] = [
-      ['Sem plano', c.noplan, 'noplan', 'Atribuir conteúdo base'],
-      ['Bloqueados', c.blocked, 'blocked', 'Rever antes de nova carga'],
-      ['Forms pendentes', c.forms, 'forms', 'Enviar lembrete'],
-      ['Docs pendentes', c.docs, 'docs', 'Pedir renovação'],
-    ];
-    return (
-      <>
-        <div className="board-card phase3-board-priority">
-          <div className="board-title">Hoje exige atenção</div>
-          <div className="board-sub">Prioridades calculadas a partir da carteira atual.</div>
-          {alerts.map(([label, count, filter, sub]) => (
-            <button key={filter} type="button" className="phase3-priority-row" onClick={() => onFilter(filter)}>
-              <span><b>{count}</b> {label}</span>
-              <small>{sub}</small>
-            </button>
-          ))}
-        </div>
-        <div className="board-card">
-          <div className="board-title">Ações rápidas</div>
-          <div className="board-sub">Escolhe uma fila operacional ou começa pela pesquisa.</div>
-          <div className="board-actions">
-            <button type="button" className="btn secondary" onClick={() => onFilter('noplan')}>Ver sem plano</button>
-            <button type="button" className="btn secondary" onClick={() => onFilter('blocked')}>Ver bloqueios</button>
-            <button type="button" className="btn secondary" onClick={() => onFilter('forms')}>Ver forms pendentes</button>
-            <button type="button" className="btn ghost" onClick={onSaveView}>Guardar vista atual</button>
-          </div>
-        </div>
-        <div className="board-card">
-          <div className="board-title">Vistas guardadas</div>
-          {savedViews.length > 0 ? (
-            savedViews.slice(0, 5).map((v) => (
-              <div key={v.id} className="mini-row">
-                <span>{v.name}</span>
-                <button type="button" className="btn ghost small" onClick={() => onLoadView(v)}>Abrir</button>
-              </div>
-            ))
-          ) : (
-            <div className="board-sub" style={{ marginTop: 6 }}>Ainda não guardaste vistas. Cria uma vista para regressar rapidamente aos teus filtros.</div>
-          )}
-        </div>
-        <div className="board-card">
-          <div className="board-title">Conteúdos disponíveis para atribuição</div>
-          <div className="mini-row"><span>Planos</span><b>origem externa</b></div>
-          <div className="mini-row"><span>Treinos / aulas</span><b>origem externa</b></div>
-          <div className="mini-row"><span>Forms</span><b>origem externa</b></div>
-          <div className="mini-row"><span>Relatórios</span><b>origem externa</b></div>
-        </div>
-      </>
-    );
-  }
-
-  if (selList.length === 1) {
-    const a = selList[0];
-    const p = phase3Problem(a);
-    const pa = phase3Action(a);
-    const content = phase3Content(a);
-    return (
-      <>
-        <div className="board-card phase3-selected-athlete">
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <ClientAvatar a={a} />
-            <div style={{ minWidth: 0 }}>
-              <div className="board-title">{a.name}</div>
-              <div className="board-sub">{[a.responsibleName, a.groupName].filter(Boolean).join(' · ') || '—'}</div>
-            </div>
-          </div>
-          <div className="phase3-selected-status"><span className={`badge ${p.tone}`}>{p.label}</span></div>
-          <div className="mini-row"><span>Problema</span><b>{p.detail}</b></div>
-          <div className="mini-row"><span>Conteúdo</span><b>{content.main}</b></div>
-          <div className="mini-row"><span>Última atividade</span><b>{formatLast(a.updatedAt)}</b></div>
-        </div>
-        <div className="board-card">
-          <div className="board-title">Próxima ação</div>
-          <p className="board-sub" style={{ marginTop: 6 }}>{recommend(a)}</p>
-          <div className="board-actions">
-            <button type="button" className="btn primary" onClick={() => {
-              if (pa.action === 'assign') onAssign();
-              else if (pa.action === 'open-athlete') onOpen360(a);
-              else onRowAction(a);
-            }}>
-              {pa.label}
-            </button>
-            <button type="button" className="btn secondary" onClick={() => onOpen360(a)}>Abrir ficha</button>
-            <button type="button" className="btn ghost" onClick={onAssign}>Atribuir conteúdo</button>
-          </div>
-        </div>
-        <div className="board-card">
-          <div className="board-title">Ações rápidas</div>
-          <div className="split-actions">
-            <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Pedir documento')}>Pedir documento</button>
-            <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Enviar form')}>Enviar form</button>
-            <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Atribuir coach')}>Atribuir coach</button>
-            <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Criar tarefa')}>Criar tarefa</button>
-            <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Mensagem')}>Mensagem</button>
-            <button type="button" className="btn secondary small" onClick={onClear}>Limpar</button>
-          </div>
-        </div>
-        <div className="board-card board-danger">
-          <div className="board-title">Zona de risco</div>
-          <p className="board-sub" style={{ marginTop: 6 }}>Arquivar remove o {p1} da lista (reversível); os dados ficam guardados.</p>
-          <div className="board-actions">
-            <button type="button" className="btn danger" onClick={() => onArchive([a])}>Arquivar {p1}…</button>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  const summary = {
-    noplan: selList.filter((a) => !a.hasPlan).length,
-    docs: selList.filter((a) => !a.docsOk).length,
-    forms: 0,
-    blocks: selList.filter((a) => a.status === 'blocked').length,
-    pending: selList.reduce((s, a) => s + a.pending, 0),
-  };
-
-  return (
-    <>
-      <div className="board-card">
-        <div className="board-title">{selList.length} {pp} selecionados</div>
-        <div className="board-sub">Antes de publicar qualquer ação, revê impacto e exceções.</div>
-        <div className="phase3-impact-grid">
-          <div><b>{summary.noplan}</b><span>sem plano</span></div>
-          <div><b>{summary.docs}</b><span>docs</span></div>
-          <div><b>{summary.forms}</b><span>forms</span></div>
-          <div><b>{summary.blocks}</b><span>bloqueios</span></div>
-        </div>
-      </div>
-      <div className="board-card">
-        <div className="board-title">Pré-visualização da ação</div>
-        <div className="mini-row"><span>Alvos</span><b>{selList.length}</b></div>
-        <div className="mini-row"><span>Possíveis exclusões</span><b>{summary.blocks + summary.docs}</b></div>
-        <div className="mini-row"><span>Pendências totais</span><b>{summary.pending}</b></div>
-        <div className="board-sub" style={{ marginTop: 8 }}>Atribuições em massa devem excluir bloqueados ou docs pendentes quando fizer sentido.</div>
-      </div>
-      <div className="board-card">
-        <div className="board-title">Ações principais</div>
-        <div className="board-actions">
-          <button type="button" className="btn primary" onClick={onAssign}>Atribuir conteúdo</button>
-          <button type="button" className="btn secondary" onClick={() => stubModuleAction('Pedir documentos')}>Pedir documentos</button>
-          <button type="button" className="btn secondary" onClick={() => stubModuleAction('Enviar form')}>Enviar form</button>
-          <button type="button" className="btn ghost" onClick={() => stubModuleAction('Criar tarefa')}>Criar tarefa</button>
-        </div>
-      </div>
-      <div className="board-card">
-        <div className="board-title">Gerir seleção</div>
-        <div className="split-actions">
-          <button type="button" className="btn secondary small" onClick={onNavigateGroups}>Criar grupo</button>
-          <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Atribuir coach')}>Atribuir coach</button>
-          <button type="button" className="btn secondary small" onClick={() => stubModuleAction('Exportar')}>Exportar</button>
-          <button type="button" className="btn secondary small" onClick={onClear}>Limpar</button>
-        </div>
-      </div>
-      <div className="board-card board-danger">
-        <div className="board-title">Zona de risco</div>
-        <p className="board-sub" style={{ marginTop: 6 }}>Arquivar {selList.length} {pp}: saem da lista, reversível.</p>
-        <div className="board-actions">
-          <button type="button" className="btn danger" onClick={() => onArchive(selList)}>Arquivar selecionados…</button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/** Clientes (G-03): a carteira do PT ou da organização, conforme o papel. */
+/**
+ * Clientes (G-03, Figma 63:58) na versão do PT: a carteira com plano, estado,
+ * última vez e assiduidade de 8 semanas. Clicar abre o resumo ao lado sem sair
+ * da lista. Filtros no endereço e em vistas guardadas; selecionar vários abre
+ * a barra de ações em massa. Arquivados ficam no separador próprio e voltam.
+ */
 export function Clients() {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 960px)');
   const scope = useScope();
-  const [boardOpen, setBoardOpen] = useState(false);
-  const [rows, setRows] = useState<ClientRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const gere = scope.permissions.includes('clients.read_all');
   const [searchParams, setSearchParams] = useSearchParams();
-  // Filtros no endereço: "Voltar a…" a partir da ficha repõe-nos (G-00)
-  const [query, setQuery] = useState(searchParams.get('q') ?? '');
-  const [sort, setSort] = useState(searchParams.get('ordem') ?? 'priority');
-  const [filter, setFilter] = useState(searchParams.get('filtro') ?? 'all');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [separador, setSeparador] = useState<'ativos' | 'arquivados'>(searchParams.get('ver') === 'arquivados' ? 'arquivados' : 'ativos');
+  const [q, setQ] = useState(searchParams.get('q') ?? '');
+  const [filtro, setFiltro] = useState<Filtro>((searchParams.get('filtro') as Filtro) ?? 'all');
+  const [rows, setRows] = useState<ClientRow[] | null>(null);
+  const [arquivados, setArquivados] = useState<ClienteArquivado[] | null>(null);
+  const [assid, setAssid] = useState<Map<string, Assiduidade>>(new Map());
   const [atencao, setAtencao] = useState<Map<string, string[]>>(new Map());
-  useEffect(() => {
+  const [erro, setErro] = useState<string | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [resumo, setResumo] = useState<string | null>(null);
+  const [novo, setNovo] = useState(searchParams.get('novo') === '1');
+  const [atribuir, setAtribuir] = useState<string[] | null>(null);
+  const [vistas, setVistas] = useState<Vista[]>(lerVistas);
+
+  // Filtros no endereço: "Voltar a…" a partir da ficha repõe-nos (G-00)
+  const params = useMemo(() => {
     const p = new URLSearchParams();
-    if (query) p.set('q', query);
-    if (sort !== 'priority') p.set('ordem', sort);
-    if (filter !== 'all') p.set('filtro', filter);
-    setSearchParams(p, { replace: true });
-  }, [query, sort, filter, setSearchParams]);
-  const abrirFicha = (id: string) => {
-    const p = new URLSearchParams();
-    if (query) p.set('q', query);
-    if (sort !== 'priority') p.set('ordem', sort);
-    if (filter !== 'all') p.set('filtro', filter);
-    const qs = p.toString();
-    navigate(`/clients/${id}`, { state: { voltar: { rotulo: vocab.pessoa({ plural: true, maiuscula: true }), href: `/clients${qs ? `?${qs}` : ''}` } } });
-  };
-  // Botão + (G-00): /clients?novo=1 abre logo o novo cliente
-  const [createOpen, setCreateOpen] = useState(searchParams.get('novo') === '1');
-  useEffect(() => {
-    if (searchParams.get('novo') === '1') { setCreateOpen(true); setSearchParams((p) => { p.delete('novo'); return p; }, { replace: true }); }
-  }, [searchParams, setSearchParams]);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignTargets, setAssignTargets] = useState<ClientRow[]>([]);
-  const [advOpen, setAdvOpen] = useState(false);
-  const [adv, setAdv] = useState<AdvFilters>(DEFAULT_ADV);
-  const [rowAction, setRowAction] = useState<ClientRow | null>(null);
-  const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
-  /** Arquivar (reversível, com motivo) usa a confirmação comum (P-01). */
-  const pedirArquivo = async (targets: ClientRow[]) => {
+    if (separador === 'arquivados') p.set('ver', 'arquivados');
+    if (q) p.set('q', q);
+    if (filtro !== 'all') p.set('filtro', filtro);
+    return p;
+  }, [separador, q, filtro]);
+  useEffect(() => { setSearchParams(params, { replace: true }); }, [params, setSearchParams]);
+
+  const carregar = useCallback(() => {
     const client = getSupabaseClient();
-    if (!client || targets.length === 0) return;
-    const many = targets.length > 1;
-    const comPlano = targets.filter((t) => t.hasPlan).length;
+    if (!client) return;
+    setErro(null);
+    void fetchClients(client, scope).then(setRows).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
+    // Secções que podem falhar sozinhas: a lista continua a funcionar
+    void fetchAssiduidade(client, scope).then(setAssid).catch(() => setAssid(new Map()));
+    void fetchClientesAtencao(client, scope)
+      .then((r) => setAtencao(new Map(r.map((x) => [x.linkId, x.motivos.map((m) => MOTIVO_ATENCAO[m])]))))
+      .catch(() => setAtencao(new Map()));
+    void fetchArchivedClients(client, scope).then(setArquivados).catch(() => setArquivados([]));
+  }, [scope]);
+  useEffect(() => carregar(), [carregar]);
+
+  const lista = useMemo(() => {
+    const termo = q.trim().toLocaleLowerCase('pt-PT');
+    return (rows ?? [])
+      .filter((r) => !termo || [r.name, r.email, r.planName, r.responsibleName].filter(Boolean).join(' ').toLocaleLowerCase('pt-PT').includes(termo))
+      .filter((r) => filtro === 'all' || (filtro === 'attention' ? atencao.has(r.id) : filtro === 'noplan' ? !r.hasPlan : !r.hasAccount));
+  }, [rows, q, filtro, atencao]);
+  const contar = (f: Filtro) => (rows ?? []).filter((r) => (f === 'attention' ? atencao.has(r.id) : f === 'noplan' ? !r.hasPlan : !r.hasAccount)).length;
+  const aberto = lista.find((r) => r.id === resumo) ?? null;
+  const abrirFicha = (id: string) => {
+    const qs = params.toString();
+    navigate(`/clients/${id}`, { state: { voltar: { rotulo: PP, href: `/clients${qs ? `?${qs}` : ''}` } } });
+  };
+  const alternar = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const todosSel = lista.length > 0 && lista.every((r) => sel.has(r.id));
+
+  const arquivar = async (alvos: ClientRow[]) => {
+    const client = getSupabaseClient();
+    if (!client || alvos.length === 0) return;
+    const muitos = alvos.length > 1;
     const ok = await confirmarDestrutivo({
-      titulo: many ? `Arquivar ${targets.length} ${pp}?` : `Arquivar ${targets[0].name}?`,
-      texto: 'Deixa de aparecer nas listas. O histórico fica e podes voltar a ativar.',
-      efeitos: [
-        `${targets.length} ${many ? pp : p1} saem da carteira ativa`,
-        ...(comPlano ? [`${comPlano} com plano ativo: o plano fica guardado`] : []),
-      ],
+      titulo: muitos ? `Arquivar ${alvos.length} ${pp}?` : `Arquivar ${alvos[0].name}?`,
+      texto: 'Deixa de aparecer na lista. O histórico fica e podes voltar a ativar.',
+      efeitos: [`${alvos.length} ${muitos ? pp : p1} saem da carteira ativa`],
       verbo: 'Arquivar', manter: 'Cancelar',
       motivo: { rotulo: 'Motivo (opcional)', placeholder: 'Ex.: mudou de cidade' },
-      acao: async (motivo) => { for (const a of targets) await archiveClient(client, scope, a.id, motivo ?? null); },
+      acao: async (motivo) => { for (const a of alvos) await archiveClient(client, scope, a.id, motivo ?? null); },
     });
-    if (ok) {
-      toast({ variant: 'success', title: many ? `${targets.length} ${pp} arquivados` : `${P1} arquivado`, description: many ? undefined : targets[0].name });
-      setSelected(new Set()); load();
-    }
+    if (ok) { toast({ variant: 'success', title: muitos ? `${alvos.length} ${pp} arquivados` : `${P1} arquivado` }); setSel(new Set()); setResumo(null); carregar(); }
   };
-  const [savedViews, setSavedViews] = useState<SavedView[]>(() => loadSavedViews());
-  const [saveViewOpen, setSaveViewOpen] = useState(false);
-
-  const advActive = adv.status !== 'all' || adv.plan !== 'all' || adv.responsible.trim() !== '' || adv.group.trim() !== '';
-
-  useEffect(() => {
-    document.body.classList.add('phase3-athletes-active');
-    return () => document.body.classList.remove('phase3-athletes-active');
-  }, []);
-
-  const load = useCallback(() => {
+  const reativar = async (a: ClienteArquivado) => {
     const client = getSupabaseClient();
-    if (!client) { setLoading(false); return; }
-    let cancelled = false;
-    setLoading(true);
-    // Em atenção: as 4 regras de D18, com o motivo (falha aqui não esconde a lista)
-    void fetchClientesAtencao(client, scope)
-      .then((r) => { if (!cancelled) setAtencao(new Map(r.map((x) => [x.linkId, x.motivos.map((m) => MOTIVO_ATENCAO[m])]))); })
-      .catch(() => undefined);
-    void fetchClients(client, scope)
-      .then((a) => { if (!cancelled) { setRows(a); setError(null); } })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : `Erro ao carregar ${pp}`); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [scope]);
-
-  useEffect(() => load(), [load]);
-
-  const counts = useMemo(() => phase3Counts(rows), [rows]);
-
-  const stats: { id: string; k: string; v: number; s: string }[] = [
-    { id: 'all', k: 'Total', v: counts.total, s: 'Limpar filtros' },
-    { id: 'noplan', k: 'Sem plano', v: counts.noplan, s: 'Atribuir conteúdo' },
-    { id: 'pending', k: 'Pendências', v: counts.pending, s: 'Forms, docs e tarefas' },
-    { id: 'blocked', k: 'Bloqueios', v: counts.blocked, s: 'Requer revisão' },
-    { id: 'rtp', k: 'RTP', v: counts.rtp, s: 'Retorno à prática' },
-  ];
-
-  const filters: [string, string][] = [
-    ['all', 'Todos'],
-    ['attention', 'Atenção'],
-    ['noplan', 'Sem plano'],
-    ['pending', 'Pendentes'],
-    ['blocked', 'Bloqueados'],
-    ['forms', 'Forms'],
-    ['docs', 'Docs'],
-    ['onboarding', 'Onboarding/Trial'],
-    ['rtp', 'RTP'],
-    ['selected', `Selecionados ${selected.size}`],
-    ['advanced', 'Mais filtros'],
-  ];
-
-  const NO_DATA_FILTERS = useMemo(() => {
-    const s = new Set<string>(['forms', 'onboarding']);
-    if (!rows.some((a) => a.pending > 0)) s.add('pending');
-    if (!rows.some((a) => !a.docsOk)) s.add('docs');
-    return s;
-  }, [rows]);
-
-  const filtered = useMemo(() => {
-    let list = rows.slice();
-    const q = query.toLowerCase().trim();
-    if (q) {
-      list = list.filter((a) => [
-        a.name, a.responsibleName, a.groupName, a.planName, STATUS_META[a.status].label, a.statusNote,
-        a.hasPlan ? (a.planName ?? 'Plano ativo') : 'Sem plano',
-        !a.docsOk ? `Docs ${a.docsLabel}` : 'Docs OK',
-        '—',
-      ].filter(Boolean).join(' ').toLowerCase().includes(q));
-    }
-    if (filter === 'attention') {
-      list = list.filter((a) => atencao.has(a.id));
-    } else if (filter === 'noplan') list = list.filter((a) => !a.hasPlan);
-    else if (filter === 'pending') list = list.filter((a) => a.pending > 0);
-    else if (filter === 'blocked') list = list.filter((a) => a.status === 'blocked');
-    else if (filter === 'forms') list = [];
-    else if (filter === 'docs') list = list.filter((a) => !a.docsOk);
-    else if (filter === 'onboarding') list = [];
-    else if (filter === 'rtp') list = list.filter((a) => a.status === 'return_to_play');
-    else if (filter === 'selected') list = list.filter((a) => selected.has(a.id));
-    else if (filter === 'advanced') { /* keep list; advanced modal handles */ }
-
-    if (adv.status !== 'all') list = list.filter((a) => a.status === adv.status);
-    if (adv.plan === 'with') list = list.filter((a) => a.hasPlan);
-    else if (adv.plan === 'without') list = list.filter((a) => !a.hasPlan);
-    if (adv.responsible.trim()) list = list.filter((a) => (a.responsibleName ?? '').toLowerCase().includes(adv.responsible.toLowerCase().trim()));
-    if (adv.group.trim()) list = list.filter((a) => (a.groupName ?? '').toLowerCase().includes(adv.group.toLowerCase().trim()));
-
-    const rank = (a: ClientRow) => (a.status === 'blocked' ? 0 : a.status === 'injured' ? 1 : a.status === 'return_to_play' ? 2 : !a.hasPlan ? 3 : 5);
-    list.sort((a, b) => {
-      if (sort === 'name') return a.name.localeCompare(b.name);
-      if (sort === 'activity') return b.updatedAt.localeCompare(a.updatedAt);
-      if (sort === 'pending') return rank(a) - rank(b);
-      return rank(a) - rank(b) || a.name.localeCompare(b.name);
-    });
-    return list;
-  }, [rows, query, filter, sort, selected, adv, atencao]);
-
-  const toggle = (id: string) => setSelected((prev) => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-
-  const selList = rows.filter((a) => selected.has(a.id));
-
-  const openAssign = (targets?: ClientRow[]) => {
-    const list = targets ?? selList;
-    if (list.length === 0) {
-      toast({ variant: 'info', title: `Seleciona ${pp}`, description: `Escolhe pelo menos um ${p1} para atribuir.` });
-      return;
-    }
-    setAssignTargets(list);
-    setAssignOpen(true);
+    if (!client) return;
+    try { await unarchiveClient(client, scope, a.id); toast({ variant: 'success', title: `${a.name} voltou à carteira` }); carregar(); }
+    catch (e) { toast({ variant: 'danger', title: 'Não foi possível reativar', description: e instanceof Error ? e.message : undefined }); }
   };
-
-  const handleRowAction = (a: ClientRow) => {
-    const pa = phase3Action(a);
-    if (pa.action === 'open-athlete') { abrirFicha(a.id); return; }
-    if (pa.action === 'assign') { openAssign([a]); return; }
-    if (pa.action === 'request-doc') {
-      abrirFicha(a.id);
-      toast({ variant: 'info', title: 'Documentos', description: 'Consulta e gere documentos na ficha.' });
-      return;
-    }
-    setRowAction(a);
+  const [nomeVista, setNomeVista] = useState<string | null>(null);
+  const guardarVista = (nome: string) => {
+    const n = [...vistas.filter((v) => v.nome !== nome), { nome, filtro, q }];
+    setVistas(n);
+    try { localStorage.setItem(VISTAS_KEY, JSON.stringify(n)); } catch { /* só conveniência */ }
   };
-
-  const handleFilterChip = (id: string) => {
-    if (id === 'advanced') { setAdvOpen(true); return; }
-    setFilter(id);
-  };
-
-  const saveView = () => setSaveViewOpen(true);
-
-  const persistView = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const next: SavedView = {
-      id: `view_${Date.now()}`,
-      name: trimmed,
-      filter,
-      query,
-      sort,
-      advanced: { ...adv },
-    };
-    const list = savedViews.filter((v) => v.name !== trimmed);
-    list.unshift(next);
-    const capped = list.slice(0, 8);
-    storeSavedViews(capped);
-    setSavedViews(capped);
-    setSaveViewOpen(false);
-    toast({ variant: 'success', title: 'Vista guardada', description: trimmed });
-  };
-
-  const applySavedView = (view: SavedView) => {
-    setFilter(view.filter);
-    setQuery(view.query);
-    setSort(view.sort);
-    setAdv(view.advanced);
-    setBoardOpen(false);
-    toast({ variant: 'success', title: 'Vista aplicada', description: view.name });
-  };
-
-  const boardPanel = (
-    <ClientsBoardPanel
-      rows={rows}
-      selList={selList}
-      hasSelection={selList.length > 0}
-      savedViews={savedViews}
-      onAssign={() => { setBoardOpen(false); openAssign(); }}
-      onClear={() => setSelected(new Set())}
-      onFilter={(id) => { setFilter(id); setBoardOpen(false); }}
-      onOpen360={(a) => { setBoardOpen(false); abrirFicha(a.id); }}
-      onNavigateGroups={() => { setBoardOpen(false); navigate('/groups'); }}
-      onSaveView={saveView}
-      onLoadView={applySavedView}
-      onRowAction={(a) => { setBoardOpen(false); setRowAction(a); }}
-      onArchive={(targets) => { setBoardOpen(false); void pedirArquivo(targets); }}
-    />
-  );
-
-  const mobileAssign = () => {
-    if (selList.length === 0) {
-      setBoardOpen(true);
-      toast({ variant: 'info', title: `Seleciona ${pp}`, description: `Marca ${pp} na lista ou usa o painel de ações.` });
-      return;
-    }
-    openAssign();
-  };
-
-  const viewLabel = phase3ViewLabel(filter);
 
   return (
-    <CoachShell
-      headStrong={PP}
-      headSub={scope.canSeeAllClients ? "A carteira da organização" : "A tua carteira"}
-      topActions={<button type="button" className="btn primary hide-mobile" onClick={() => setCreateOpen(true)}>+ {P1}</button>}
-      board={boardPanel}
-      mainClassName={isMobile ? 'has-page-actions' : undefined}
-      pageActions={isMobile ? (
-        <div className="mobile-actions">
-          <button type="button" className="btn secondary" onClick={() => setBoardOpen(true)}>
-            {selected.size > 0 ? `${selected.size} selecionado(s)` : 'Ações'}
+    <CoachShell headStrong={PP} headSub={rows ? `${rows.length} na carteira` : scope.orgName} legado={false}
+      topActions={<Botao icone={Plus} onClick={() => setNovo(true)}>Novo {p1}</Botao>}>
+      <div className="lv-root lg-clientes">
+        <div className="lg-separadores" role="tablist" aria-label={PP}>
+          <button type="button" role="tab" aria-selected={separador === 'ativos'} onClick={() => { setSeparador('ativos'); setSel(new Set()); }}>
+            Ativos <span>{rows?.length ?? '…'}</span>
           </button>
-          <button type="button" className="btn primary" onClick={mobileAssign}>
-            {selected.size > 0 ? `Atribuir a ${selected.size}` : 'Atribuir conteúdo'}
+          <button type="button" role="tab" aria-selected={separador === 'arquivados'} onClick={() => { setSeparador('arquivados'); setSel(new Set()); setResumo(null); }}>
+            Arquivados <span>{arquivados?.length ?? '…'}</span>
           </button>
         </div>
-      ) : undefined}
-    >
-      <div className="athletes-page" style={{ display: 'grid', gap: 12 }}>
-        <div className="page-head phase3-athletes-head">
-          <div>
-            <div className="kicker">{PP}</div>
-            <h1 className="phase3-head-title">
-              Quem precisa de atenção?
-              {isMobile && (
-                <span className="info-dot phase3-head-info" role="note" aria-label="Ajuda sobre esta área">
-                  i
-                  <span className="tip">
-                    Consulta, seleciona, atribui e resolve sem sair da carteira.
-                    {' '}Esta página serve para decidir quem precisa de ação, gerir seleção e abrir o 360 quando é preciso profundidade.
-                  </span>
-                </span>
-              )}
-            </h1>
-            <p className="phase3-head-desc">
-              Consulta, seleciona, atribui e resolve sem sair da carteira.
-              {' '}
-              <span className="info-dot phase3-head-desc-info" role="note" aria-label="Ajuda sobre esta área">
-                i
-                <span className="tip">Esta página serve para decidir quem precisa de ação, gerir seleção e abrir o 360 quando é preciso profundidade.</span>
-              </span>
-            </p>
-            <div className="phase3-current-view">
-              Vista atual: <b>{viewLabel}</b>
-              {query ? <> · pesquisa: <b>{query}</b></> : null}
-            </div>
-          </div>
-          <div className="head-actions">
-            <button type="button" className="btn ghost" onClick={saveView}>Guardar vista</button>
-            <button type="button" className="btn primary" onClick={() => setCreateOpen(true)}>+ {P1}</button>
-            <button type="button" className="btn secondary" onClick={() => openAssign()}>Atribuir conteúdo</button>
-          </div>
-        </div>
 
-        <div className="stats phase3-stats">
-          {stats.map((st) => (
-            <button
-              key={st.id}
-              type="button"
-              className={`stat phase3-stat${filter === st.id ? ' on' : ''}`}
-              aria-pressed={filter === st.id}
-              onClick={() => setFilter(st.id)}
-            >
-              <div className="stat-k">{st.k}</div>
-              <div className="stat-v">{loading ? '…' : st.v}</div>
-              <div className="stat-s">{st.s}</div>
-              <div className="phase3-stat-hint">Filtrar</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="toolbar phase3-toolbar">
-          <div className="toolbar-top">
-            <label className="search">
-              ⌕
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                type="search"
-                aria-label="Procurar"
-                placeholder={`Pesquisar ${p1}, grupo, ${RESP}, estado ou plano…`}
-              />
-            </label>
-            <div className="phase3-toolbar-inline">
-              <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordenar">
-                <option value="priority">Ordenar: Prioridade</option>
-                <option value="name">Nome A-Z</option>
-                <option value="activity">Última atividade</option>
-                <option value="pending">Mais pendências</option>
-              </select>
-              <button
-                type="button"
-                className={`advanced-search-btn${advActive ? ' on' : ''}`}
-                onClick={() => setAdvOpen(true)}
-              >
-                Mais filtros
-              </button>
-              {advActive && (
-                <button type="button" className="advanced-search-btn hide-mobile" onClick={() => setAdv(DEFAULT_ADV)}>Limpar filtros</button>
-              )}
-              <button type="button" className="gear-btn hide-mobile" title="Mais filtros" aria-label="Mais filtros" onClick={() => setAdvOpen(true)}>⚙</button>
-            </div>
-            {selected.size > 0 && (
-              <button type="button" className="btn secondary small" onClick={() => setSelected(new Set())}>Limpar seleção</button>
-            )}
-          </div>
-          <div className="toolbar-advanced hide-mobile">
-            <button
-              type="button"
-              className={`advanced-search-btn${advActive ? ' on' : ''}`}
-              onClick={() => setAdvOpen(true)}
-            >
-              Mais filtros
-            </button>
-            {advActive && (
-              <button type="button" className="advanced-search-btn" onClick={() => setAdv(DEFAULT_ADV)}>Limpar filtros</button>
-            )}
-          </div>
-          <div className="filter-row" role="tablist" aria-label="Filtrar plantel">
-            {filters.filter(([id]) => !(isMobile && id === 'advanced')).map(([id, l]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={filter === id}
-                disabled={NO_DATA_FILTERS.has(id)}
-                title={NO_DATA_FILTERS.has(id) ? 'Sem dados nesta carteira (módulo próprio)' : undefined}
-                className={`chip${filter === id ? ' on' : ''}${id === 'blocked' ? ' danger' : ''}${NO_DATA_FILTERS.has(id) ? ' disabled' : ''}`}
-                onClick={() => handleFilterChip(id)}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-          {savedViews.length > 0 && (
-            <div className="phase3-saved-row">
-              <span>Vistas guardadas</span>
-              {savedViews.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  className="chip phase3-view-chip"
-                  onClick={() => applySavedView(v)}
-                >
-                  ★ {v.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {error && <div className="empty"><b>Erro ao carregar</b><p>{error}</p></div>}
-
-        <div className="list-card phase3-list-card">
-          {!isMobile && (
-            <div className="list-head phase3-list-head">
-              <div /><div>{P1}</div><div>Estado</div><div className="phase3-col-narrow-hide">Problema principal</div><div className="phase3-col-narrow-hide">Conteúdo ativo</div><div>Ação</div>
-            </div>
-          )}
-          <div className="phase3-list-summary">
-            <b>{loading ? '…' : filtered.length}</b> {pp} nesta vista <span>· {viewLabel}</span>
-          </div>
-          <div className="ath-list">
-            {loading ? (
-              <div className="empty"><b>A carregar…</b></div>
-            ) : filtered.length === 0 ? (
-              <div className="empty">
-                <b>Nenhum {p1} encontrado</b>
-                <p style={{ fontSize: '.78rem', marginTop: 5 }}>Ajusta a pesquisa ou os filtros.</p>
-                <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn secondary small" onClick={() => setFilter('all')}>Limpar filtros</button>
-                  <button type="button" className="btn primary small" onClick={() => setCreateOpen(true)}>+ Criar {p1}</button>
-                </div>
-              </div>
-            ) : (
-              filtered.map((a) => {
-                const meta = STATUS_META[a.status];
-                const p = phase3Problem(a);
-                const content = phase3Content(a);
-                const pa = phase3Action(a);
-                const subLine = [a.groupName || '—', a.responsibleName || '—', '—'].join(' · ');
-                const issueMain = rowIssueMain(a, p);
-                return (
-                  <div
-                    key={a.id}
-                    className={`ath-row phase3-ath-row${selected.has(a.id) ? ' selected' : ''}`}
-                  >
-                    <div className="phase3-check-wrap">
-                      <input
-                        className="check"
-                        type="checkbox"
-                        checked={selected.has(a.id)}
-                        onChange={() => toggle(a.id)}
-                        aria-label={`Selecionar ${a.name}`}
-                      />
-                    </div>
-                    <div
-                      className="ath-main"
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => abrirFicha(a.id)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirFicha(a.id); } }}
-                      aria-label={`Abrir perfil de ${a.name}`}
-                    >
-                      <ClientAvatar a={a} />
-                      <div className="phase3-ath-ident">
-                        <div className="ath-name">{a.name}</div>
-                        <div className="ath-sub">{subLine}</div>
-                        <div className="phase3-mini-badges">
-                          <span>{meta.label}</span>
-                          <span>{a.pending} pend.</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="phase3-row-info-btn phase3-row-chip-btn"
-                        aria-label={`Ver detalhes de ${a.name}`}
-                        onClick={(e) => { e.stopPropagation(); setDetailClient(a); }}
-                      >
-                        i
-                      </button>
-                    </div>
-                    <div className="status-cell phase3-status-cell">
-                      <span className={`badge ${p.tone}`}>{p.label}</span>
-                      <div className="issue">{p.detail}</div>
-                    </div>
-                    <div className="phase3-problem-cell phase3-col-narrow-hide">
-                      <b>{issueMain}</b>
-                      <span>{recommend(a)}</span>
-                    </div>
-                    <div className="assign-cell phase3-col-narrow-hide">
-                      <b>{content.main}</b>
-                      <span>{content.sub}</span>
-                    </div>
-                    <div className="phase3-row-action-wrap">
-                      <button type="button" className="row-action phase3-row-action phase3-row-chip-btn" onClick={() => handleRowAction(a)}>
-                        {isMobile ? mobileActionLabel(a) : pa.label}
-                      </button>
-                    </div>
+        {separador === 'arquivados' ? (
+          !arquivados ? <div className="lv-lista"><Esqueleto /></div>
+            : arquivados.length === 0 ? <EstadoPagina tipo="vazio" titulo={`Sem ${pp} arquivados`} texto="Quem arquivares aparece aqui e pode voltar." />
+            : (
+              <section className="lv-lista" aria-label="Arquivados">
+                {arquivados.map((a) => (
+                  <div key={a.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
+                    <Avatar nome={a.name} foto={a.avatarUrl} tamanho={32} />
+                    <span className="lv-linha-lista__corpo">
+                      <span className="lv-linha-lista__titulo">{a.name}</span>
+                      <span className="lv-legenda">Arquivado a {new Date(a.archivedAt).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' })}{a.reason ? ` · ${a.reason}` : ''}</span>
+                    </span>
+                    <Botao variante="secundario" onClick={() => void reativar(a)}>Reativar</Botao>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+                ))}
+              </section>
+            )
+        ) : (
+          <>
+            <div className="lg-clientes__barra">
+              <div className="lg-clientes__chips">
+                <Chip ativo={filtro === 'all'} onClick={() => setFiltro('all')}>Todos</Chip>
+                <Chip ativo={filtro === 'attention'} onClick={() => setFiltro('attention')} contagem={rows ? contar('attention') : undefined}>Em atenção</Chip>
+                <Chip ativo={filtro === 'noplan'} onClick={() => setFiltro('noplan')} contagem={rows ? contar('noplan') : undefined}>Sem plano</Chip>
+                <Chip ativo={filtro === 'semconta'} onClick={() => setFiltro('semconta')} contagem={rows ? contar('semconta') : undefined}>Sem app</Chip>
+                {vistas.map((v) => (
+                  <Chip key={v.nome} ativo={filtro === v.filtro && q === v.q} onClick={() => { setFiltro(v.filtro); setQ(v.q); }}>{v.nome}</Chip>
+                ))}
+              </div>
+              <div className="lg-clientes__chips">
+                <input className="lv-campo-input lg-clientes__procura" type="search" placeholder={`Procurar ${p1}`} aria-label={`Procurar ${p1}`}
+                  value={q} onChange={(e) => setQ(e.target.value)} />
+                <Botao variante="secundario" onClick={() => setNomeVista(filtro === 'attention' ? 'Em atenção' : '')}>Guardar vista</Botao>
+              </div>
+            </div>
+
+            {erro ? <EstadoPagina tipo="erro" titulo={`Não foi possível carregar os ${pp}`} texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
+              : !rows ? <div className="lv-lista"><Esqueleto /></div>
+              : rows.length === 0 ? <EstadoPagina tipo="vazio" titulo={`Ainda não há ${pp}`} texto={`Os ${pp} que acrescentares aparecem aqui.`} acao={{ rotulo: `Novo ${p1}`, onClick: () => setNovo(true) }} />
+              : (
+                <div className="lg-clientes__grelha">
+                  <section className="lv-lista lg-tabela" aria-label={PP}>
+                    {sel.size > 0 && (
+                      <div className="lg-tabela__massa" role="toolbar" aria-label="Ações para os selecionados">
+                        <b>{sel.size} selecionados</b>
+                        <span style={{ flex: 1 }} />
+                        <button type="button" onClick={() => setAtribuir([...sel])}>Atribuir plano</button>
+                        <button type="button" onClick={() => void arquivar(lista.filter((r) => sel.has(r.id)))}>Arquivar</button>
+                        <button type="button" onClick={() => setSel(new Set())}>Limpar</button>
+                      </div>
+                    )}
+                    <div className="lg-tabela__cabeca" role="row">
+                      <input type="checkbox" aria-label="Selecionar todos" checked={todosSel}
+                        onChange={() => setSel(todosSel ? new Set() : new Set(lista.map((r) => r.id)))} />
+                      <span>{P1}</span><span>Plano</span><span>Estado</span><span className="lg-num">Última vez</span><span>8 sem.</span>
+                    </div>
+                    {lista.length === 0 ? <p className="lv-legenda" style={{ padding: 'var(--espaco-16)' }}>Nenhum {p1} neste filtro.</p>
+                      : lista.map((r) => {
+                        const a = assid.get(r.id);
+                        const motivos = atencao.get(r.id);
+                        return (
+                          <div key={r.id} role="row" className={`lg-tabela__linha${sel.has(r.id) || resumo === r.id ? ' lg-tabela__linha--sel' : ''}`}>
+                            <input type="checkbox" aria-label={`Selecionar ${r.name}`} checked={sel.has(r.id)} onChange={() => alternar(r.id)} />
+                            <button type="button" className="lg-tabela__nome" onClick={() => setResumo(r.id)} onDoubleClick={() => abrirFicha(r.id)}>
+                              <Avatar nome={r.name} foto={r.avatarUrl} tamanho={32} />
+                              <span style={{ minWidth: 0 }}>
+                                <span className="lv-linha-lista__titulo">{r.name}</span>
+                                {motivos ? <span className="lv-legenda lg-tabela__motivo">{motivos.join(' · ')}</span>
+                                  : gere && r.responsibleName ? <span className="lv-legenda">{r.responsibleName}</span> : null}
+                              </span>
+                            </button>
+                            <span className="lg-tabela__plano">{r.planName ?? <span className="lv-legenda">Sem plano</span>}</span>
+                            <span><Estado tom={motivos ? 'aviso' : ESTADO[r.status].tom}>{motivos ? 'Em atenção' : ESTADO[r.status].texto}</Estado></span>
+                            <span className="lg-num">{ultimaVez(a?.ultimaVez)}</span>
+                            <Semanas s={a?.semanas} />
+                          </div>
+                        );
+                      })}
+                  </section>
+
+                  {aberto && (
+                    <aside className="lv-lista lg-clientes__resumo" aria-label={`Resumo de ${aberto.name}`}>
+                      <Avatar nome={aberto.name} foto={aberto.avatarUrl} tamanho={56} />
+                      <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>{aberto.name}</h2>
+                      <span className="lv-legenda">{[aberto.email, aberto.responsibleName ? `${vocab.responsavel({ maiuscula: true })}: ${aberto.responsibleName}` : null].filter(Boolean).join(' · ')}</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
+                        <Estado tom={ESTADO[aberto.status].tom}>{ESTADO[aberto.status].texto}</Estado>
+                        <span className="lv-legenda">{aberto.hasAccount ? 'Usa a app' : 'Sem conta na app'}</span>
+                      </div>
+                      {atencao.get(aberto.id) && <Nota>{atencao.get(aberto.id)!.join(' · ')}</Nota>}
+                      <div className="lg-clientes__numeros">
+                        <div><span className="lv-legenda">Plano</span><b>{aberto.planName ?? 'Sem plano'}</b></div>
+                        <div><span className="lv-legenda">Última vez</span><b>{ultimaVez(assid.get(aberto.id)?.ultimaVez)}</b></div>
+                        <div><span className="lv-legenda">Últimas 4 semanas</span><b>{(assid.get(aberto.id)?.semanas ?? []).slice(-4).reduce((x, y) => x + y, 0)} {vocab.sessao({ plural: true })}</b></div>
+                        <div><span className="lv-legenda">Grupo</span><b>{aberto.groupName ?? '—'}</b></div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--espaco-8)', marginTop: 'auto' }}>
+                        <Botao variante="secundario" onClick={() => setAtribuir([aberto.id])}>Atribuir plano</Botao>
+                        <Botao onClick={() => abrirFicha(aberto.id)}>Abrir ficha</Botao>
+                      </div>
+                    </aside>
+                  )}
+                </div>
+              )}
+          </>
+        )}
       </div>
 
-      <ProtoDrawer
-        open={isMobile && boardOpen}
-        onClose={() => setBoardOpen(false)}
-        title={selList.length > 0 ? `${selList.length} selecionado(s)` : 'Hoje exige atenção'}
-        sub={selList.length > 0 ? 'Atribuir, agrupar ou limpar seleção.' : 'Prioridades e atalhos da carteira.'}
-      >
-        {boardPanel}
-      </ProtoDrawer>
-
-      <NewClientModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); load(); }} />
-      <AssignModal open={assignOpen} onClose={() => setAssignOpen(false)} targets={assignTargets}
-        onDone={() => { setAssignOpen(false); setSelected(new Set()); load(); }} />
-      <AdvancedSearchModal open={advOpen} onClose={() => setAdvOpen(false)} value={adv} onApply={(v) => { setAdv(v); setAdvOpen(false); setFilter('advanced'); }} />
-      <RowActionModal
-        athlete={rowAction}
-        onClose={() => setRowAction(null)}
-        onOpen360={(a) => { setRowAction(null); abrirFicha(a.id); }}
-        onAssign={(a) => { setRowAction(null); openAssign([a]); }}
-        onChanged={() => { setRowAction(null); load(); }}
-      />
-      <ClientRowDetailModal
-        athlete={detailClient}
-        onClose={() => setDetailClient(null)}
-        onPrimary={handleRowAction}
-      />
-      <SaveViewModal
-        open={saveViewOpen}
-        defaultName={phase3ViewLabel(filter)}
-        onClose={() => setSaveViewOpen(false)}
-        onSave={persistView}
-      />
+      <NovoCliente aberta={novo} gere={gere} onFechar={() => { setNovo(false); if (searchParams.get('novo')) setSearchParams(params, { replace: true }); }}
+        onCriado={(id) => { carregar(); abrirFicha(id); }} />
+      <Janela aberta={nomeVista !== null} onFechar={() => setNomeVista(null)} titulo="Guardar vista" sub="Fica com o filtro e a procura de agora."
+        acoes={<><Botao variante="secundario" onClick={() => setNomeVista(null)}>Voltar</Botao>
+          <Botao disabled={!nomeVista?.trim()} onClick={() => { guardarVista(nomeVista!.trim()); setNomeVista(null); }}>Guardar</Botao></>}>
+        <Campo rotulo="Nome" value={nomeVista ?? ''} onChange={(e) => setNomeVista(e.target.value)} placeholder="Ex.: Em atenção esta semana" />
+      </Janela>
+      <AtribuirPlano ids={atribuir} onFechar={() => setAtribuir(null)} onFeito={() => { setSel(new Set()); carregar(); }} />
     </CoachShell>
   );
 }
 
-function SaveViewModal({ open, onClose, defaultName, onSave }: {
-  open: boolean; onClose: () => void; defaultName: string; onSave: (name: string) => void;
-}) {
-  const [name, setName] = useState(defaultName);
-  useEffect(() => { if (open) setName(defaultName); }, [open, defaultName]);
-  return (
-    <ProtoModal
-      open={open}
-      onClose={onClose}
-      title="Guardar vista"
-      sub="Regressa rapidamente a estes filtros e pesquisa."
-      size="sm"
-      footer={(
-        <>
-          <button type="button" className="btn ghost" onClick={onClose}>Cancelar</button>
-          <button type="button" className="btn primary" onClick={() => onSave(name)} disabled={!name.trim()}>Guardar</button>
-        </>
-      )}
-    >
-      <div className="proto-form">
-        <div className="field">
-          <label htmlFor="view-name">Nome da vista</label>
-          <input id="view-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bloqueados urgentes" />
-        </div>
-      </div>
-    </ProtoModal>
-  );
-}
-
-function AdvancedSearchModal({ open, onClose, value, onApply }: {
-  open: boolean; onClose: () => void; value: AdvFilters; onApply: (v: AdvFilters) => void;
-}) {
-  const [draft, setDraft] = useState<AdvFilters>(value);
-  useEffect(() => { if (open) setDraft(value); }, [open, value]);
-  return (
-    <ProtoModal open={open} onClose={onClose} title="Mais filtros" sub="Combina critérios para afinar a lista."
-      footer={<>
-        <button className="btn ghost" onClick={() => onApply(DEFAULT_ADV)}>Limpar</button>
-        <button className="btn primary" onClick={() => onApply(draft)}>Aplicar</button>
-      </>}>
-      <div className="proto-form">
-        <div className="field-row">
-          <div className="field"><label htmlFor="adv-status">Estado</label>
-            <select id="adv-status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as AdvFilters['status'] })}>
-              <option value="all">Qualquer</option>
-              {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
-            </select>
-          </div>
-          <div className="field"><label htmlFor="adv-plan">Plano</label>
-            <select id="adv-plan" value={draft.plan} onChange={(e) => setDraft({ ...draft, plan: e.target.value as AdvFilters['plan'] })}>
-              <option value="all">Qualquer</option>
-              <option value="with">Com plano</option>
-              <option value="without">Sem plano</option>
-            </select>
-          </div>
-        </div>
-        <div className="field-row">
-          <div className="field"><label htmlFor="adv-resp">{RESP} contém</label><input id="adv-resp" className="input" value={draft.responsible} onChange={(e) => setDraft({ ...draft, responsible: e.target.value })} placeholder="Nome" /></div>
-          <div className="field"><label htmlFor="adv-group">Grupo contém</label><input id="adv-group" className="input" value={draft.group} onChange={(e) => setDraft({ ...draft, group: e.target.value })} placeholder="Ex.: Reentrada" /></div>
-        </div>
-      </div>
-    </ProtoModal>
-  );
-}
-
-function RowActionModal({ athlete, onClose, onOpen360, onAssign, onChanged }: {
-  athlete: ClientRow | null; onClose: () => void;
-  onOpen360: (a: ClientRow) => void; onAssign: (a: ClientRow) => void; onChanged: () => void;
-}) {
+function NovoCliente({ aberta, gere, onFechar, onCriado }: { aberta: boolean; gere: boolean; onFechar: () => void; onCriado: (id: string) => void }) {
   const scope = useScope();
-  const [status, setStatus] = useState<ClientStatus>('active');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => { if (athlete) { setStatus(athlete.status); setErr(null); } }, [athlete]);
-
-  const saveStatus = async () => {
-    const client = getSupabaseClient();
-    if (!client || !athlete) return;
-    if (status === athlete.status) { onChanged(); return; }
-    setBusy(true); setErr(null);
-    try {
-      await updateClientStatus(client, scope, athlete.id, status);
-      toast({ variant: 'success', title: 'Estado atualizado', description: `${athlete.name} · ${STATUS_META[status].label}` });
-      onChanged();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao atualizar');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!athlete) return null;
-
-  return (
-    <ProtoModal open={!!athlete} onClose={onClose} title={`Ações — ${athlete.name}`} sub={STATUS_META[athlete.status].label} size="sm"
-      footer={<button className="btn ghost" onClick={onClose}>Fechar</button>}>
-      <div className="proto-form">
-        <div className="action-list">
-          <button className="btn secondary" onClick={() => onOpen360(athlete)}>Abrir perfil 360</button>
-          <button className="btn secondary" onClick={() => onAssign(athlete)}>Atribuir plano</button>
-        </div>
-        <div className="field"><label htmlFor="row-status">Alterar estado</label>
-          <select id="row-status" value={status} onChange={(e) => setStatus(e.target.value as ClientStatus)}>
-            {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
-          </select>
-        </div>
-        {err && <p className="proto-error">{err}</p>}
-        <button className="btn primary" onClick={() => void saveStatus()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar estado'}</button>
-      </div>
-    </ProtoModal>
-  );
-}
-
-function AssignModal({ open, onClose, targets, onDone }: { open: boolean; onClose: () => void; targets: ClientRow[]; onDone: () => void }) {
-  const scope = useScope();
-  const [plans, setPlans] = useState<PlanLite[]>([]);
-  const [planId, setPlanId] = useState('');
-  const [loadingPlans, setLoadingPlans] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setErr(null); setPlanId('');
-    const client = getSupabaseClient();
-    if (!client) return;
-    setLoadingPlans(true);
-    void fetchPlans(client, scope)
-      .then((p) => { setPlans(p); setPlanId(p[0]?.id ?? ''); })
-      .catch((e) => setErr(e instanceof Error ? e.message : 'Erro ao carregar planos'))
-      .finally(() => setLoadingPlans(false));
-  }, [open, scope]);
-
-  const submit = async () => {
-    const client = getSupabaseClient();
-    if (!client) { setErr('Sem sessão Supabase.'); return; }
-    if (!planId) { setErr('Escolhe um plano.'); return; }
-    setBusy(true); setErr(null);
-    try {
-      const r = await assignPlanToClients(client, scope, planId, targets.map((t) => t.id));
-      const skipped = [r.alreadyActive && `${r.alreadyActive} já tinham este plano`, r.skippedRestricted && `${r.skippedRestricted} com restrição`]
-        .filter(Boolean).join(' · ');
-      toast({ variant: 'success', title: 'Plano atribuído', description: `${r.created} ${r.created === 1 ? p1 : pp}${skipped ? ` · ${skipped}` : ''}` });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erro ao atribuir');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <ProtoModal open={open} onClose={onClose} title="Atribuir conteúdo" sub={`${targets.length} ${targets.length === 1 ? p1 : pp} selecionado(s)`}
-      footer={<>
-        <button className="btn ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn primary" onClick={() => void submit()} disabled={busy || loadingPlans || !planId}>{busy ? 'A atribuir…' : 'Atribuir'}</button>
-      </>}>
-      <div className="proto-form">
-        <div className="selected-list">
-          {targets.slice(0, 6).map((a) => (
-            <div key={a.id} className="selected-pill">
-              <div className="avatar initials" style={{ width: 32, height: 32, borderRadius: 10 }}>{initials(a.name)}</div>
-              <div><b>{a.name}</b><span>{STATUS_META[a.status].label}{a.responsibleName ? ` · ${a.responsibleName}` : ''}</span></div>
-            </div>
-          ))}
-          {targets.length > 6 && <div className="board-sub">+ {targets.length - 6} restantes</div>}
-        </div>
-        <div className="field">
-          <label htmlFor="assign-plan">Plano a atribuir</label>
-          {loadingPlans ? (
-            <select id="assign-plan" disabled><option>A carregar…</option></select>
-          ) : plans.length === 0 ? (
-            <p className="proto-error">Ainda não há planos criados na biblioteca.</p>
-          ) : (
-            <select value={planId} onChange={(e) => setPlanId(e.target.value)}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          )}
-        </div>
-        {err && <p className="proto-error">{err}</p>}
-      </div>
-    </ProtoModal>
-  );
-}
-
-function NewClientModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
-  const scope = useScope();
-  const [name, setName] = useState('');
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [responsible, setResponsible] = useState<string>(scope.membershipId);
-  const [staff, setStaff] = useState<StaffLite[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
+  const [telefone, setTelefone] = useState('');
+  const [resp, setResp] = useState(scope.membershipId);
+  const [equipa, setEquipa] = useState<StaffLite[]>([]);
+  const [erro, setErro] = useState<string | null>(null);
+  const [aGravar, setAGravar] = useState(false);
   useEffect(() => {
-    if (!open) return;
-    setName(''); setEmail(''); setPhone(''); setResponsible(scope.membershipId); setErr(null);
-    // Só quem vê a carteira toda escolhe o responsável; um PT fica com os que cria
+    if (!aberta) return;
+    setNome(''); setEmail(''); setTelefone(''); setErro(null); setResp(scope.membershipId);
     const client = getSupabaseClient();
-    if (client && scope.canSeeAllClients) {
-      void fetchStaff(client, scope).then(setStaff).catch(() => setStaff([]));
-    }
-  }, [open, scope]);
-
-  const submit = async () => {
+    if (gere && client) void fetchStaff(client, scope).then(setEquipa).catch(() => setEquipa([]));
+  }, [aberta, gere, scope]);
+  const criar = async (e: FormEvent) => {
+    e.preventDefault();
     const client = getSupabaseClient();
-    if (!client) return;
-    if (!name.trim()) { setErr('O nome é obrigatório.'); return; }
-    setBusy(true); setErr(null);
+    if (!client || !nome.trim()) return;
+    setAGravar(true); setErro(null);
     try {
-      await addClient(client, scope, { name: name.trim(), email: email || null, phone: phone || null, responsibleMembershipId: responsible });
-      toast({ variant: 'success', title: `${P1} criado`, description: name.trim() });
-      onCreated();
-    } catch (e) {
-      setErr(e instanceof DuplicateClientError
-        ? `Já existe um ${p1} com este email nesta organização.`
-        : e instanceof Error ? e.message : `Erro ao criar ${p1}`);
-    } finally {
-      setBusy(false);
-    }
+      const id = await addClient(client, scope, { name: nome.trim(), email: email.trim() || null, phone: telefone.trim() || null, responsibleMembershipId: resp });
+      toast({ variant: 'success', title: `${P1} criado`, description: nome.trim() });
+      onFechar(); onCriado(id);
+    } catch (err) {
+      setErro(err instanceof DuplicateClientError ? `Já existe um ${p1} com este email.` : err instanceof Error ? err.message : 'Não foi possível criar.');
+    } finally { setAGravar(false); }
   };
-
   return (
-    <ProtoModal open={open} onClose={onClose} title={`Novo ${p1}`} sub={`Acrescenta um ${p1} à carteira. Pode ter conta na app mais tarde.`}
-      footer={<>
-        <button className="btn ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? 'A criar…' : `Criar ${p1}`}</button>
-      </>}>
-      <div className="proto-form">
-        <div className="field"><label htmlFor="nc-name">Nome</label><input id="nc-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" /></div>
-        <div className="field-row">
-          <div className="field"><label htmlFor="nc-email">Email (opcional)</label><input id="nc-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
-          <div className="field"><label htmlFor="nc-phone">Telefone (opcional)</label><input id="nc-phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+351…" /></div>
-        </div>
-        {scope.canSeeAllClients && staff.length > 1 && (
-          <div className="field"><label htmlFor="nc-resp">{RESP} responsável</label>
-            <select id="nc-resp" value={responsible} onChange={(e) => setResponsible(e.target.value)}>
-              {staff.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+    <Janela aberta={aberta} onFechar={onFechar} titulo={`Novo ${p1}`} sub="O convite para a app pode ir depois, a partir da ficha.">
+      <form onSubmit={(e) => void criar(e)} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <Campo rotulo="Nome" value={nome} onChange={(e) => setNome(e.target.value)} required autoComplete="off" />
+        <Campo rotulo="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" ajuda="Serve para o convite e para evitar duplicados" />
+        <Campo rotulo="Telemóvel" value={telefone} onChange={(e) => setTelefone(e.target.value)} inputMode="tel" autoComplete="off" />
+        {gere && equipa.length > 0 && (
+          <label className="lv-campo">
+            <span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
+            <select className="lv-campo-input" value={resp} onChange={(e) => setResp(e.target.value)}>
+              {equipa.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
+          </label>
+        )}
+        {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
+        <Botao type="submit" aCarregar={aGravar}>Criar {p1}</Botao>
+      </form>
+    </Janela>
+  );
+}
+
+function AtribuirPlano({ ids, onFechar, onFeito }: { ids: string[] | null; onFechar: () => void; onFeito: () => void }) {
+  const scope = useScope();
+  const [planos, setPlanos] = useState<PlanLite[] | null>(null);
+  const [aGravar, setAGravar] = useState<string | null>(null);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!ids || !client) return;
+    setPlanos(null);
+    void fetchPlans(client, scope).then(setPlanos).catch(() => setPlanos([]));
+  }, [ids, scope]);
+  const escolher = async (p: PlanLite) => {
+    const client = getSupabaseClient();
+    if (!client || !ids) return;
+    setAGravar(p.id);
+    try {
+      const r = await assignPlanToClients(client, scope, p.id, ids);
+      const extra = [r.alreadyActive ? `${r.alreadyActive} já tinham` : '', r.skippedRestricted ? `${r.skippedRestricted} bloqueados ficaram de fora` : ''].filter(Boolean).join(' · ');
+      toast({ variant: 'success', title: `${p.name} atribuído a ${r.created}`, description: extra || undefined });
+      onFechar(); onFeito();
+    } catch (e) { toast({ variant: 'danger', title: 'Não foi possível atribuir', description: e instanceof Error ? e.message : undefined }); }
+    finally { setAGravar(null); }
+  };
+  return (
+    <Janela aberta={!!ids} onFechar={onFechar} titulo="Atribuir plano" sub={ids && ids.length > 1 ? `${ids.length} ${pp}. Quem está bloqueado fica de fora.` : undefined}>
+      {!planos ? <Esqueleto linhas={3} />
+        : planos.length === 0 ? <p className="lv-legenda">Ainda não há planos. Cria um em Treino.</p>
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {planos.map((p) => (
+              <button key={p.id} type="button" className="lv-linha-lista" disabled={!!aGravar} onClick={() => void escolher(p)}>
+                <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{p.name}</span></span>
+                {aGravar === p.id && <span className="lv-spinner" aria-hidden />}
+              </button>
+            ))}
           </div>
         )}
-        {err && <p className="proto-error" role="alert">{err}</p>}
-      </div>
-    </ProtoModal>
+    </Janela>
   );
 }

@@ -118,3 +118,31 @@ revoke execute on function public.adiar_pendencia(uuid, timestamptz), public.rea
   public.atribuir_pendencia(uuid, uuid), public.clients_attention(uuid, timestamptz), public._pendencia_resolvida() from public, anon;
 grant execute on function public.adiar_pendencia(uuid, timestamptz), public.reabrir_pendencia(uuid),
   public.atribuir_pendencia(uuid, uuid), public.clients_attention(uuid, timestamptz) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Lista de clientes (G-03): última vez e assiduidade das últimas 8 semanas
+-- (sessões feitas e marcações concluídas), com os direitos de quem pede.
+-- ---------------------------------------------------------------------------
+create or replace function public.clients_overview(_org uuid, _now timestamptz default now())
+returns table (link_id uuid, last_training timestamptz, weeks int[])
+language sql stable security invoker set search_path = '' as $$
+  with treinos as (
+    select s.link_id, coalesce(s.ended_at, s.started_at) as em from public.sessions s
+      where s.org_id = _org and s.phase = 'done' and s.link_id is not null
+    union all
+    select b.link_id, b.starts_at from public.bookings b
+      where b.org_id = _org and b.status = 'completed' and b.link_id is not null and b.starts_at <= _now
+  ),
+  semanas as (select generate_series(7, 0, -1) as k)
+  select c.id,
+    (select max(t.em) from treinos t where t.link_id = c.id),
+    array(select (select count(*)::int from treinos t
+                  where t.link_id = c.id
+                    and t.em >  _now - ((sm.k + 1) * interval '7 days')
+                    and t.em <= _now - (sm.k * interval '7 days'))
+          from semanas sm order by sm.k desc)
+  from public.clients c
+  where c.org_id = _org and c.archived_at is null;
+$$;
+revoke execute on function public.clients_overview(uuid, timestamptz) from public, anon;
+grant execute on function public.clients_overview(uuid, timestamptz) to authenticated;

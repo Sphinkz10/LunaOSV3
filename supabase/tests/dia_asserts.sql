@@ -69,4 +69,20 @@ begin
 end $$;
 reset role;
 
+-- ---------- PROVA D3: assiduidade das 8 semanas e última vez ----------
+set role authenticated;
+select set_config('app.uid', '00000000-0000-0000-0000-0000000e0002', false);
+do $$
+declare w int[]; u timestamptz;
+begin
+  select weeks, last_training into w, u from public.clients_overview(current_setting('c.org')::uuid, now() + interval '10 days')
+    where link_id = current_setting('d.b')::uuid;
+  if cardinality(w) <> 8 or w[8] <> 1 or (select sum(x) from unnest(w) x) <> 1 then raise exception 'PROVA D3 FALHOU: semanas %', w; end if;
+  if u is null then raise exception 'PROVA D3 FALHOU: sem última vez'; end if;
+  if exists (select 1 from public.clients_overview(current_setting('c.org')::uuid) where link_id = current_setting('d.x')::uuid) then
+    raise exception 'PROVA D3 FALHOU: o PT vê um cliente que não é seu';
+  end if;
+end $$;
+reset role;
+
 select '✅ Dia a dia: TODAS AS PROVAS PASSARAM' as resultado;

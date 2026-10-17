@@ -136,6 +136,23 @@ export async function fetchClients(client: LunaClient, scope: OrgScope): Promise
   }));
 }
 
+/** Última vez e assiduidade das últimas 8 semanas (G-03), por cliente. */
+export interface Assiduidade { ultimaVez: string | null; semanas: number[] }
+export async function fetchAssiduidade(client: LunaClient, scope: OrgScope): Promise<Map<string, Assiduidade>> {
+  const { data, error } = await client.rpc('clients_overview', { _org: scope.orgId });
+  if (error) throw error;
+  return new Map((data ?? []).map((r) => [r.link_id, { ultimaVez: r.last_training, semanas: r.weeks }]));
+}
+
+/** Arquivados (ex-clientes): saem da lista, mas o histórico fica e podem voltar. */
+export interface ClienteArquivado { id: string; name: string; avatarUrl: string | null; archivedAt: string; reason: string | null }
+export async function fetchArchivedClients(client: LunaClient, scope: OrgScope): Promise<ClienteArquivado[]> {
+  const { data, error } = await client.from('clients').select('id,full_name,avatar_url,archived_at,archived_reason')
+    .eq('org_id', scope.orgId).not('archived_at', 'is', null).order('archived_at', { ascending: false }).limit(500);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ id: r.id, name: r.full_name, avatarUrl: r.avatar_url, archivedAt: r.archived_at as string, reason: r.archived_reason }));
+}
+
 async function fetchPlanNames(client: LunaClient, scope: OrgScope, ids: (string | null)[]): Promise<Map<string, string>> {
   const unique = [...new Set(ids.filter((x): x is string => !!x))];
   if (!unique.length) return new Map();

@@ -307,6 +307,10 @@ export interface Database {
       adiar_pendencia: { Args: { _id: string; _ate: string }; Returns: undefined };
       reabrir_pendencia: { Args: { _id: string }; Returns: undefined };
       atribuir_pendencia: { Args: { _id: string; _membership: string }; Returns: undefined };
+      clients_overview: {
+        Args: { _org: string; _now?: string };
+        Returns: { link_id: string; last_training: string | null; weeks: number[] }[];
+      };
       clients_attention: {
         Args: { _org: string; _now?: string };
         Returns: { link_id: string; full_name: string; reasons: string[]; last_training: string | null }[];
