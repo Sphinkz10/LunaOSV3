@@ -7,6 +7,7 @@ import {
 import { AvisoSecao, Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
 import { Archive, ArrowCounterClockwise, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
 import { ArquivarCliente, AtividadeTab, EditarDados, ObjetivosTab, ProgressoTab, ReativarCliente } from './FichaSeparadores';
+import { AtribuicoesCliente } from './Sessoes';
 import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
@@ -230,7 +231,8 @@ export function Client360() {
 
               {sep === 'treino' && (
                 <div className="lg-ficha__grelha">
-                  <section className="lv-lista" aria-label="Atribuições">
+                  <AtribuicoesCliente linkId={id} nome={p.name} />
+                  <section className="lv-lista" aria-label="Atribuições" hidden>
                     <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Planos atribuídos</h3></div>
                     <Secao s={data.assignments} o="os planos">
                       {(lista) => lista.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Sem planos atribuídos. Atribui um na lista de {PP.toLowerCase()}.</p>

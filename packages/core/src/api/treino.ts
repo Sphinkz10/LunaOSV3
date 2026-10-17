@@ -19,7 +19,10 @@ export interface LinhaTreino {
   exerciseId: string; nome: string; series: number | null; reps: string; carga: string; rpe: number | null; descanso: number | null; notas: string;
   escalas: Partial<Record<Escala, { reps?: string; carga?: string }>>;
 }
-export interface BlocoTreino { id?: string; rotulo: string; modo: ModoBloco; voltas: number | null; minutos: number | null; notas: string; linhas: LinhaTreino[] }
+export interface BlocoTreino {
+  id?: string; rotulo: string; modo: ModoBloco; voltas: number | null; minutos: number | null; notas: string; linhas: LinhaTreino[];
+  descansoVoltas?: number | null; descansoDepois?: number | null;
+}
 export interface Treino {
   id: string; nome: string; descricao: string; duracao: number | null; tipo: 'individual' | 'aula' | 'wod';
   versao: number; publicadoEm: string | null; blocos: BlocoTreino[];
@@ -49,6 +52,7 @@ export async function fetchTreino(client: LunaClient, id: string): Promise<Trein
   });
   const blocos: BlocoTreino[] = (b.data ?? []).map((bl) => ({
     id: bl.id, rotulo: bl.label, modo: bl.mode, voltas: bl.rounds, minutos: bl.minutes, notas: bl.notes ?? '',
+    descansoVoltas: bl.rest_between_rounds, descansoDepois: bl.rest_after,
     linhas: (e.data ?? []).filter((x) => x.block_id === bl.id).map(linha),
   }));
   // Treinos antigos sem blocos: tudo num bloco normal
@@ -78,7 +82,7 @@ export async function guardarTreino(client: LunaClient, scope: OrgScope, t: Trei
   for (const [i, b] of t.blocos.entries()) {
     const { data: bl, error: e1 } = await client.from('workout_blocks').insert({
       org_id: scope.orgId, workout_id: t.id, position: i, label: b.rotulo || `Bloco ${String.fromCharCode(65 + i)}`, mode: b.modo,
-      rounds: b.voltas, minutes: b.minutos, notes: b.notas || null,
+      rounds: b.voltas, minutes: b.minutos, notes: b.notas || null, rest_between_rounds: b.descansoVoltas ?? null, rest_after: b.descansoDepois ?? null,
     }).select('id').single();
     if (e1) throw e1;
     if (b.linhas.length) {
@@ -160,7 +164,8 @@ export async function guardarExercicio(client: LunaClient, scope: OrgScope, e: E
 export interface DiaPlano { semana: number | null; dia: number; treinoId: string; nome: string }
 export interface Plano {
   id: string; nome: string; semanas: number; versao: number; publicadoEm: string | null;
-  progressao: { subirKg?: number; quandoRpeMax?: number }; descargaSemana: number | null; descargaPct: number | null; dias: DiaPlano[];
+  progressao: { tipo?: 'somar' | 'pct' | 'fixo'; subirKg?: number; quandoRpeMax?: number; aCada?: number; max?: number; arredondar?: number };
+  descargaSemana: number | null; descargaPct: number | null; dias: DiaPlano[];
 }
 export interface PlanoResumo { id: string; nome: string; semanas: number | null; versao: number; publicadoEm: string | null }
 
@@ -178,10 +183,11 @@ export async function fetchPlano(client: LunaClient, id: string): Promise<Plano>
   if (p.error) throw p.error;
   const ids = [...new Set((d.data ?? []).map((x) => x.workout_id))];
   const { data: w } = ids.length ? await client.from('workouts').select('id,name').in('id', ids) : { data: [] as { id: string; name: string }[] };
-  const pr = (p.data.progression ?? {}) as { subir_kg?: number; quando_rpe_max?: number };
+  const pr = (p.data.progression ?? {}) as { tipo?: 'somar' | 'pct' | 'fixo'; valor?: number; subir_kg?: number; quando_rpe_max?: number; a_cada?: number; max?: number; arredondar?: number };
   return {
     id: p.data.id, nome: p.data.name, semanas: p.data.duration_weeks ?? 4, versao: p.data.version, publicadoEm: p.data.published_at,
-    progressao: { subirKg: pr.subir_kg, quandoRpeMax: pr.quando_rpe_max }, descargaSemana: p.data.deload_week, descargaPct: p.data.deload_pct,
+    progressao: { tipo: pr.tipo, subirKg: pr.valor ?? pr.subir_kg, quandoRpeMax: pr.quando_rpe_max, aCada: pr.a_cada, max: pr.max, arredondar: pr.arredondar },
+    descargaSemana: p.data.deload_week, descargaPct: p.data.deload_pct,
     dias: (d.data ?? []).map((x) => ({ semana: x.week, dia: x.weekday ?? 1, treinoId: x.workout_id, nome: w?.find((y) => y.id === x.workout_id)?.name ?? 'Treino' })),
   };
 }
@@ -195,7 +201,10 @@ export async function criarPlano(client: LunaClient, scope: OrgScope, nome: stri
 export async function guardarPlano(client: LunaClient, scope: OrgScope, p: Plano): Promise<void> {
   const { error } = await client.from('plans').update({
     name: p.nome.trim(), duration_weeks: p.semanas, deload_week: p.descargaSemana, deload_pct: p.descargaPct,
-    progression: { subir_kg: p.progressao.subirKg ?? null, quando_rpe_max: p.progressao.quandoRpeMax ?? null } as Json,
+    progression: {
+      tipo: p.progressao.tipo ?? 'somar', valor: p.progressao.subirKg ?? null, quando_rpe_max: p.progressao.quandoRpeMax ?? null,
+      a_cada: p.progressao.aCada ?? null, max: p.progressao.max ?? null, arredondar: p.progressao.arredondar ?? null,
+    } as Json,
   }).eq('id', p.id);
   if (error) throw error;
   const d = await client.from('plan_workouts').delete().eq('plan_id', p.id);

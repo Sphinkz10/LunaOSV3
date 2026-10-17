@@ -150,7 +150,7 @@ export type ExerciseRow = {
   id: Uuid; org_id: Uuid; name: string; category: string; description: string | null; video_url: string | null;
   muscles: string[]; equipment: string[]; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
   origin_key: string | null; origin_version: number | null; pattern: string | null; level: string | null;
-  record_fields: string[]; image_url: string | null; copied_from: string | null; joints: string[];
+  record_fields: string[]; image_url: string | null; copied_from: string | null; joints: string[]; version: number; inactive: boolean;
 };
 export type WorkoutRow = {
   id: Uuid; org_id: Uuid; name: string; description: string | null; type: Enums['workout_type'];
@@ -160,12 +160,18 @@ export type WorkoutRow = {
 export type WorkoutExerciseRow = {
   id: Uuid; org_id: Uuid; workout_id: Uuid; exercise_id: Uuid; position: number; superset_group: number | null;
   target_sets: number | null; target_reps: string | null; target_load: string | null; rest_seconds: number | null;
-  notes: string | null; block_id: Uuid | null; target_rpe: number | null; scales: Json;
+  notes: string | null; block_id: Uuid | null; target_rpe: number | null; scales: Json; exercise_version: number | null;
 };
 export type WorkoutBlockRow = {
   id: Uuid; org_id: Uuid; workout_id: Uuid; position: number; label: string;
   mode: 'normal' | 'superset' | 'circuito' | 'emom' | 'amrap' | 'for_time'; rounds: number | null; minutes: number | null; notes: string | null;
+  rest_between_rounds: number | null; rest_after: number | null;
 };
+export type ExerciseFieldRow = {
+  id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
+  unit: string | null; min_value: number | null; max_value: number | null; required: boolean;
+};
+export type SessionSetEditRow = { id: number; set_id: Uuid; session_id: Uuid; person_id: Uuid; before: Json; after: Json; actor_user: Uuid | null; created_at: Ts };
 export type ExerciseAlternativeRow = { org_id: Uuid; exercise_id: Uuid; alternative_id: Uuid; similarity: 'igual' | 'parecido' };
 export type VersionRow = { id: Uuid; org_id: Uuid; version: number; snapshot: Json; published_by: Uuid | null; published_at: Ts };
 export type PlanRow = {
@@ -184,6 +190,8 @@ export type AssignmentRow = {
   workout_id: Uuid | null; plan_id: Uuid | null; status: Enums['assignment_status']; starts_on: string | null;
   ends_on: string | null; schedule: Json; notes: string | null; assigned_by: Uuid | null; created_at: Ts; updated_at: Ts;
   workout_version_id: Uuid | null; plan_version_id: Uuid | null; substitutions: Json;
+  replaced_by: Uuid | null; withdrawn_reason: string | null; withdrawn_at: Ts | null; responsible_membership_id: Uuid | null;
+  session_time: string | null; session_minutes: number | null;
 };
 export type AvailabilityRow = {
   id: Uuid; org_id: Uuid; membership_id: Uuid; unit_id: Uuid | null; weekday: number; start_time: string;
@@ -318,6 +326,8 @@ export interface Database {
       drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
       library_exercises: Table<LibraryExerciseRow, 'key' | 'version' | 'name' | 'category'>;
       workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
+      exercise_fields: Table<ExerciseFieldRow, 'org_id' | 'exercise_id' | 'label' | 'kind'>;
+      session_set_edits: Table<SessionSetEditRow, 'set_id' | 'session_id' | 'person_id' | 'before' | 'after'>;
       plan_workouts: Table<PlanWorkoutRow, 'org_id' | 'plan_id' | 'workout_id'>;
       exercise_alternatives: Table<ExerciseAlternativeRow, 'org_id' | 'exercise_id' | 'alternative_id'>;
       workout_versions: Table<VersionRow & { workout_id: Uuid }, 'org_id' | 'workout_id' | 'version' | 'snapshot'>;
@@ -353,6 +363,18 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      workout_problems: { Args: { _workout: string }; Returns: { problema: string }[] };
+      workout_library_changes: { Args: { _workout: string }; Returns: { exercise_id: string; nome: string; versao_no_treino: number; versao_atual: number }[] };
+      accept_exercise_update: { Args: { _workout: string; _exercise: string }; Returns: undefined };
+      plan_preview: { Args: { _plan: string; _base?: number }; Returns: { semana: number; carga: number; descarga: boolean }[] };
+      assign_bookings_preview: {
+        Args: { _org: string; _membership: string; _plan_version: string; _start: string; _hora: string; _minutos?: number };
+        Returns: { dia: string; inicio: string; nome: string; conflito: boolean }[];
+      };
+      create_assignment_bookings: { Args: { _assignment: string; _membership: string; _hora: string; _minutos?: number }; Returns: number };
+      withdraw_assignment: { Args: { _id: string; _reason: string }; Returns: number };
+      replace_assignment: { Args: { _old: string; _workout_version?: string | null; _plan_version?: string | null; _reason?: string }; Returns: string };
+      team_sessions: { Args: { _org: string; _days?: number }; Returns: { id: string; cliente: string | null; quem: string | null; fase: string; inicio: string | null; fim: string | null; treino: string | null }[] };
       publish_plan: { Args: { _plan: string }; Returns: string };
       assign_preview: {
         Args: { _org: string; _links: string[]; _workout_version?: string | null; _plan_version?: string | null; _starts_on?: string };

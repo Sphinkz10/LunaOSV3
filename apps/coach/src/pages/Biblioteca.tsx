@@ -16,7 +16,7 @@ type Origem = 'lunaos' | 'meus';
 interface Cartao {
   id: string; origem: Origem; name: string; category: string; muscles: string[]; equipment: string[]; level: string | null;
   instructions: string | null; record_fields: string[]; alternatives: string[]; video_url: string | null; image_url: string | null;
-  versao: string; chave: string | null;
+  versao: string; chave: string | null; inativo?: boolean;
 }
 const NOME_METRICA: Record<string, string> = { carga: 'Kg', repeticoes: 'Repetições', tempo: 'Tempo', distancia: 'Distância', esforco: 'RPE', fc: 'Frequência cardíaca' };
 const METRICA = (id: string) => NOME_METRICA[id] ?? id;
@@ -29,7 +29,7 @@ const deBase = (e: ExercicioBase): Cartao => ({
 const deOrg = (e: ExercicioOrg): Cartao => ({
   id: e.id, origem: 'meus', name: e.name, category: e.category, muscles: e.muscles, equipment: e.equipment, level: e.level,
   instructions: e.description, record_fields: e.record_fields, alternatives: [], video_url: e.video_url, image_url: e.image_url,
-  versao: e.copied_from ? `Cópia de ${e.copied_from.replace('@', ' · versão ')}` : 'Do ginásio', chave: null,
+  versao: e.copied_from ? `Cópia de ${e.copied_from.replace('@', ' · versão ')}` : `Do ginásio · versão ${e.version}`, chave: null, inativo: e.inactive,
 });
 
 /**
@@ -51,6 +51,7 @@ export function Biblioteca() {
   const [origem, setOrigem] = useState<Origem | 'tudo'>('tudo');
   const [q, setQ] = useState('');
   const [categoria, setCategoria] = useState<string | null>(null);
+  const [estado, setEstado] = useState<'todos' | 'inativos' | 'incompletos' | 'sem_publicacao'>('todos');
   const [aberto, setAberto] = useState<Cartao | null>(null);
   const [aGravar, setAGravar] = useState(false);
 
@@ -66,7 +67,8 @@ export function Biblioteca() {
   useEffect(() => carregar(), [carregar]);
 
   const todos = useMemo(() => [...(meus ?? []).map(deOrg), ...(base ?? []).map(deBase)], [base, meus]);
-  const lista = useMemo(() => filtrarExercicios(todos.filter((c) => origem === 'tudo' || c.origem === origem), { q, categoria }), [todos, origem, q, categoria]);
+  const lista = useMemo(() => filtrarExercicios(todos.filter((c) => origem === 'tudo' || c.origem === origem)
+    .filter((c) => estado === 'todos' || (estado === 'inativos' ? c.inativo : estado === 'incompletos' ? c.origem === 'meus' && (!c.instructions || c.record_fields.length === 0) : true)), { q, categoria }), [todos, origem, q, categoria, estado]);
   const nomeDe = (chave: string) => base?.find((b) => b.key === chave)?.name ?? chave;
 
   const duplicar = async (c: Cartao) => {
@@ -94,6 +96,8 @@ export function Biblioteca() {
             <Chip ativo={tipo === 'exercicios'} onClick={() => setTipo('exercicios')} contagem={todos.length}>Exercícios</Chip>
             <Chip ativo={tipo === 'treinos'} onClick={() => setTipo('treinos')} contagem={treinos?.length}>Treinos</Chip>
             <Chip ativo={tipo === 'planos'} onClick={() => setTipo('planos')} contagem={planos?.length}>Planos</Chip>
+            {tipo !== 'exercicios' && <Chip ativo={estado === 'sem_publicacao'} onClick={() => setEstado(estado === 'sem_publicacao' ? 'todos' : 'sem_publicacao')}>Sem publicação</Chip>}
+            <button type="button" className="lg-link" onClick={() => navigate('/training/sessoes')}>Sessões da equipa</button>
           </div>
           <input className="lv-campo-input lg-clientes__procura" type="search" placeholder="Procurar exercício ou músculo" aria-label="Procurar exercício"
             value={q} onChange={(e) => setQ(e.target.value)} />
@@ -103,6 +107,8 @@ export function Biblioteca() {
           <Chip ativo={origem === 'meus'} onClick={() => setOrigem('meus')} contagem={meus?.length}>Do ginásio</Chip>
           <Chip ativo={origem === 'lunaos'} onClick={() => setOrigem('lunaos')} contagem={base?.length}>Do LunaOS</Chip>
           <span style={{ width: 'var(--espaco-16)' }} />
+          <Chip ativo={estado === 'inativos'} onClick={() => setEstado(estado === 'inativos' ? 'todos' : 'inativos')}>Inativos</Chip>
+          <Chip ativo={estado === 'incompletos'} onClick={() => setEstado(estado === 'incompletos' ? 'todos' : 'incompletos')}>Incompletos</Chip>
           {modalidade.categorias_biblioteca.map((c) => (
             <Chip key={c} ativo={categoria === c} onClick={() => setCategoria(categoria === c ? null : c)}>{CATEGORIA_EXERCICIO[c] ?? c}</Chip>
           ))}
@@ -112,7 +118,7 @@ export function Biblioteca() {
           <section className="lv-lista" aria-label={tipo === 'treinos' ? 'Treinos' : 'Planos'}>
             {!(tipo === 'treinos' ? treinos : planos) ? <Esqueleto /> : (tipo === 'treinos' ? treinos! : planos!).length === 0
               ? <EstadoPagina tipo="vazio" icone={ClipboardText} titulo={tipo === 'treinos' ? 'Ainda sem treinos' : 'Ainda sem planos'} texto="Cria o primeiro em Novo." acao={pode ? { rotulo: tipo === 'treinos' ? 'Novo treino' : 'Novo plano', onClick: () => setCriar(tipo === 'treinos' ? 'treino' : 'plano') } : undefined} />
-              : (tipo === 'treinos' ? treinos! : planos!).filter((x) => !q.trim() || x.nome.toLocaleLowerCase('pt-PT').includes(q.trim().toLocaleLowerCase('pt-PT'))).map((x) => (
+              : (tipo === 'treinos' ? treinos! : planos!).filter((x) => estado !== 'sem_publicacao' || x.versao === 0).filter((x) => !q.trim() || x.nome.toLocaleLowerCase('pt-PT').includes(q.trim().toLocaleLowerCase('pt-PT'))).map((x) => (
                 <div key={x.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
                   <button type="button" className="lg-inbox__corpo" onClick={() => navigate(`/training/${tipo === 'treinos' ? 'treino' : 'plano'}/${x.id}`)}>
                     <span className="lv-linha-lista__titulo">{x.nome}</span>

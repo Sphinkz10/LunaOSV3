@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  addClient, apagarRascunhoServidor, arquivarCliente, assignPlanToClients, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
+  addClient, apagarRascunhoServidor, arquivarCliente, atribuirVersao, ultimaVersaoPlano, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
   fetchAssiduidade, fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, guardarRascunhoServidor, lerRascunhoServidor, MOTIVO_ATENCAO,
   convidarParaApp, procurarDuplicados, reativarCliente, toast, useAuthStore,
   type Assiduidade, type Duplicado, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
@@ -439,9 +439,11 @@ function AtribuirPlano({ ids, alvos, onFechar, onFeito }: { ids: string[] | null
     if (!client || !ids) return;
     setAGravar(p.id);
     try {
-      const r = await assignPlanToClients(client, scope, p.id, ids);
-      const extra = [r.alreadyActive ? `${r.alreadyActive} já tinham` : '', r.skippedRestricted ? `${r.skippedRestricted} bloqueados ficaram de fora` : ''].filter(Boolean).join(' · ');
-      toast({ variant: 'success', title: `${p.name} atribuído a ${r.created}`, description: extra || undefined });
+      // Atribuir passa sempre por uma versão publicada (restrições e conflitos no servidor; nunca duplica)
+      const v = await ultimaVersaoPlano(client, p.id);
+      if (!v) { toast({ variant: 'warning', title: 'Publica o plano primeiro', description: 'Abre-o na Biblioteca e carrega em Publicar.' }); return; }
+      const n = await atribuirVersao(client, scope, ids, { planoVersao: v.id }, new Date().toISOString().slice(0, 10), 'depois');
+      toast({ variant: 'success', title: `${p.name} atribuído a ${n}`, description: n < ids.length ? `${ids.length - n} ficaram de fora (bloqueados ou arquivados).` : 'Quem tinha plano a meio começa quando o atual acabar.' });
       onFechar(); onFeito();
     } catch (e) { toast({ variant: 'danger', title: 'Não foi possível atribuir', description: e instanceof Error ? e.message : undefined }); }
     finally { setAGravar(null); }

@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  atribuirVersao, CATEGORIA_EXERCICIO, criarPlano, criarTreino, duracaoPrevista, ESCALAS, fetchClients, fetchExerciciosOrg, fetchExercicio,
-  fetchPlano, fetchTreino, fetchTreinos, guardarExercicio, guardarPlano, guardarTreino, MODOS, previaAtribuir, publicarPlano, publicarTreino,
-  toast, ultimaVersaoPlano, ultimaVersaoTreino,
+  aceitarAtualizacao, atribuirVersao, CATEGORIA_EXERCICIO, criarMarcacoes, criarPlano, criarTreino, definirInativo, duracaoPrevista, ESCALAS,
+  fetchCamposProprios, fetchClients, fetchExerciciosOrg, fetchExercicio, fetchPlano, fetchStaff, fetchTreino, fetchTreinos, guardarCamposProprios,
+  guardarExercicio, guardarPlano, guardarTreino, Historico, historicoAtribuicoes, MODOS, mudancasBiblioteca, previaAtribuir, previaMarcacoes,
+  problemasTreino, publicarPlano, publicarTreino, testarPlano, TIPOS_CAMPO, toast, ultimaVersaoPlano, ultimaVersaoTreino,
+  type CampoProprio, type MarcacaoPrevista, type MudancaBiblioteca, type SemanaPrevista, type StaffLite,
   type BlocoTreino, type ClientRow, type Escala, type ExercicioEditavel, type ExercicioOrg, type LinhaTreino, type ModoBloco, type O_que,
   type Plano, type PreviaAtribuir, type Treino, type TreinoResumo,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
-import { ArrowLeft, Check, Plus, UploadSimple, Warning, X } from '@luna/icons';
+import { ArrowCounterClockwise, ArrowLeft, Check, Eye, Plus, UploadSimple, Warning, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { SairSemGuardar, VoltarA } from '../app/Estados';
 import { useAtalhoGuardar } from '../app/Atalhos';
@@ -31,10 +33,13 @@ export function ConstrutorExercicio() {
   const [todos, setTodos] = useState<ExercicioOrg[]>([]);
   const [sujo, setSujo] = useState(false);
   const [aGravar, setAGravar] = useState(false);
+  const [campos, setCampos] = useState<CampoProprio[]>([]);
+  const [inativo, setInativo] = useState(false);
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
-    void fetchExerciciosOrg(client, scope).then(setTodos).catch(() => setTodos([]));
+    void fetchExerciciosOrg(client, scope).then((l) => { setTodos(l); setInativo(!!l.find((x) => x.id === id)?.inactive); }).catch(() => setTodos([]));
+    if (id !== 'novo') void fetchCamposProprios(client, id).then(setCampos).catch(() => setCampos([]));
     if (id === 'novo') setE({ nome: '', categoria: 'forca', descricao: '', video: '', musculos: [], material: [], padrao: '', nivel: 'iniciante', registar: ['carga', 'repeticoes'], alternativas: [] });
     else void fetchExercicio(client, id).then(setE).catch((err) => toast({ variant: 'danger', title: 'Não foi possível abrir', description: erroTexto(err) }));
   }, [id, scope]);
@@ -43,7 +48,11 @@ export function ConstrutorExercicio() {
     const client = getSupabaseClient();
     if (!client || !e || !e.nome.trim()) return;
     setAGravar(true);
-    try { const novo = await guardarExercicio(client, scope, e); setSujo(false); toast({ variant: 'success', title: 'Exercício guardado' }); if (id === 'novo') navigate(`/training/exercicio/${novo}`, { replace: true }); }
+    try {
+      const novo = await guardarExercicio(client, scope, e);
+      await guardarCamposProprios(client, scope, novo, campos);
+      await definirInativo(client, novo, inativo);
+      setSujo(false); toast({ variant: 'success', title: 'Exercício guardado' }); if (id === 'novo') navigate(`/training/exercicio/${novo}`, { replace: true }); }
     catch (err) { toast({ variant: 'danger', title: 'Não foi possível guardar', description: erroTexto(err) }); }
     finally { setAGravar(false); }
   };
@@ -94,6 +103,26 @@ export function ConstrutorExercicio() {
             {todos.filter((t) => t.id !== e.id && !e.alternativas.some((a) => a.id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <Nota>Se a máquina estiver ocupada, o cliente só vê estas. Para usar um do LunaOS, duplica-o primeiro na Biblioteca.</Nota>
+          <span className="lv-sobretitulo">Campos próprios ({campos.length} de 12)</span>
+          {campos.map((c, k) => (
+            <div key={k} className="lg-campo-proprio">
+              <input className="lv-campo-input" aria-label="Nome do campo" value={c.label} onChange={(x) => { setCampos(campos.map((y, j) => (j === k ? { ...y, label: x.target.value } : y))); setSujo(true); }} />
+              <select className="lv-campo-input" aria-label="Tipo" value={c.kind} onChange={(x) => { setCampos(campos.map((y, j) => (j === k ? { ...y, kind: x.target.value as CampoProprio['kind'] } : y))); setSujo(true); }}>
+                {TIPOS_CAMPO.map((tc) => <option key={tc.id} value={tc.id}>{tc.rotulo}</option>)}
+              </select>
+              <input className="lv-campo-input" aria-label="Unidade" placeholder="unid." value={c.unit ?? ''} onChange={(x) => { setCampos(campos.map((y, j) => (j === k ? { ...y, unit: x.target.value || null } : y))); setSujo(true); }} />
+              <input className="lv-campo-input" aria-label="Mínimo" placeholder="mín." inputMode="decimal" value={c.min_value ?? ''} onChange={(x) => { setCampos(campos.map((y, j) => (j === k ? { ...y, min_value: x.target.value === '' ? null : Number(x.target.value) } : y))); setSujo(true); }} />
+              <input className="lv-campo-input" aria-label="Máximo" placeholder="máx." inputMode="decimal" value={c.max_value ?? ''} onChange={(x) => { setCampos(campos.map((y, j) => (j === k ? { ...y, max_value: x.target.value === '' ? null : Number(x.target.value) } : y))); setSujo(true); }} />
+              <label className="lv-legenda" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input type="checkbox" checked={c.required} onChange={() => { setCampos(campos.map((y, j) => (j === k ? { ...y, required: !y.required } : y))); setSujo(true); }} />Obrigatório
+              </label>
+              <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Tirar campo" onClick={() => { setCampos(campos.filter((_, j) => j !== k)); setSujo(true); }}><X size={16} aria-hidden /></button>
+            </div>
+          ))}
+          {campos.length < 12 && <Botao variante="secundario" icone={Plus} onClick={() => { setCampos([...campos, { label: '', kind: 'numero', unit: null, min_value: null, max_value: null, required: false }]); setSujo(true); }}>Campo</Botao>}
+          <label className="lv-legenda" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={inativo} onChange={() => { setInativo(!inativo); setSujo(true); }} />Inativo (não aparece para escolher; os treinos que o têm avisam)
+          </label>
         </aside>
       </div>
       <SairSemGuardar sujo={sujo} resumo="O exercício tem alterações por guardar." onGuardar={async () => { await guardar(); return true; }} />
@@ -112,14 +141,28 @@ export function ConstrutorTreino() {
   const [escala, setEscala] = useState<Escala>('intermedio');
   const [sujo, setSujo] = useState(false);
   const [aGravar, setAGravar] = useState(false);
+  const [problemas, setProblemas] = useState<string[] | null>(null);
+  const [mudancas, setMudancas] = useState<MudancaBiblioteca[]>([]);
+  const [previa, setPrevia] = useState(false);
+  const hist = useRef(new Historico<Treino>(30));
+  const [, forcar] = useState(0);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
-    void fetchTreino(client, id).then((x) => { setT(x); setSujo(false); }).catch((e) => toast({ variant: 'danger', title: 'Não foi possível abrir', description: erroTexto(e) }));
-    void fetchExerciciosOrg(client, scope).then(setExercicios).catch(() => setExercicios([]));
+    void fetchTreino(client, id).then((x) => { setT(x); setSujo(false); hist.current = new Historico<Treino>(30); }).catch((e) => toast({ variant: 'danger', title: 'Não foi possível abrir', description: erroTexto(e) }));
+    void fetchExerciciosOrg(client, scope).then((l) => setExercicios(l.filter((x) => !x.inactive))).catch(() => setExercicios([]));
+    void mudancasBiblioteca(client, id).then(setMudancas).catch(() => setMudancas([]));
   }, [id, scope]);
   useEffect(() => carregar(), [carregar]);
-  const mudarT = (p: Partial<Treino>) => { setT((x) => (x ? { ...x, ...p } : x)); setSujo(true); };
+  const mudarT = (p: Partial<Treino>) => { if (t) hist.current.registar(t); setT((x) => (x ? { ...x, ...p } : x)); setSujo(true); forcar((n) => n + 1); };
+  const desfazer = () => { if (!t) return; const v = hist.current.desfazer(t); if (v) { setT(v); setSujo(true); forcar((n) => n + 1); } };
+  const refazer = () => { if (!t) return; const v = hist.current.refazer(t); if (v) { setT(v); setSujo(true); forcar((n) => n + 1); } };
+  const escolherMudanca = async (m: MudancaBiblioteca) => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    await aceitarAtualizacao(client, id, m.exerciseId).catch(() => undefined);
+    setMudancas((l) => l.filter((x) => x.exerciseId !== m.exerciseId));
+  };
   const mudarBloco = (i: number, p: Partial<BlocoTreino>) => mudarT({ blocos: t!.blocos.map((b, j) => (j === i ? { ...b, ...p } : b)) });
   const mudarLinha = (i: number, k: number, p: Partial<LinhaTreino>) => mudarBloco(i, { linhas: t!.blocos[i].linhas.map((l, j) => (j === k ? { ...l, ...p } : l)) });
   const guardar = async (): Promise<boolean> => {
@@ -135,6 +178,9 @@ export function ConstrutorTreino() {
     const client = getSupabaseClient();
     if (!client || !t) return;
     if (sujo && !(await guardar())) return;
+    // Publicar verifica o que falta e só avança sem problemas
+    const p = await problemasTreino(client, t.id).catch(() => [] as string[]);
+    if (p.length) { setProblemas(p); return; }
     try { await publicarTreino(client, t.id); toast({ variant: 'success', title: `Versão ${t.versao + 1} publicada` }); navigate(`/training/atribuir?treino=${t.id}`); }
     catch (e) { toast({ variant: 'danger', title: 'Não foi possível publicar', description: erroTexto(e) }); }
   };
@@ -145,11 +191,22 @@ export function ConstrutorTreino() {
     <CoachShell headStrong={t.nome} headSub={`Treino · Biblioteca · ${t.versao ? `versão ${t.versao} publicada${sujo ? ' · rascunho com alterações' : ''}` : 'rascunho'}`} legado={false}
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
         <VoltarA omissao={VOLTAR_BIB} />
+        <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Desfazer" disabled={!hist.current.podeDesfazer} onClick={desfazer}><ArrowCounterClockwise size={16} aria-hidden /></button>
+        <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone lg-refazer" aria-label="Refazer" disabled={!hist.current.podeRefazer} onClick={refazer}><ArrowCounterClockwise size={16} aria-hidden /></button>
+        <Botao variante="secundario" icone={Eye} onClick={() => setPrevia(true)}>Como cliente</Botao>
         <Botao variante="secundario" aCarregar={aGravar} onClick={() => void guardar()}>Guardar</Botao>
         <Botao icone={UploadSimple} onClick={() => void publicar()}>Publicar</Botao>
       </span>}>
       <div className="lv-root lg-ficha__grelha">
         <div className="lg-ficha__coluna">
+          {mudancas.map((m) => (
+            <div key={m.exerciseId} className="lg-duplicado" role="status">
+              <Warning size={18} aria-hidden />
+              <span style={{ flex: 1 }}><b>{m.nome} mudou na biblioteca</b><span className="lv-legenda" style={{ display: 'block' }}>Versão {m.noTreino} neste treino, {m.atual} na biblioteca. Quem já o tem continua com a versão publicada.</span></span>
+              <Botao variante="secundario" onClick={() => void escolherMudanca(m)}>Manter</Botao>
+              <Botao onClick={() => void escolherMudanca(m)}>Atualizar</Botao>
+            </div>
+          ))}
           <Campo rotulo="Nome do treino" value={t.nome} onChange={(e) => mudarT({ nome: e.target.value })} />
           {t.blocos.map((bl, i) => (
             <section key={i} className={`lv-lista lg-bloco${i === aberto ? ' lg-bloco--aberto' : ''}`} aria-label={bl.rotulo}>
@@ -204,7 +261,10 @@ export function ConstrutorTreino() {
               <div className="lg-conta__prefs">
                 <Campo rotulo="Voltas" inputMode="numeric" value={b.voltas ?? ''} onChange={(e) => mudarBloco(aberto, { voltas: Number(e.target.value) || null })} />
                 <Campo rotulo="Minutos" inputMode="numeric" value={b.minutos ?? ''} onChange={(e) => mudarBloco(aberto, { minutos: Number(e.target.value) || null })} />
+                <Campo rotulo="Descanso entre voltas (s)" inputMode="numeric" value={b.descansoVoltas ?? ''} onChange={(e) => mudarBloco(aberto, { descansoVoltas: Number(e.target.value) || null })} />
+                <Campo rotulo="Descanso depois (s)" inputMode="numeric" value={b.descansoDepois ?? ''} onChange={(e) => mudarBloco(aberto, { descansoDepois: Number(e.target.value) || null })} />
               </div>
+              <p className="lv-legenda" style={{ margin: 0 }}>Repetições ou carga em branco: o cliente regista na sessão.</p>
               <span className="lv-sobretitulo">Escala a editar</span>
               <div role="radiogroup" aria-label="Escala" className="lg-ficha__metricas">
                 {ESCALAS.map((s) => <Chip key={s.id} role="radio" aria-checked={escala === s.id} ativo={escala === s.id} onClick={() => setEscala(s.id)}>{s.rotulo}</Chip>)}
@@ -219,6 +279,25 @@ export function ConstrutorTreino() {
           <Nota>Clientes com restrição recebem a alternativa autorizada do exercício, sem mudar o treino dos outros.</Nota>
         </aside>
       </div>
+      <Janela aberta={!!problemas} onFechar={() => setProblemas(null)} titulo="Antes de publicar" sub="Resolve isto; publicar só avança sem problemas."
+        acoes={<Botao onClick={() => setProblemas(null)}>Voltar ao treino</Botao>}>
+        <ul className="lg-massa">{problemas?.map((p) => <li key={p}><Warning size={16} aria-hidden className="lg-hoje__aviso" /><span>{p}</span></li>)}</ul>
+      </Janela>
+      <Janela aberta={previa} onFechar={() => setPrevia(false)} titulo={`${t.nome} · como o cliente vê`} sub={`${duracaoPrevista(t.blocos)} min · ${nExercicios} exercícios`}>
+        <div className="lg-previa-cliente">
+          {t.blocos.map((bl, i) => (
+            <div key={i}>
+              <span className="lv-sobretitulo">{String.fromCharCode(65 + i)} · {bl.rotulo}{bl.modo !== 'normal' ? ` · ${MODOS.find((m) => m.id === bl.modo)?.rotulo}` : ''}{bl.voltas ? ` · ${bl.voltas} voltas` : ''}</span>
+              {bl.linhas.map((l, k) => (
+                <div key={k} className="lv-linha-lista" style={{ cursor: 'default' }}>
+                  <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{l.nome}</span>
+                    <span className="lv-legenda">{[l.series && `${l.series} ×`, l.reps || 'registar', l.carga].filter(Boolean).join(' ')}{l.rpe ? ` · RPE ${l.rpe}` : ''}{l.descanso ? ` · ${l.descanso} s` : ''}</span></span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </Janela>
       <SairSemGuardar sujo={sujo} resumo="O treino tem alterações por guardar." onGuardar={guardar} />
     </CoachShell>
   );
@@ -233,6 +312,14 @@ export function ConstrutorPlano() {
   const [treinos, setTreinos] = useState<TreinoResumo[]>([]);
   const [celula, setCelula] = useState<{ semana: number; dia: number } | null>(null);
   const [sujo, setSujo] = useState(false);
+  const [base, setBase] = useState(60);
+  const [teste, setTeste] = useState<SemanaPrevista[] | null>(null);
+  const testar = async () => {
+    const client = getSupabaseClient();
+    if (!client || !p) return;
+    if (sujo && !(await guardar())) return;
+    try { setTeste(await testarPlano(client, p.id, base)); } catch (e) { toast({ variant: 'danger', title: 'Não foi possível testar', description: erroTexto(e) }); }
+  };
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
@@ -291,7 +378,17 @@ export function ConstrutorPlano() {
         <aside className="lg-ficha__coluna">
           <section className="lv-lista" aria-label="Progressão">
             <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Progressão</h3>
-            <Campo rotulo="Subir carga (kg)" inputMode="decimal" value={p.progressao.subirKg ?? ''} onChange={(e) => mudar({ progressao: { ...p.progressao, subirKg: Number(e.target.value.replace(',', '.')) || undefined } })} />
+            <div role="radiogroup" aria-label="Tipo de progressão" className="lg-ficha__metricas">
+              {([['somar', 'Somar valor'], ['pct', '% por semana'], ['fixo', 'Valor fixo']] as const).map(([k, r]) => (
+                <Chip key={k} role="radio" aria-checked={(p.progressao.tipo ?? 'somar') === k} ativo={(p.progressao.tipo ?? 'somar') === k} onClick={() => mudar({ progressao: { ...p.progressao, tipo: k } })}>{r}</Chip>
+              ))}
+            </div>
+            <div className="lg-conta__prefs">
+              <Campo rotulo={(p.progressao.tipo ?? 'somar') === 'pct' ? 'Subir (%)' : (p.progressao.tipo === 'fixo' ? 'Valor (kg)' : 'Subir carga (kg)')} inputMode="decimal" value={p.progressao.subirKg ?? ''} onChange={(e) => mudar({ progressao: { ...p.progressao, subirKg: Number(e.target.value.replace(',', '.')) || undefined } })} />
+              <Campo rotulo="A cada (semanas)" inputMode="numeric" value={p.progressao.aCada ?? ''} onChange={(e) => mudar({ progressao: { ...p.progressao, aCada: Number(e.target.value) || undefined } })} />
+              <Campo rotulo="Limite (kg)" inputMode="decimal" value={p.progressao.max ?? ''} onChange={(e) => mudar({ progressao: { ...p.progressao, max: Number(e.target.value.replace(',', '.')) || undefined } })} />
+              <Campo rotulo="Arredondar a" inputMode="decimal" value={p.progressao.arredondar ?? ''} placeholder="0,5" onChange={(e) => mudar({ progressao: { ...p.progressao, arredondar: Number(e.target.value.replace(',', '.')) || undefined } })} />
+            </div>
             <Campo rotulo="Quando o RPE fica até" inputMode="decimal" value={p.progressao.quandoRpeMax ?? ''} onChange={(e) => mudar({ progressao: { ...p.progressao, quandoRpeMax: Number(e.target.value.replace(',', '.')) || undefined } })} ajuda="em todas as séries" />
             <div className="lg-conta__prefs">
               <Campo rotulo="Descarga na semana" type="number" min={1} max={p.semanas} value={p.descargaSemana ?? ''} onChange={(e) => mudar({ descargaSemana: Number(e.target.value) || null })} />
@@ -302,6 +399,19 @@ export function ConstrutorPlano() {
             <div><span className="lv-legenda">Por semana</span><b>{porSemana} treinos</b></div>
             <div><span className="lv-legenda">Duração</span><b>{p.semanas} semanas</b></div>
           </div>
+          <section className="lv-lista" aria-label="Testar plano">
+            <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Testar plano</h3>
+            <div className="lg-conta__prefs">
+              <Campo rotulo="Carga base (kg)" inputMode="decimal" value={base} onChange={(e) => setBase(Number(e.target.value.replace(',', '.')) || 0)} />
+              <Botao variante="secundario" onClick={() => void testar()}>Testar</Botao>
+            </div>
+            {teste && teste.map((x) => (
+              <div key={x.semana} className="lg-conta__dados" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Semana {x.semana}{x.descarga ? ' · descarga' : ''}</span><b>{x.carga.toLocaleString('pt-PT')} kg</b>
+              </div>
+            ))}
+            <p className="lv-legenda" style={{ margin: 0 }}>É o mesmo cálculo que as sessões vão ter.</p>
+          </section>
           <Nota>Vender como programa online chega com a loja (F2).</Nota>
         </aside>
       </div>
@@ -351,10 +461,17 @@ export function Atribuir() {
   const [conflito, setConflito] = useState<'manter' | 'substituir' | 'depois'>('depois');
   const [feito, setFeito] = useState<number | null>(null);
   const [aGravar, setAGravar] = useState(false);
+  const [equipa, setEquipa] = useState<StaffLite[]>([]);
+  const [resp, setResp] = useState(scope.membershipId);
+  const [hora, setHora] = useState('18:00');
+  const [minutos, setMinutos] = useState(60);
+  const [marcacoes, setMarcacoes] = useState<MarcacaoPrevista[] | null>(null);
+  const [criadas, setCriadas] = useState<number | null>(null);
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
     void fetchClients(client, scope).then(setClientes).catch(() => setClientes([]));
+    void fetchStaff(client, scope).then(setEquipa).catch(() => setEquipa([]));
     if (treinoId) void Promise.all([fetchTreino(client, treinoId), ultimaVersaoTreino(client, treinoId)]).then(([t, v]) => v && setO({ nome: t.nome, versao: v.versao, alvo: { treinoVersao: v.id } }));
     if (planoId) void Promise.all([fetchPlano(client, planoId), ultimaVersaoPlano(client, planoId)]).then(([p, v]) => v && setO({ nome: p.nome, versao: v.versao, alvo: { planoVersao: v.id } }));
   }, [scope, treinoId, planoId]);
@@ -403,6 +520,32 @@ export function Atribuir() {
                 <Nota key={x.linkId} icone={Warning}>{x.nome}: {x.trocas.map((t) => (t.para ? `${t.de} passa a ${t.para}` : `${t.de} fica de fora`)).join('; ')}.</Nota>
               ))}
               {feito < sel.size && <Nota>{sel.size - feito} ficaram de fora (bloqueados, arquivados ou com plano por decidir).</Nota>}
+              {planoId && feito > 0 && sel.size === 1 && criadas == null && (
+                <div className="lv-lista" style={{ padding: 'var(--espaco-12)' }}>
+                  <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Marcar as sessões no horário</h3>
+                  <div className="lg-conta__prefs">
+                    <label className="lv-campo"><span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
+                      <select className="lv-campo-input" value={resp} onChange={(e) => { setResp(e.target.value); setMarcacoes(null); }}>{equipa.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+                    <Campo rotulo="Hora" type="time" value={hora} onChange={(e) => { setHora(e.target.value); setMarcacoes(null); }} />
+                    <Campo rotulo="Duração (min)" type="number" min={10} max={240} value={minutos} onChange={(e) => { setMinutos(Number(e.target.value) || 60); setMarcacoes(null); }} />
+                  </div>
+                  <Botao variante="secundario" onClick={() => { const c = getSupabaseClient(); if (c && o && 'planoVersao' in o.alvo) void previaMarcacoes(c, scope, resp, o.alvo.planoVersao, inicio, hora, minutos).then(setMarcacoes); }}>Ver marcações</Botao>
+                  {marcacoes && (
+                    <>
+                      <p className="lv-legenda" style={{ margin: 0 }}>{marcacoes.length} marcações Por confirmar, no fuso da organização (com a mudança de hora).{marcacoes.some((m) => m.conflito) ? ` ${marcacoes.filter((m) => m.conflito).length} em conflito: muda a hora ou o responsável.` : ''}</p>
+                      {marcacoes.filter((m) => m.conflito).slice(0, 5).map((m) => <span key={m.inicio} className="lv-legenda"><Warning size={14} aria-hidden className="lg-hoje__aviso" /> {new Date(m.inicio).toLocaleString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} já tem marcação</span>)}
+                      <Botao disabled={marcacoes.some((m) => m.conflito) || marcacoes.length === 0} onClick={() => {
+                        const c = getSupabaseClient();
+                        if (!c) return;
+                        void historicoAtribuicoes(c, [...sel][0]).then((h) => h.find((x) => x.estado === 'Ativo' || x.estado === 'Agendado'))
+                          .then((a) => (a ? criarMarcacoes(c, a.id, resp, hora, minutos) : 0)).then(setCriadas)
+                          .catch((e) => toast({ variant: 'danger', title: 'Não foi possível criar', description: erroTexto(e) }));
+                      }}>Criar {marcacoes.length} marcações</Botao>
+                    </>
+                  )}
+                </div>
+              )}
+              {criadas != null && <Nota>{criadas} marcações criadas Por confirmar no horário.</Nota>}
               <Botao onClick={() => navigate('/training/biblioteca')}>Voltar à Biblioteca</Botao>
             </>
           ) : passo === 2 ? (

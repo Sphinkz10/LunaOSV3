@@ -467,3 +467,13 @@ button.lg-seg__linha { cursor: pointer; }
 .lg-previa { display: flex; flex-direction: column; gap: 4px; padding: var(--espaco-12); border-radius: var(--raio-linha); background: var(--cor-superficie-2); }
 .lg-previa .lv-legenda { display: flex; gap: 6px; align-items: flex-start; }
 @media (max-width: 900px) { .lg-presc__linha { grid-template-columns: minmax(0, 1fr) 56px 64px 40px; } .lg-presc__linha > :nth-child(4), .lg-presc__linha > :nth-child(5), .lg-presc__linha > :nth-child(6) { display: none; } }
+
+/* Tarefa 23: campos próprios, resumo previsto contra feito */
+.lg-campo-proprio { display: grid; grid-template-columns: minmax(0, 2fr) 96px 64px 64px 64px auto 40px; gap: 6px; align-items: center; }
+.lg-campo-proprio .lv-campo-input { min-height: 36px; padding: 4px 8px; }
+.lg-refazer svg { transform: scaleX(-1); }
+.lg-previa-cliente { display: flex; flex-direction: column; gap: var(--espaco-12); }
+.lg-resumo__linha { display: grid; grid-template-columns: minmax(120px, 1.5fr) 48px minmax(80px, 1fr) minmax(100px, 1fr) 48px; gap: var(--espaco-12); align-items: center; padding: var(--espaco-8) var(--espaco-16); border-bottom: 1px solid var(--cor-linha); font-size: 14px; }
+.lg-resumo__mais { color: var(--estado-ok); font-weight: 600; }
+.lg-resumo__menos { color: var(--estado-erro); font-weight: 600; }
+@media (max-width: 900px) { .lg-campo-proprio { grid-template-columns: 1fr 1fr; } }
