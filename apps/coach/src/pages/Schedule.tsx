@@ -107,10 +107,13 @@ export function Schedule() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  // Do Hoje: "Por confirmar" abre a agenda só com as marcações por confirmar
+  const soPendentes = searchParams.get('estado') === 'pendente';
+  useEffect(() => { if (soPendentes) setView('agenda'); }, [soPendentes]);
   // Botão + (G-00): /schedule?nova=1 abre logo a nova marcação
   const [modalOpen, setModalOpen] = useState(searchParams.get('nova') === '1');
   useEffect(() => {
-    if (searchParams.get('nova') === '1') { setModalOpen(true); setSearchParams({}, { replace: true }); }
+    if (searchParams.get('nova') === '1') { setModalOpen(true); setSearchParams((p) => { p.delete('nova'); return p; }, { replace: true }); }
   }, [searchParams, setSearchParams]);
   const [markerOpen, setMarkerOpen] = useState(false);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -243,7 +246,8 @@ export function Schedule() {
     if (ok) { toast({ variant: 'info', title: 'Horário removido' }); load(); }
   }
 
-  const filterEvs = (list: Booking[]) => (typeFilter === 'all' ? list : list.filter((b) => b.type === typeFilter));
+  const filterEvs = (list: Booking[]) => (typeFilter === 'all' ? list : list.filter((b) => b.type === typeFilter))
+    .filter((b) => !soPendentes || b.status === 'pending');
 
   const evCard = (b: Booking) => {
     const tc = typeCal(b.type);

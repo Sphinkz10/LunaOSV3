@@ -8,6 +8,8 @@ export * from './api/live';
 export * from './api/notifications';
 export * from './api/aptidao';
 export * from './api/equipa';
+export * from './api/hoje';
+export * from './api/inbox';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

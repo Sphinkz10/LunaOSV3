@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  archiveClient, assignPlanToClients, confirmarDestrutivo, addClient, DuplicateClientError, fetchClients, fetchPlans, fetchStaff, toast, updateClientStatus,
+  archiveClient, assignPlanToClients, confirmarDestrutivo, addClient, DuplicateClientError, fetchClients, fetchClientesAtencao, MOTIVO_ATENCAO, fetchPlans, fetchStaff, toast, updateClientStatus,
   type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
@@ -384,6 +384,7 @@ export function Clients() {
   const [sort, setSort] = useState(searchParams.get('ordem') ?? 'priority');
   const [filter, setFilter] = useState(searchParams.get('filtro') ?? 'all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [atencao, setAtencao] = useState<Map<string, string[]>>(new Map());
   useEffect(() => {
     const p = new URLSearchParams();
     if (query) p.set('q', query);
@@ -447,6 +448,10 @@ export function Clients() {
     if (!client) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
+    // Em atenção: as 4 regras de D18, com o motivo (falha aqui não esconde a lista)
+    void fetchClientesAtencao(client, scope)
+      .then((r) => { if (!cancelled) setAtencao(new Map(r.map((x) => [x.linkId, x.motivos.map((m) => MOTIVO_ATENCAO[m])]))); })
+      .catch(() => undefined);
     void fetchClients(client, scope)
       .then((a) => { if (!cancelled) { setRows(a); setError(null); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : `Erro ao carregar ${pp}`); })
@@ -499,7 +504,7 @@ export function Clients() {
       ].filter(Boolean).join(' ').toLowerCase().includes(q));
     }
     if (filter === 'attention') {
-      list = list.filter((a) => a.status === 'blocked' || a.status === 'injured' || a.status === 'return_to_play' || !a.hasPlan || a.pending > 0);
+      list = list.filter((a) => atencao.has(a.id));
     } else if (filter === 'noplan') list = list.filter((a) => !a.hasPlan);
     else if (filter === 'pending') list = list.filter((a) => a.pending > 0);
     else if (filter === 'blocked') list = list.filter((a) => a.status === 'blocked');
@@ -524,7 +529,7 @@ export function Clients() {
       return rank(a) - rank(b) || a.name.localeCompare(b.name);
     });
     return list;
-  }, [rows, query, filter, sort, selected, adv]);
+  }, [rows, query, filter, sort, selected, adv, atencao]);
 
   const toggle = (id: string) => setSelected((prev) => {
     const next = new Set(prev);

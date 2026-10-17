@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
 import { Avatar, BarraSemRede, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
-import { CaretRight, DotsThree, List, MagnifyingGlass, Plus, SignOut, UserCircle, UsersThree } from '@luna/icons';
+import { CaretRight, DotsThree, List, ListChecks, MagnifyingGlass, Plus, SignOut, UserCircle, UsersThree } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 import { signOutEverywhere } from './session';
@@ -216,6 +216,11 @@ export function CoachShell({
               <MagnifyingGlass size={16} aria-hidden />Procurar {vocab.pessoa()}<span className="lg-procura__kbd" aria-hidden>Ctrl K</span>
             </button>
             <span className="lg-desktop-only">{topActions}</span>
+            {scope && (
+              <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Inbox" title="Inbox" onClick={() => navigate('/inbox')}>
+                <ListChecks size={18} aria-hidden />
+              </button>
+            )}
             {scope && <Notificacoes />}
             {botaoNovo}
           </div>

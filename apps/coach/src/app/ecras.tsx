@@ -11,7 +11,7 @@ export interface EcraG { id: string; ecra: string; destino: string; fase: string
 export const ECRAS_G: EcraG[] = [
   { id: 'G-00', ecra: 'Estrutura da app', destino: 'Todos', fase: 'F1a', rota: '/today' },
   { id: 'G-01', ecra: 'Hoje (por papel)', destino: 'Hoje', fase: 'F1a', rota: '/today' },
-  { id: 'G-02', ecra: 'Inbox', destino: 'Topo', fase: 'F1a' },
+  { id: 'G-02', ecra: 'Inbox', destino: 'Topo', fase: 'F1a', rota: '/inbox' },
   { id: 'G-03', ecra: 'Clientes', destino: 'Clientes', fase: 'F1a', rota: '/clients' },
   { id: 'G-04', ecra: 'Nova adesão', destino: 'Clientes', fase: 'F2' },
   { id: 'G-05', ecra: 'Importar clientes', destino: 'Clientes', fase: 'F1a' },

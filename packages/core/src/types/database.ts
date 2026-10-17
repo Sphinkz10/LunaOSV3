@@ -203,6 +203,7 @@ export type ConsentRow = {
 export type PendenciaRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; membership_id: Uuid | null; kind: string; title: string;
   status: 'aberta' | 'resolvida'; created_at: Ts; resolved_at: Ts | null; resolved_by: Uuid | null;
+  snoozed_until: Ts | null; snoozed_by: Uuid | null; resolution: string | null;
 };
 export type RestrictionRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; person_id: Uuid; kind: 'atestado' | 'permitir' | 'adaptar' | 'bloquear';
@@ -303,6 +304,13 @@ export interface Database {
       deactivate_member: { Args: { _membership: string; _reason: string }; Returns: undefined };
       reactivate_member: { Args: { _membership: string; _reason: string }; Returns: undefined };
       cancel_invite: { Args: { _invite: string }; Returns: undefined };
+      adiar_pendencia: { Args: { _id: string; _ate: string }; Returns: undefined };
+      reabrir_pendencia: { Args: { _id: string }; Returns: undefined };
+      atribuir_pendencia: { Args: { _id: string; _membership: string }; Returns: undefined };
+      clients_attention: {
+        Args: { _org: string; _now?: string };
+        Returns: { link_id: string; full_name: string; reasons: string[]; last_training: string | null }[];
+      };
       create_recovery_code: { Args: { _membership: string }; Returns: string };
       client_restricoes_efeito: { Args: { _link: string }; Returns: { zone: string | null; kind: string; review_on: string | null }[] };
       client_aptidao: { Args: { _link: string }; Returns: string };

@@ -240,3 +240,46 @@
 .lg-conflito__valor { display: flex; flex-direction: column; gap: 2px; padding: var(--espaco-8) var(--espaco-12); background: var(--cor-superficie-2); border-radius: var(--raio-linha); font-size: 14px; }
 .lg-conflito__valor--meu { border: 2px solid var(--cor-texto); background: var(--cor-superficie); }
 .lg-procura__modulos .lv-chip[aria-selected='true'] { background: var(--cor-texto); color: var(--cor-fundo); border-color: var(--cor-texto); }
+
+/* Hoje (G-01): sem gráficos; contagens que abrem a lista filtrada */
+.lg-hoje { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-hoje__ola { display: flex; flex-direction: column; gap: var(--espaco-8); padding: var(--espaco-24); border-radius: var(--raio-cartao, 24px); background: var(--cor-selecao); color: var(--cor-texto); }
+.lg-hoje__acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-8); margin-top: var(--espaco-8); }
+.lg-hoje__contagens { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--espaco-12); }
+.lg-contagem {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--espaco-8); padding: var(--espaco-16);
+  background: var(--cor-superficie); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao, 24px);
+  color: var(--cor-texto); font: inherit; text-align: left; cursor: pointer; min-height: 132px;
+}
+.lg-contagem:hover { border-color: var(--cor-texto); }
+.lg-contagem:focus-visible { outline: 2px solid var(--cor-texto); outline-offset: 2px; }
+.lg-contagem--acao { background: var(--cor-selecao); }
+.lg-contagem--aviso { background: color-mix(in srgb, var(--estado-aviso) 14%, var(--cor-superficie)); }
+.lg-contagem__rotulo { display: flex; align-items: center; gap: var(--espaco-8); font: 600 13px/1.4 var(--fonte-texto); }
+.lg-contagem__legenda { margin-top: auto; font-size: 12.5px; color: var(--cor-texto-secundario); }
+.lg-hoje__grelha { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-hoje__lado { display: flex; flex-direction: column; gap: var(--espaco-16); min-width: 0; }
+.lg-hoje__sessao { display: flex; align-items: center; gap: var(--espaco-12); padding: var(--espaco-12) 0; border-bottom: 1px solid var(--cor-linha); }
+.lg-hoje__sessao:last-child { border-bottom: 0; }
+.lg-hoje__hora { font: 600 16px/1.2 var(--fonte-titulo); min-width: 52px; }
+.lg-hoje__aviso { color: var(--estado-aviso); flex: none; }
+@media (max-width: 1100px) { .lg-hoje__contagens { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lg-hoje__grelha { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .lg-hoje__sessao { flex-wrap: wrap; } .lg-hoje__ola { padding: var(--espaco-16); } }
+
+/* Inbox (G-02) */
+.lg-inbox { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-inbox__filtros { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--espaco-8); }
+.lg-inbox__massa { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espaco-8); padding: var(--espaco-8) var(--espaco-16); background: var(--cor-selecao); border-radius: var(--raio-linha); }
+.lg-inbox__grelha { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-inbox__lista { padding: 0; gap: 0; overflow: hidden; }
+.lg-inbox__linha { display: flex; align-items: center; gap: var(--espaco-12); padding: var(--espaco-12) var(--espaco-16); border-bottom: 1px solid var(--cor-linha); border-left: 3px solid transparent; }
+.lg-inbox__linha:last-child { border-bottom: 0; }
+.lg-inbox__linha--aberta { background: var(--cor-selecao); border-left-color: var(--cor-texto); }
+.lg-inbox__linha input { width: 18px; height: 18px; accent-color: var(--cor-texto); flex: none; }
+.lg-inbox__icone { color: var(--estado-aviso); flex: none; }
+.lg-inbox__corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lg-inbox__corpo .lv-linha-lista__titulo, .lg-inbox__corpo .lv-legenda { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-inbox__quando { min-width: 64px; text-align: right; }
+.lg-inbox__detalhe { position: sticky; top: var(--espaco-16); min-height: 320px; }
+@media (max-width: 1100px) { .lg-inbox__grelha { grid-template-columns: minmax(0, 1fr); } .lg-inbox__detalhe { position: static; } }
+@media (max-width: 640px) { .lg-inbox__quando, .lg-inbox__linha > span[title] { display: none; } }
