@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  CATEGORIA_EXERCICIO, duplicarExercicioBase, fetchBibliotecaBase, fetchExerciciosOrg, filtrarExercicios, NIVEL, toast,
-  type ExercicioBase, type ExercicioOrg,
+  CATEGORIA_EXERCICIO, duplicarExercicioBase, fetchBibliotecaBase, fetchExerciciosOrg, fetchPlanos, fetchTreinos, filtrarExercicios, NIVEL, toast,
+  type ExercicioBase, type ExercicioOrg, type PlanoResumo, type TreinoResumo,
 } from '@luna/core';
-import { Botao, Chip, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
-import { Barbell, Play } from '@luna/icons';
+import { Botao, Chip, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota } from '@luna/ui/v3';
+import { Barbell, CalendarBlank, ClipboardText, Play } from '@luna/icons';
+import { NovoTreinoOuPlano } from './Treino';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -36,7 +38,12 @@ const deOrg = (e: ExercicioOrg): Cartao => ({
  * programas entram com a tarefa 12.
  */
 export function Biblioteca() {
+  const navigate = useNavigate();
   const scope = useScope();
+  const [tipo, setTipo] = useState<'exercicios' | 'treinos' | 'planos'>(() => (new URLSearchParams(window.location.search).get('tipo') as 'treinos' | 'planos' | null) ?? 'exercicios');
+  const [treinos, setTreinos] = useState<TreinoResumo[] | null>(null);
+  const [planos, setPlanos] = useState<PlanoResumo[] | null>(null);
+  const [criar, setCriar] = useState<'treino' | 'plano' | null>(null);
   const pode = scope.permissions.includes('training.write');
   const [base, setBase] = useState<ExercicioBase[] | null>(null);
   const [meus, setMeus] = useState<ExercicioOrg[] | null>(null);
@@ -53,6 +60,8 @@ export function Biblioteca() {
     setErro(null);
     void fetchBibliotecaBase(client).then(setBase).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
     void fetchExerciciosOrg(client, scope).then(setMeus).catch(() => setMeus([]));
+    void fetchTreinos(client, scope).then(setTreinos).catch(() => setTreinos([]));
+    void fetchPlanos(client, scope).then(setPlanos).catch(() => setPlanos([]));
   }, [scope]);
   useEffect(() => carregar(), [carregar]);
 
@@ -73,12 +82,18 @@ export function Biblioteca() {
   };
 
   return (
-    <CoachShell headStrong="Biblioteca" headSub="Treino" legado={false}>
+    <CoachShell headStrong="Biblioteca" headSub="Treino" legado={false}
+      topActions={pode ? <MenuAcoes rotulo="Novo" acoes={[
+        { rotulo: 'Exercício', icone: Barbell, onClick: () => navigate('/training/exercicio/novo') },
+        { rotulo: 'Treino', icone: ClipboardText, onClick: () => setCriar('treino') },
+        { rotulo: 'Plano', icone: CalendarBlank, onClick: () => setCriar('plano') },
+      ]} /> : undefined}>
       <div className="lv-root lg-ficha">
         <div className="lg-clientes__barra">
           <div className="lg-clientes__chips">
-            <Chip ativo contagem={todos.length}>Exercícios</Chip>
-            <span className="lv-legenda">Treinos, planos e programas chegam com o módulo de treino.</span>
+            <Chip ativo={tipo === 'exercicios'} onClick={() => setTipo('exercicios')} contagem={todos.length}>Exercícios</Chip>
+            <Chip ativo={tipo === 'treinos'} onClick={() => setTipo('treinos')} contagem={treinos?.length}>Treinos</Chip>
+            <Chip ativo={tipo === 'planos'} onClick={() => setTipo('planos')} contagem={planos?.length}>Planos</Chip>
           </div>
           <input className="lv-campo-input lg-clientes__procura" type="search" placeholder="Procurar exercício ou músculo" aria-label="Procurar exercício"
             value={q} onChange={(e) => setQ(e.target.value)} />
@@ -93,7 +108,22 @@ export function Biblioteca() {
           ))}
         </div>
 
-        {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar a biblioteca" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
+        {tipo !== 'exercicios' ? (
+          <section className="lv-lista" aria-label={tipo === 'treinos' ? 'Treinos' : 'Planos'}>
+            {!(tipo === 'treinos' ? treinos : planos) ? <Esqueleto /> : (tipo === 'treinos' ? treinos! : planos!).length === 0
+              ? <EstadoPagina tipo="vazio" icone={ClipboardText} titulo={tipo === 'treinos' ? 'Ainda sem treinos' : 'Ainda sem planos'} texto="Cria o primeiro em Novo." acao={pode ? { rotulo: tipo === 'treinos' ? 'Novo treino' : 'Novo plano', onClick: () => setCriar(tipo === 'treinos' ? 'treino' : 'plano') } : undefined} />
+              : (tipo === 'treinos' ? treinos! : planos!).filter((x) => !q.trim() || x.nome.toLocaleLowerCase('pt-PT').includes(q.trim().toLocaleLowerCase('pt-PT'))).map((x) => (
+                <div key={x.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
+                  <button type="button" className="lg-inbox__corpo" onClick={() => navigate(`/training/${tipo === 'treinos' ? 'treino' : 'plano'}/${x.id}`)}>
+                    <span className="lv-linha-lista__titulo">{x.nome}</span>
+                    <span className="lv-legenda">{'semanas' in x ? `${x.semanas ?? '—'} semanas` : x.duracao ? `${x.duracao} min` : 'Duração por definir'}</span>
+                  </button>
+                  <Estado tom={x.versao ? 'ok' : 'neutro'}>{x.versao ? `Versão ${x.versao}` : 'Rascunho'}</Estado>
+                  {pode && x.versao > 0 && <Botao variante="secundario" onClick={() => navigate(`/training/atribuir?${tipo === 'treinos' ? 'treino' : 'plano'}=${x.id}`)}>Atribuir</Botao>}
+                </div>
+              ))}
+          </section>
+        ) : erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar a biblioteca" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
           : !base ? <Esqueleto />
           : lista.length === 0 ? <EstadoPagina tipo="vazio" icone={Barbell} titulo="Nenhum exercício" texto="Muda a procura ou os filtros." />
           : (
@@ -141,7 +171,7 @@ export function Biblioteca() {
                   )}
                   {aberto.origem === 'lunaos'
                     ? <Nota>Os modelos do LunaOS não se editam: duplica para fazer a tua versão.</Nota>
-                    : <Nota>Editar exercícios do ginásio chega com o módulo de treino.</Nota>}
+                    : pode ? <Botao onClick={() => navigate(`/training/exercicio/${aberto.id}`)}>Editar</Botao> : null}
                   {pode && aberto.origem === 'lunaos' && (
                     <Botao variante="secundario" aCarregar={aGravar} onClick={() => void duplicar(aberto)}>Duplicar</Botao>
                   )}
@@ -150,6 +180,7 @@ export function Biblioteca() {
             </div>
           )}
       </div>
+      <NovoTreinoOuPlano tipo={criar} onFechar={() => setCriar(null)} />
     </CoachShell>
   );
 }

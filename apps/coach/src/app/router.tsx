@@ -17,6 +17,7 @@ import { Inbox } from '../pages/Inbox';
 import { Definicoes, Ginasio, Seguranca } from '../pages/Definicoes';
 import { Importar } from '../pages/Importar';
 import { Biblioteca } from '../pages/Biblioteca';
+import { Atribuir, ConstrutorExercicio, ConstrutorPlano, ConstrutorTreino } from '../pages/Treino';
 import { Equipa } from '../pages/Equipa';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
@@ -65,6 +66,10 @@ const routes: RouteObject[] = [
   { path: '/settings/ginasio', element: <Protected module="settings"><Ginasio /></Protected> },
   { path: '/clients/importar', element: <Protected module="clients"><Importar /></Protected> },
   { path: '/training/biblioteca', element: <Protected module="training"><Biblioteca /></Protected> },
+  { path: '/training/exercicio/:id', element: <Protected module="training"><ConstrutorExercicio /></Protected> },
+  { path: '/training/treino/:id', element: <Protected module="training"><ConstrutorTreino /></Protected> },
+  { path: '/training/plano/:id', element: <Protected module="training"><ConstrutorPlano /></Protected> },
+  { path: '/training/atribuir', element: <Protected module="training"><Atribuir /></Protected> },
   // Todos os ecrãs G- do mapa têm rota (T04); os por construir ficam no tema Esboço
   ...ECRAS_G.filter((e) => !e.rota).map((e): RouteObject => ({
     path: rotaPorConstruir(e.id), element: <Protected><EcraPorConstruir ecra={e} /></Protected>,

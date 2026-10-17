@@ -150,21 +150,30 @@ export type ExerciseRow = {
   id: Uuid; org_id: Uuid; name: string; category: string; description: string | null; video_url: string | null;
   muscles: string[]; equipment: string[]; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
   origin_key: string | null; origin_version: number | null; pattern: string | null; level: string | null;
-  record_fields: string[]; image_url: string | null; copied_from: string | null;
+  record_fields: string[]; image_url: string | null; copied_from: string | null; joints: string[];
 };
 export type WorkoutRow = {
   id: Uuid; org_id: Uuid; name: string; description: string | null; type: Enums['workout_type'];
   est_duration_min: number | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+  version: number; published_at: Ts | null; session_kind: 'individual' | 'aula' | 'wod';
 };
 export type WorkoutExerciseRow = {
   id: Uuid; org_id: Uuid; workout_id: Uuid; exercise_id: Uuid; position: number; superset_group: number | null;
   target_sets: number | null; target_reps: string | null; target_load: string | null; rest_seconds: number | null;
-  notes: string | null;
+  notes: string | null; block_id: Uuid | null; target_rpe: number | null; scales: Json;
 };
+export type WorkoutBlockRow = {
+  id: Uuid; org_id: Uuid; workout_id: Uuid; position: number; label: string;
+  mode: 'normal' | 'superset' | 'circuito' | 'emom' | 'amrap' | 'for_time'; rounds: number | null; minutes: number | null; notes: string | null;
+};
+export type ExerciseAlternativeRow = { org_id: Uuid; exercise_id: Uuid; alternative_id: Uuid; similarity: 'igual' | 'parecido' };
+export type VersionRow = { id: Uuid; org_id: Uuid; version: number; snapshot: Json; published_by: Uuid | null; published_at: Ts };
 export type PlanRow = {
   id: Uuid; org_id: Uuid; name: string; description: string | null; duration_weeks: number | null; goals: string | null;
   archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+  progression: Json; deload_week: number | null; deload_pct: number | null; version: number; published_at: Ts | null; template_id: Uuid | null;
 };
+export type PlanWorkoutRow = { id: Uuid; org_id: Uuid; plan_id: Uuid; workout_id: Uuid; week: number | null; weekday: number | null; position: number };
 export type ClassRow = {
   id: Uuid; org_id: Uuid; unit_id: Uuid | null; name: string; description: string | null; session_type: string | null;
   capacity: number; default_duration_min: number; instructor_membership_id: Uuid | null; archived_at: Ts | null;
@@ -174,6 +183,7 @@ export type AssignmentRow = {
   id: Uuid; org_id: Uuid; target: Enums['assignment_target']; link_id: Uuid | null; group_id: Uuid | null;
   workout_id: Uuid | null; plan_id: Uuid | null; status: Enums['assignment_status']; starts_on: string | null;
   ends_on: string | null; schedule: Json; notes: string | null; assigned_by: Uuid | null; created_at: Ts; updated_at: Ts;
+  workout_version_id: Uuid | null; plan_version_id: Uuid | null; substitutions: Json;
 };
 export type AvailabilityRow = {
   id: Uuid; org_id: Uuid; membership_id: Uuid; unit_id: Uuid | null; weekday: number; start_time: string;
@@ -307,6 +317,11 @@ export interface Database {
       account_deletion_requests: Table<AccountDeletionRow, 'person_id' | 'user_id'>;
       drafts: Table<DraftRow, 'user_id' | 'key' | 'payload'>;
       library_exercises: Table<LibraryExerciseRow, 'key' | 'version' | 'name' | 'category'>;
+      workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
+      plan_workouts: Table<PlanWorkoutRow, 'org_id' | 'plan_id' | 'workout_id'>;
+      exercise_alternatives: Table<ExerciseAlternativeRow, 'org_id' | 'exercise_id' | 'alternative_id'>;
+      workout_versions: Table<VersionRow & { workout_id: Uuid }, 'org_id' | 'workout_id' | 'version' | 'snapshot'>;
+      plan_versions: Table<VersionRow & { plan_id: Uuid }, 'org_id' | 'plan_id' | 'version' | 'snapshot'>;
       import_runs: Table<ImportRunRow, 'org_id' | 'file_name' | 'total' | 'ok' | 'failed' | 'report'>;
       goals: Table<GoalRow, 'org_id' | 'link_id' | 'title'>;
       milestones: Table<MilestoneRow, 'org_id' | 'goal_id' | 'title'>;
@@ -337,6 +352,18 @@ export interface Database {
       org_two_factor: { Args: { _org: string }; Returns: { membership_id: string; nome: string; obrigatorio: boolean; ativo: boolean }[] };
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
+      publish_workout: { Args: { _workout: string }; Returns: string };
+      publish_plan: { Args: { _plan: string }; Returns: string };
+      assign_preview: {
+        Args: { _org: string; _links: string[]; _workout_version?: string | null; _plan_version?: string | null; _starts_on?: string };
+        Returns: { link_id: string; nome: string; trocas: Json; conflito: string | null }[];
+      };
+      assign_version: {
+        Args: { _org: string; _links: string[]; _workout_version?: string | null; _plan_version?: string | null; _starts_on?: string; _ends_on?: string | null; _conflito?: string };
+        Returns: number;
+      };
+      my_workout: { Args: { _workout?: string | null; _on?: string }; Returns: Json };
+      my_week: { Args: { _from?: string }; Returns: { dia: string; workout_id: string; nome: string; plano: string | null }[] };
       copy_library_exercise: { Args: { _org: string; _key: string; _nova?: boolean }; Returns: string };
       import_check: { Args: { _org: string; _rows: Json }; Returns: { linha: number; nome: string | null; motivo: string }[] };
       has_module: { Args: { _org: string; _module: string }; Returns: boolean };
