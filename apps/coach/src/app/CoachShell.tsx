@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
 import { Avatar, BarraSemRede, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
@@ -10,6 +10,8 @@ import { navItems } from './CoachNav';
 import { Procura } from './Procura';
 import { Notificacoes } from './Notificacoes';
 import { SessaoExpirada } from './SessaoExpirada';
+import { Atalhos } from './Atalhos';
+import { GravacoesPorConfirmar } from './Estados';
 import './gestao.css';
 
 const ORG_TIPO: Record<string, string> = {
@@ -103,6 +105,8 @@ export function CoachShell({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  const abrirProcura = useCallback(() => setProcura(true), []);
 
   const trocarOrg = (orgId: string) => {
     orgPop.setAberto(false);
@@ -201,6 +205,7 @@ export function CoachShell({
 
       <div className="lg-coluna">
         <BarraSemRede />
+        <GravacoesPorConfirmar />
         <header className="lg-topo">
           <div style={{ minWidth: 0 }}>
             <span className="lg-topo__data">{headSub ?? data}</span>
@@ -254,6 +259,7 @@ export function CoachShell({
       </div>
 
       <Procura aberta={procura} onFechar={() => setProcura(false)} />
+      <Atalhos onProcurar={abrirProcura} novo={novo[0]?.to ?? null} pessoas={vocab.pessoa({ plural: true, maiuscula: true })} />
       <SessaoExpirada />
     </div>
   );

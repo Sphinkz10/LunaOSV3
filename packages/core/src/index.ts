@@ -15,6 +15,7 @@ export * from './time';
 export * from './avisos';
 export * from './rede';
 export * from './confirmacoes';
+export * from './estados';
 export * from './conta';
 export type { Database, MyOrgRow, ClientViewRow, BookingRow, Enums } from './types/database';
 export const CORE_READY = true;

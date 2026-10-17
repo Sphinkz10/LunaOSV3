@@ -5,6 +5,7 @@ import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
+import { VoltarA } from '../app/Estados';
 
 const PP = vocab.pessoa({ plural: true, maiuscula: true });
 const p1 = vocab.pessoa();
@@ -245,8 +246,8 @@ export function Client360() {
                   </div>
                 </div>
                 <div className="athlete360-actions">
-                  <button type="button" className="athlete360-back" onClick={() => navigate(`/clients/${p.id}/aptidao`)}>Restrição e aptidão</button>
-                  <button type="button" className="athlete360-back" onClick={() => navigate('/clients')}>← Voltar</button>
+                  <button type="button" className="athlete360-back" onClick={() => navigate(`/clients/${p.id}/aptidao`, { state: { voltar: { rotulo: `à ficha de ${p.name.split(' ')[0]}`, href: `/clients/${p.id}` } } })}>Restrição e aptidão</button>
+                  <VoltarA omissao={{ rotulo: PP, href: '/clients' }} />
                 </div>
               </div>
 

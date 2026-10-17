@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   confirmarDestrutivo, fetchAptidao, fetchClientProfile, registarRestricao, revogarRestricao, toast,
   type Aptidao, type TipoRestricao,
@@ -7,6 +7,7 @@ import {
 import { Botao, Campo, Esqueleto, EstadoPagina, Estado, Nota, SemPermissao } from '@luna/ui/v3';
 import { CheckCircle, Warning, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { SairSemGuardar, VoltarA } from '../app/Estados';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
@@ -30,7 +31,6 @@ const TIPO: Record<Exclude<TipoRestricao, 'atestado'>, { titulo: string; texto: 
  */
 export function Aptidao() {
   const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const scope = useScope();
   const clinico = scope.permissions.includes('health.read');
   const [nome, setNome] = useState<string | null>(null);
@@ -53,23 +53,24 @@ export function Aptidao() {
   }, [scope, id]);
   useEffect(() => carregar(), [carregar]);
 
-  const gravar = async (r: Parameters<typeof registarRestricao>[2], ok: string) => {
+  const gravar = async (r: Parameters<typeof registarRestricao>[2], ok: string): Promise<boolean> => {
     const client = getSupabaseClient();
-    if (!client) return;
+    if (!client) return false;
     setAGravar(true);
-    try { await registarRestricao(client, id, r); toast({ variant: 'success', title: ok }); carregar(); }
-    catch (e) { toast({ variant: 'danger', title: 'Não foi possível guardar', description: e instanceof Error ? e.message : undefined }); }
+    try { await registarRestricao(client, id, r); toast({ variant: 'success', title: ok }); carregar(); return true; }
+    catch (e) { toast({ variant: 'danger', title: 'Não foi possível guardar', description: e instanceof Error ? e.message : undefined }); return false; }
     finally { setAGravar(false); }
   };
 
   const guardarZona = (e: FormEvent) => {
     e.preventDefault();
     void gravar({ tipo, zona: zona.trim() || null, notas, reverEm: reverEm || null }, 'Restrição guardada')
-      .then(() => { setZona(''); setNotas(''); setReverEm(''); });
+      .then((ok) => { if (ok) { setZona(''); setNotas(''); setReverEm(''); } });
   };
   const guardarAtestado = (e: FormEvent) => {
     e.preventDefault();
-    void gravar({ tipo: 'atestado', notas, validaAte: validade || null }, 'Atestado registado');
+    void gravar({ tipo: 'atestado', notas, validaAte: validade || null }, 'Atestado registado')
+      .then((ok) => { if (ok) { setNotas(''); setValidade(''); } });
   };
   const revogar = async (rid: string, rotulo: string) => {
     const client = getSupabaseClient();
@@ -89,7 +90,7 @@ export function Aptidao() {
 
   return (
     <CoachShell headStrong={nome ? `${nome} · aptidão` : 'Aptidão'} headSub={`${vocab.pessoa({ plural: true, maiuscula: true })} · Saúde`} legado={false}
-      topActions={<Botao variante="secundario" onClick={() => navigate(`/clients/${id}`)}>Voltar à ficha</Botao>}>
+      topActions={<VoltarA omissao={{ rotulo: 'à ficha', href: `/clients/${id}` }} />}>
       <div className="lv-root lg-aptidao">
         {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
           : !dados ? <div className="lv-lista"><Esqueleto /></div>
@@ -177,6 +178,7 @@ export function Aptidao() {
             </>
           )}
       </div>
+      <SairSemGuardar sujo={!!(zona.trim() || notas.trim() || reverEm || validade)} resumo="A restrição ou o atestado que estavas a escrever não foi guardado." />
     </CoachShell>
   );
 }

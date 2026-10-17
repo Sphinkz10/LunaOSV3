@@ -378,15 +378,31 @@ export function Clients() {
   const [rows, setRows] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('priority');
-  const [filter, setFilter] = useState('all');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchParams, setSearchParams] = useSearchParams();
+  // Filtros no endereço: "Voltar a…" a partir da ficha repõe-nos (G-00)
+  const [query, setQuery] = useState(searchParams.get('q') ?? '');
+  const [sort, setSort] = useState(searchParams.get('ordem') ?? 'priority');
+  const [filter, setFilter] = useState(searchParams.get('filtro') ?? 'all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (query) p.set('q', query);
+    if (sort !== 'priority') p.set('ordem', sort);
+    if (filter !== 'all') p.set('filtro', filter);
+    setSearchParams(p, { replace: true });
+  }, [query, sort, filter, setSearchParams]);
+  const abrirFicha = (id: string) => {
+    const p = new URLSearchParams();
+    if (query) p.set('q', query);
+    if (sort !== 'priority') p.set('ordem', sort);
+    if (filter !== 'all') p.set('filtro', filter);
+    const qs = p.toString();
+    navigate(`/clients/${id}`, { state: { voltar: { rotulo: vocab.pessoa({ plural: true, maiuscula: true }), href: `/clients${qs ? `?${qs}` : ''}` } } });
+  };
   // Botão + (G-00): /clients?novo=1 abre logo o novo cliente
   const [createOpen, setCreateOpen] = useState(searchParams.get('novo') === '1');
   useEffect(() => {
-    if (searchParams.get('novo') === '1') { setCreateOpen(true); setSearchParams({}, { replace: true }); }
+    if (searchParams.get('novo') === '1') { setCreateOpen(true); setSearchParams((p) => { p.delete('novo'); return p; }, { replace: true }); }
   }, [searchParams, setSearchParams]);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTargets, setAssignTargets] = useState<ClientRow[]>([]);
@@ -530,10 +546,10 @@ export function Clients() {
 
   const handleRowAction = (a: ClientRow) => {
     const pa = phase3Action(a);
-    if (pa.action === 'open-athlete') { navigate(`/clients/${a.id}`); return; }
+    if (pa.action === 'open-athlete') { abrirFicha(a.id); return; }
     if (pa.action === 'assign') { openAssign([a]); return; }
     if (pa.action === 'request-doc') {
-      navigate(`/clients/${a.id}`);
+      abrirFicha(a.id);
       toast({ variant: 'info', title: 'Documentos', description: 'Consulta e gere documentos na ficha.' });
       return;
     }
@@ -585,7 +601,7 @@ export function Clients() {
       onAssign={() => { setBoardOpen(false); openAssign(); }}
       onClear={() => setSelected(new Set())}
       onFilter={(id) => { setFilter(id); setBoardOpen(false); }}
-      onOpen360={(a) => { setBoardOpen(false); navigate(`/clients/${a.id}`); }}
+      onOpen360={(a) => { setBoardOpen(false); abrirFicha(a.id); }}
       onNavigateGroups={() => { setBoardOpen(false); navigate('/groups'); }}
       onSaveView={saveView}
       onLoadView={applySavedView}
@@ -805,8 +821,8 @@ export function Clients() {
                       className="ath-main"
                       role="link"
                       tabIndex={0}
-                      onClick={() => navigate(`/clients/${a.id}`)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/clients/${a.id}`); } }}
+                      onClick={() => abrirFicha(a.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirFicha(a.id); } }}
                       aria-label={`Abrir perfil de ${a.name}`}
                     >
                       <ClientAvatar a={a} />
@@ -868,7 +884,7 @@ export function Clients() {
       <RowActionModal
         athlete={rowAction}
         onClose={() => setRowAction(null)}
-        onOpen360={(a) => { setRowAction(null); navigate(`/clients/${a.id}`); }}
+        onOpen360={(a) => { setRowAction(null); abrirFicha(a.id); }}
         onAssign={(a) => { setRowAction(null); openAssign([a]); }}
         onChanged={() => { setRowAction(null); load(); }}
       />
