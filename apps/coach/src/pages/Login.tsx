@@ -2,13 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   aceitarConvite, enviarCodigoEmail, entrarComFornecedor, pedirRecuperacao, precisaSegundoFator, signInWithPassword,
-  useAuthStore, verificarCodigoEmail, verificarSegundoFator,
+  usarCodigoRecuperacao, useAuthStore, verificarCodigoEmail, verificarSegundoFator,
 } from '@luna/core';
 import { Botao, Campo, EntrarCodigo, Nota } from '@luna/ui/v3';
 import { getSupabaseClient } from '../lib/supabase';
 import '../app/gestao.css';
 
-type Passo = 'email' | 'entrar' | 'codigo' | 'recuperar' | 'recuperar-enviado' | 'convite';
+type Passo = 'email' | 'entrar' | 'codigo' | 'recuperar' | 'recuperar-enviado' | 'convite' | 'tenho-codigo';
 
 /**
  * Entrar e recuperar acesso (X-01, Figma 80:3489): email e palavra-passe; quem
@@ -69,6 +69,18 @@ export function Login() {
     void correr(async () => {
       await pedirRecuperacao(client, email, `${window.location.origin}/recuperar`);
       setPasso('recuperar-enviado');
+    });
+  };
+
+  // Recuperação assistida: código de uso único dado pela gerência (30 min) e palavra-passe nova
+  const usarCodigo = (e: FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    void correr(async () => {
+      if (password.length < 10) throw new Error('A palavra-passe precisa de pelo menos 10 caracteres.');
+      await usarCodigoRecuperacao(client, email.trim(), codigo.trim().toUpperCase(), password);
+      await signInWithPassword(client, email.trim(), password);
+      if (await precisaSegundoFator(client)) { setCodigo(''); setPasso('codigo'); }
     });
   };
 
@@ -134,6 +146,21 @@ export function Login() {
             <Campo rotulo="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
             <Botao type="submit" fixo aCarregar={aCarregar}>Enviar link</Botao>
+            <div className="lg-entrar__links">
+              <button type="button" className="lg-entrar__link" onClick={() => { setErro(null); setCodigo(''); setPassword(''); setPasso('tenho-codigo'); }}>Tenho um código</button>
+              <button type="button" className="lg-entrar__link" onClick={() => setPasso('entrar')}>Voltar a entrar</button>
+            </div>
+          </form>
+        ) : passo === 'tenho-codigo' ? (
+          <form onSubmit={usarCodigo} className="lg-entrar__campos">
+            <h1 className="lv-titulo-ecra">Tenho um código</h1>
+            <p className="lv-legenda" style={{ margin: 0 }}>A gerência deu-te um código de uso único. Vale 30 minutos.</p>
+            <Campo rotulo="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Campo rotulo="Código" autoComplete="off" value={codigo} onChange={(e) => setCodigo(e.target.value)} required />
+            <Campo rotulo="Palavra-passe nova" type="password" autoComplete="new-password" minLength={10}
+              value={password} onChange={(e) => setPassword(e.target.value)} required ajuda="Pelo menos 10 caracteres" />
+            {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
+            <Botao type="submit" fixo aCarregar={aCarregar}>Entrar</Botao>
             <button type="button" className="lg-entrar__link" onClick={() => setPasso('entrar')}>Voltar a entrar</button>
           </form>
         ) : (

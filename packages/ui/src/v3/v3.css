@@ -127,6 +127,7 @@
 .lv-estado--ok { color: var(--estado-ok); }
 .lv-estado--aviso { color: var(--estado-aviso); }
 .lv-estado--erro { color: var(--estado-erro); }
+.lv-estado--neutro { color: var(--cor-texto-secundario); }
 
 /* ── Cartão de destaque com foto e véu ─────────────────────────────────── */
 .lv-destaque {

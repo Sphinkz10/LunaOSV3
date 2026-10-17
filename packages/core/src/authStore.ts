@@ -22,6 +22,14 @@ export interface OrgScope {
   readOnly: boolean;
 }
 
+/** A própria pessoa: nome, foto e preferências que a seguem entre aparelhos (G-00). */
+export interface Eu {
+  name: string; avatarUrl: string | null;
+  /** Tema pessoal; null = o da organização. */
+  tema?: 'oceano' | 'ouro' | 'limao' | null;
+  densidade?: string;
+}
+
 export interface AuthState {
   userId: string | null;
   status: AuthStatus;
@@ -30,11 +38,11 @@ export interface AuthState {
   scope: OrgScope | null;
   modules: string[];
   /** Nome e foto da própria pessoa (cartão no fundo do menu). */
-  me: { name: string; avatarUrl: string | null } | null;
+  me: Eu | null;
   /** A sessão acabou sem a pessoa pedir: o ecrã fica como está até voltar a entrar. */
   sessaoTerminada: boolean;
   setSessaoTerminada: (v: boolean) => void;
-  setMe: (me: { name: string; avatarUrl: string | null } | null) => void;
+  setMe: (me: Eu | null) => void;
   signIn: (userId: string, orgs: MyOrgRow[], activeOrgId?: string | null, modules?: string[]) => void;
   setModules: (modules: string[]) => void;
   selectOrg: (orgId: string) => void;

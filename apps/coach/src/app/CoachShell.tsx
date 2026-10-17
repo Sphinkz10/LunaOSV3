@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
 import { Avatar, BarraSemRede, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
-import { CaretRight, DotsThree, List, MagnifyingGlass, Plus, SignOut } from '@luna/icons';
+import { CaretRight, DotsThree, List, MagnifyingGlass, Plus, SignOut, UserCircle, UsersThree } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 import { signOutEverywhere } from './session';
@@ -80,10 +80,12 @@ export function CoachShell({
   const itens = navItems(modules, scope?.permissions);
   const ativo = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
-  // Tema da organização em toda a página (data-tema no <html>)
+  // Tema em toda a página (data-tema no <html>): o pessoal, se a pessoa escolheu, senão o da organização
   useEffect(() => {
-    if (scope) document.documentElement.dataset.tema = scope.theme;
-  }, [scope]);
+    const tema = me?.tema ?? scope?.theme;
+    if (tema) document.documentElement.dataset.tema = tema;
+    document.documentElement.dataset.densidade = me?.densidade === 'compact' ? 'compacta' : 'normal';
+  }, [scope, me?.tema, me?.densidade]);
 
   // Esc fecha o menu aberto por cima (tablet)
   useEffect(() => {
@@ -187,6 +189,10 @@ export function CoachShell({
           </button>
           {contaPop.aberto && (
             <div className="lg-pop__lista lg-pop__lista--cima" role="menu">
+              <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { contaPop.setAberto(false); navigate('/conta'); }}><UserCircle size={18} aria-hidden />A minha conta</button>
+              {scope?.permissions.includes('team.manage') && (
+                <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { contaPop.setAberto(false); navigate('/settings/equipa'); }}><UsersThree size={18} aria-hidden />Equipa e acessos</button>
+              )}
               <button type="button" role="menuitem" className="lg-pop__item" onClick={sair}><SignOut size={18} aria-hidden />Sair</button>
             </div>
           )}
@@ -238,6 +244,7 @@ export function CoachShell({
               <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate('/groups'); }}>Grupos</button>
             )}
             <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); setProcura(true); }}>Procurar</button>
+            <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate('/conta'); }}>A minha conta</button>
             {orgs.length > 1 && orgs.filter((o) => o.org_id !== scope?.orgId).map((o) => (
               <button key={o.org_id} type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); trocarOrg(o.org_id); }}>Mudar para {o.name}</button>
             ))}

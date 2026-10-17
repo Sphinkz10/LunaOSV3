@@ -105,7 +105,7 @@ export function CartaoNumero({ rotulo, valor, legenda, rodape }: {
 }
 
 /* ── Estado (Ativa, Em risco, Em atraso) ───────────────────────────────── */
-export type EstadoTom = 'ok' | 'aviso' | 'erro';
+export type EstadoTom = 'ok' | 'aviso' | 'erro' | 'neutro';
 export function Estado({ tom, children }: { tom: EstadoTom; children: ReactNode }) {
   return <span className={`lv-estado lv-estado--${tom}`}>{children}</span>;
 }

@@ -1,6 +1,7 @@
 import type { LunaClient } from './api/client';
 import type { MyOrgRow } from './types/database';
-import { useAuthStore } from './authStore';
+import { useAuthStore, type Eu } from './authStore';
+import { registarEntrada } from './api/minhaConta';
 
 /** Organizações onde a pessoa trabalha, com papéis e permissões (my_orgs). */
 export async function fetchMyOrgs(client: LunaClient): Promise<MyOrgRow[]> {
@@ -21,10 +22,13 @@ async function lastOrgId(client: LunaClient, userId: string): Promise<string | n
   return (data as { last_org_id: string | null } | null)?.last_org_id ?? null;
 }
 
-async function fetchMe(client: LunaClient, userId: string): Promise<{ name: string; avatarUrl: string | null } | null> {
-  const { data, error } = await client.from('persons').select('full_name,avatar_url').eq('user_id', userId).maybeSingle();
+async function fetchMe(client: LunaClient, userId: string): Promise<Eu | null> {
+  const [{ data, error }, prefs] = await Promise.all([
+    client.from('persons').select('full_name,avatar_url').eq('user_id', userId).maybeSingle(),
+    client.from('user_settings').select('tema,density').eq('user_id', userId).maybeSingle(),
+  ]);
   if (error || !data) return null; // o cartão do menu mostra o email em falta de nome
-  return { name: data.full_name, avatarUrl: data.avatar_url };
+  return { name: data.full_name, avatarUrl: data.avatar_url, tema: prefs.data?.tema ?? null, densidade: prefs.data?.density };
 }
 
 /** Carrega a sessão: organizações, a última escolhida e os módulos ligados. */
@@ -82,7 +86,14 @@ export function bootstrapAuth(client: LunaClient | null): () => void {
   };
 
   void client.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
-  const { data: sub } = client.auth.onAuthStateChange((_event, session) => apply(session?.user?.id ?? null));
+  const { data: sub } = client.auth.onAuthStateChange((event, session) => {
+    // Regista a entrada (aparelho) uma vez por separador, para "Sessões abertas" em A minha conta
+    if (event === 'SIGNED_IN' && session?.user && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('luna.entrada')) {
+      sessionStorage.setItem('luna.entrada', '1');
+      void registarEntrada(client, session.user.id).catch(() => undefined);
+    }
+    apply(session?.user?.id ?? null);
+  });
   return () => sub.subscription.unsubscribe();
 }
 

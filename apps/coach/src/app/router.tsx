@@ -12,6 +12,8 @@ import { Schedule } from '../pages/Schedule';
 import { Clients } from '../pages/Clients';
 import { Client360 } from '../pages/Client360';
 import { Aptidao } from '../pages/Aptidao';
+import { Conta } from '../pages/Conta';
+import { Equipa } from '../pages/Equipa';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { Live } from '../pages/Live';
@@ -51,6 +53,8 @@ const routes: RouteObject[] = [
       { index: true, element: <Groups /> },
       { path: ':id', element: <Group360 /> },
     ] },
+  { path: '/conta', element: <Protected><Conta /></Protected> },
+  { path: '/settings/equipa', element: <Protected><Equipa /></Protected> },
   // Todos os ecrãs G- do mapa têm rota (T04); os por construir ficam no tema Esboço
   ...ECRAS_G.filter((e) => !e.rota).map((e): RouteObject => ({
     path: rotaPorConstruir(e.id), element: <Protected><EcraPorConstruir ecra={e} /></Protected>,
