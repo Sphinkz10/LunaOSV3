@@ -1,2 +1,42 @@
-{ "name": "@luna/athlete", "version": "0.0.0", "private": true,
-  "description": "App do Atleta — arranca na F10 reutilizando tokens+ui+core." }
+{
+  "name": "@luna/athlete",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "App do cliente (C-): conta, consentimentos, PAR-Q, encarregado; modo solo na F1b.",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc --noEmit -p . && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --config ../../packages/config/src/eslint.config.cjs",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@luna/core": "workspace:*",
+    "@luna/icons": "workspace:*",
+    "@luna/modalidades": "workspace:*",
+    "@luna/tokens": "workspace:*",
+    "@luna/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.46.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@luna/config": "workspace:*",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "axe-core": "^4.10.2",
+    "eslint": "^9.15.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  }
+}

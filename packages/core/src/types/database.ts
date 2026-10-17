@@ -184,6 +184,25 @@ export type SessionSetRow = {
   rest_taken_seconds: number | null; recorded_at: Ts;
 };
 
+/* ── Conta, PAR-Q, G-29, encarregado ────────────────────────────────────── */
+export type ConsentRow = {
+  id: number; person_id: Uuid; kind: string; version: string; granted: boolean; org_id: Uuid | null;
+  link_id: Uuid | null; actor_user: Uuid | null; created_at: Ts;
+};
+export type PendenciaRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; membership_id: Uuid | null; kind: string; title: string;
+  status: 'aberta' | 'resolvida'; created_at: Ts; resolved_at: Ts | null; resolved_by: Uuid | null;
+};
+export type RestrictionRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; person_id: Uuid; kind: 'atestado' | 'permitir' | 'adaptar' | 'bloquear';
+  notes: string | null; valid_until: string | null; recorded_by: Uuid | null; created_at: Ts; revoked_at: Ts | null;
+};
+export type ParqRow = { id: Uuid; person_id: Uuid; answers: Json; has_risk: boolean; created_at: Ts };
+export type GuardianshipRow = {
+  id: Uuid; guardian_person_id: Uuid; minor_person_id: Uuid; status: Enums['guardianship_status']; signatures: Json;
+  shares: Enums['share_category'][]; is_payer: boolean; accepted_at: Ts | null; ended_at: Ts | null; created_at: Ts; updated_at: Ts;
+};
+
 /* ── Vistas ─────────────────────────────────────────────────────────────── */
 export type ClientViewRow = {
   id: Uuid; org_id: Uuid; person_id: Uuid; full_name: string; email: string | null; phone: string | null;
@@ -238,6 +257,11 @@ export interface Database {
       sessions: Table<SessionRow, 'person_id'>;
       session_exercises: Table<SessionExerciseRow, 'session_id'>;
       session_sets: Table<SessionSetRow, 'session_id' | 'session_exercise_id'>;
+      consents: Table<ConsentRow, 'person_id' | 'kind' | 'version' | 'granted'>;
+      pendencias: Table<PendenciaRow, 'org_id' | 'link_id' | 'kind' | 'title'>;
+      restrictions: Table<RestrictionRow, 'org_id' | 'link_id' | 'person_id' | 'kind'>;
+      parq_responses: Table<ParqRow, 'person_id' | 'answers' | 'has_risk'>;
+      guardianships: Table<GuardianshipRow, 'guardian_person_id' | 'minor_person_id'>;
     };
     Views: {
       clients: { Row: ClientViewRow; Relationships: [] };
@@ -258,6 +282,17 @@ export interface Database {
       export_org_data: { Args: { _org: string }; Returns: Json };
       has_booking_conflict: { Args: { _org: string; _membership: string; _starts: string; _ends: string; _ignore?: string | null }; Returns: boolean };
       get_security_score: { Args: Record<string, never>; Returns: number };
+      record_consent: { Args: { _kind: string; _version: string; _granted: boolean; _person?: string | null; _org?: string | null }; Returns: undefined };
+      submit_parq: { Args: { _answers: Json; _person?: string | null }; Returns: boolean };
+      record_restriction: { Args: { _link: string; _kind: string; _notes?: string | null; _valid_until?: string | null }; Returns: string };
+      client_aptidao: { Args: { _link: string }; Returns: string };
+      request_guardian: { Args: { _email: string; _phone?: string | null }; Returns: string };
+      accept_guardianship: { Args: { _token: string; _is_payer?: boolean }; Returns: string };
+      set_guardian_shares: { Args: { _shares: Enums['share_category'][] }; Returns: undefined };
+      create_link_invite: { Args: { _link: string; _email?: string | null }; Returns: string };
+      accept_link_invite: { Args: { _token: string; _shares: Enums['share_category'][] }; Returns: string };
+      minor_waiting: { Args: { _person: string }; Returns: boolean };
+      is_minor: { Args: { _person: string }; Returns: boolean };
     };
     Enums: Enums;
     CompositeTypes: Record<string, never>;

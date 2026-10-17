@@ -1,0 +1,50 @@
+@import '@luna/tokens/v3/tokens.css';
+@import '@luna/tokens/v3/fonts.css';
+@import '@luna/ui/v3.css';
+
+/* App do cliente (telemóvel primeiro). Só tokens v3. */
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-family: var(--fonte-texto); font-size: 14px; }
+
+.lc-passo {
+  min-height: 100dvh; max-width: 480px; margin: 0 auto; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: var(--espaco-16);
+  padding: var(--espaco-16) var(--margem-telemovel) calc(var(--altura-botao-principal) + var(--espaco-32));
+}
+.lc-passo__cabeca { display: flex; align-items: center; gap: var(--espaco-12); }
+.lc-passo__titulo { margin: 0; font: 600 24px/1.1 var(--fonte-titulo); }
+.lc-passo__corpo { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lc-passo__acao {
+  position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: var(--espaco-8);
+  max-width: 480px; margin: 0 auto; padding: var(--espaco-12) var(--margem-telemovel) calc(var(--espaco-16) + env(safe-area-inset-bottom));
+  background: var(--cor-fundo);
+}
+.lc-progresso { display: flex; gap: var(--espaco-4); }
+.lc-progresso span { flex: 1; height: 4px; border-radius: var(--raio-pilula); background: var(--cor-linha); }
+.lc-progresso .lc-progresso--feito { background: var(--cor-principal); }
+.lc-campos { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lc-escolhas {
+  display: flex; flex-direction: column; border-radius: var(--raio-cartao); background: var(--cor-superficie);
+  border: 1px solid var(--cor-linha); padding: 0 var(--espaco-16);
+}
+.lc-escolha { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-12); padding: var(--espaco-16) 0; }
+.lc-escolha + .lc-escolha { border-top: 1px solid var(--cor-linha); }
+.lc-escolha .lv-switch-wrap label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.lc-boasvindas {
+  display: flex; flex-direction: column; justify-content: flex-end; gap: var(--espaco-8); min-height: 300px; padding: var(--espaco-24);
+  border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
+}
+.lc-boasvindas__selo {
+  align-self: flex-start; padding: var(--espaco-4) var(--espaco-12); border-radius: var(--raio-pilula);
+  background: var(--cor-superficie); color: var(--cor-texto); font: 600 12px/1.4 var(--fonte-texto);
+}
+.lc-boasvindas__titulo { margin: 0; font: 600 32px/1.05 var(--fonte-titulo); letter-spacing: -0.02em; }
+.lc-pergunta { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--espaco-12); }
+.lc-pergunta__texto { font: 600 24px/1.2 var(--fonte-titulo); padding: 0; margin-bottom: var(--espaco-8); }
+.lc-opcao {
+  display: flex; align-items: center; gap: var(--espaco-12); min-height: 64px; padding: 0 var(--espaco-20);
+  border-radius: var(--raio-linha); background: var(--cor-superficie); border: 1px solid var(--cor-linha);
+  font: 600 16px/1.4 var(--fonte-texto); cursor: pointer;
+}
+.lc-opcao--on { border: 2px solid var(--cor-texto); }
+.lc-opcao input { width: 20px; height: 20px; accent-color: var(--cor-principal); }

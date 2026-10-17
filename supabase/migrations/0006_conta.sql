@@ -25,6 +25,26 @@ returns text language sql stable set search_path = '' as $$
     'aal1');
 $$;
 
+-- A data de nascimento vem do registo (para saber logo se é menor)
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_nasc date;
+begin
+  begin
+    v_nasc := nullif(new.raw_user_meta_data->>'birth_date', '')::date;
+  exception when others then v_nasc := null;
+  end;
+  insert into public.persons (user_id, full_name, email, birth_date)
+    values (new.id,
+            coalesce(nullif(new.raw_user_meta_data->>'full_name', ''), split_part(coalesce(new.email, ''), '@', 1), 'Pessoa'),
+            new.email, v_nasc)
+    on conflict (user_id) do nothing;
+  insert into public.user_settings (user_id) values (new.id) on conflict do nothing;
+  insert into public.security_settings (user_id, last_password_change)
+    values (new.id, now()) on conflict do nothing;
+  return new;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- Idade e tutela
 -- ---------------------------------------------------------------------------

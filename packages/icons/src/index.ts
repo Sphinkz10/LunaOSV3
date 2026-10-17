@@ -4,7 +4,7 @@
  * Só se exporta o conjunto usado, para o pacote não crescer.
  */
 export {
-  ArrowCounterClockwise, ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, CheckCircle,
+  ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, CheckCircle,
   ClipboardText, Clock, DotsThree, ListChecks, MapPin, ShieldCheck, Sliders,
   Fire, Gear, Heartbeat, House, Info, List, Lock, MagnifyingGlass, Play, Plus, QrCode, SignOut, Sun, User, Users,
   Wallet, Warning, WifiSlash, X,
