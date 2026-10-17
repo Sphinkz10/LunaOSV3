@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  aceitarConvite, pedirRecuperacao, precisaSegundoFator, signInWithPassword, useAuthStore, verificarSegundoFator,
+  aceitarConvite, enviarCodigoEmail, entrarComFornecedor, pedirRecuperacao, precisaSegundoFator, signInWithPassword,
+  useAuthStore, verificarCodigoEmail, verificarSegundoFator,
 } from '@luna/core';
-import { Botao, Campo, Nota } from '@luna/ui/v3';
+import { Botao, Campo, EntrarCodigo, Nota } from '@luna/ui/v3';
 import { getSupabaseClient } from '../lib/supabase';
 import '../app/gestao.css';
 
-type Passo = 'entrar' | 'codigo' | 'recuperar' | 'recuperar-enviado' | 'convite';
+type Passo = 'email' | 'entrar' | 'codigo' | 'recuperar' | 'recuperar-enviado' | 'convite';
 
 /**
  * Entrar e recuperar acesso (X-01, Figma 80:3489): email e palavra-passe; quem
@@ -18,7 +19,7 @@ export function Login() {
   const status = useAuthStore((s) => s.status);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [passo, setPasso] = useState<Passo>(params.get('convite') ? 'convite' : 'entrar');
+  const [passo, setPasso] = useState<Passo>(params.get('convite') ? 'convite' : 'email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ver, setVer] = useState(false);
@@ -29,7 +30,7 @@ export function Login() {
   const client = getSupabaseClient();
 
   // Já com sessão e sem passos por fazer: a porta da Gestão decide o resto
-  if ((status === 'signedIn' || status === 'noRole' || status === 'error') && passo === 'entrar') return <Navigate to="/today" replace />;
+  if ((status === 'signedIn' || status === 'noRole' || status === 'error') && (passo === 'entrar' || passo === 'email')) return <Navigate to="/today" replace />;
 
   const correr = async (fn: () => Promise<void>) => {
     setACarregar(true); setErro(null);
@@ -82,6 +83,15 @@ export function Login() {
 
         {!client ? (
           <Nota>Falta a ligação ao servidor: copia .env.example para .env na raiz do projeto, preenche VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e reinicia a app.</Nota>
+        ) : passo === 'email' ? (
+          <EntrarCodigo
+            onEnviar={(e) => enviarCodigoEmail(client, e, false, `${window.location.origin}/today`)}
+            onVerificar={async (e, c) => {
+              await verificarCodigoEmail(client, e, c);
+              if (await precisaSegundoFator(client)) setPasso('codigo');
+            }}
+            onFornecedor={(f) => entrarComFornecedor(client, f, `${window.location.origin}/today`)}
+            onPalavraPasse={() => setPasso('entrar')} />
         ) : passo === 'entrar' || passo === 'convite' ? (
           <form onSubmit={entrar} className="lg-entrar__campos">
             <h1 className="lv-titulo-ecra">Entrar</h1>

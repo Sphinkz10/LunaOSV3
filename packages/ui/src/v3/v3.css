@@ -338,3 +338,14 @@
 .lv-lista__esq-pill { width: 60px; height: 24px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); }
 .lv-lista__esq * , .lv-lista__esq-av, .lv-lista__esq-pill { animation: lv-pulsa 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .lv-lista__esq *, .lv-lista__esq-av, .lv-lista__esq-pill { animation: none; } }
+
+/* ── Entrar sem palavra-passe (X-01) ───────────────────────────────────── */
+.lv-entrar { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lv-entrar__ou { display: flex; align-items: center; gap: var(--espaco-12); color: var(--cor-texto-secundario); font-size: 12px; }
+.lv-entrar__ou::before, .lv-entrar__ou::after { content: ''; flex: 1; height: 1px; background: var(--cor-linha); }
+.lv-entrar__links { display: flex; justify-content: space-between; gap: var(--espaco-12); flex-wrap: wrap; }
+.lv-entrar__link {
+  background: none; border: 0; padding: 0; min-height: 44px; color: var(--cor-texto); font: 600 13px/1.4 var(--fonte-texto);
+  cursor: pointer; align-self: center;
+}
+.lv-entrar__link:disabled { color: var(--cor-texto-secundario); cursor: default; }

@@ -124,3 +124,28 @@ export async function criarContaCliente(client: LunaClient, input: { nome: strin
   });
   if (error) throw error;
 }
+
+/* ── Entrar sem palavra-passe (X-01: código por email, Apple, Google) ──── */
+
+/**
+ * Envia o código de 6 dígitos. Na Gestão não cria contas (só convites); na app
+ * do cliente cria, porque a conta é da pessoa e não tem papel nenhum.
+ */
+export async function enviarCodigoEmail(client: LunaClient, email: string, criarConta: boolean, redirectTo?: string): Promise<void> {
+  const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser: criarConta, emailRedirectTo: redirectTo } });
+  if (error) {
+    if (/not found|signups/i.test(error.message)) throw new Error('Não há conta com este email. Pede um convite a quem gere a tua organização.');
+    if (/rate|seconds/i.test(error.message)) throw new Error('Espera um minuto antes de pedir outro código.');
+    throw error;
+  }
+}
+
+export async function verificarCodigoEmail(client: LunaClient, email: string, codigo: string): Promise<void> {
+  const { error } = await client.auth.verifyOtp({ email, token: codigo, type: 'email' });
+  if (error) throw new Error('Código errado ou expirado. Pede outro.');
+}
+
+export async function entrarComFornecedor(client: LunaClient, fornecedor: 'apple' | 'google', redirectTo: string): Promise<void> {
+  const { error } = await client.auth.signInWithOAuth({ provider: fornecedor, options: { redirectTo } });
+  if (error) throw error;
+}
