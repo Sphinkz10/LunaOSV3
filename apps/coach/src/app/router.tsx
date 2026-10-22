@@ -27,6 +27,7 @@ import { Ajuda } from '../pages/Ajuda';
 import { MetricasInternas } from '../pages/MetricasInternas';
 import { AplicarAvaliacao, AvaliacaoInicio, ConstrutorProtocolo, ConstrutorQuestionario, EnviarPedido, RespostaPagina, ResultadoAvaliacao } from '../pages/Avaliacao';
 import { Grupos } from '../pages/Grupos';
+import { Mensagens } from '../pages/Mensagens';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
 import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
@@ -68,6 +69,8 @@ const routes: RouteObject[] = [
   { path: '/inbox', element: <Protected><Inbox /></Protected> },
   { path: '/ajuda', element: <Protected><Ajuda /></Protected> },
   { path: '/interno/metricas', element: <Protected><MetricasInternas /></Protected> },
+  { path: '/messages/:id?', element: <Protected module="messages"><Mensagens /></Protected> },
+  { path: '/mensagens/:id', element: <Protected module="messages"><Mensagens /></Protected> },
   { path: '/assessment', element: <Protected module="assessment"><AvaliacaoInicio /></Protected> },
   { path: '/assessment/questionario/:id', element: <Protected module="assessment"><ConstrutorQuestionario /></Protected> },
   { path: '/assessment/protocolo/:id', element: <Protected module="assessment"><ConstrutorProtocolo /></Protected> },

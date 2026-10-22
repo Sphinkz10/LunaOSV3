@@ -205,6 +205,10 @@ export type AssessmentValueRow = {
   id: Uuid; assessment_id: Uuid; person_id: Uuid; test_key: string; name: string; unit: string; attempts: number[]; value: number | null;
   skipped_reason: string | null; lower_is_better: boolean; invalidated_at: Ts | null; invalidated_reason: string | null; invalidated_by: Uuid | null; recorded_at: Ts;
 };
+export type ConversationRow = { id: Uuid; org_id: Uuid; kind: 'pt' | 'ginasio' | 'grupo' | 'aviso'; link_id: Uuid | null; membership_id: Uuid | null; group_id: Uuid | null; title: string | null; last_message_at: Ts | null; created_at: Ts };
+export type MessageRow = { id: Uuid; conversation_id: Uuid; org_id: Uuid; author_user: Uuid | null; author_side: 'equipa' | 'cliente'; kind: 'texto' | 'audio' | 'anexo' | 'resultado'; body: string | null; attachment_path: string | null; meta: Json; created_at: Ts };
+export type ReplyHoursRow = { membership_id: Uuid; start_time: string; end_time: string; days: number[]; updated_at: Ts };
+export type QuickReplyRow = { id: Uuid; membership_id: Uuid; body: string; position: number; created_at: Ts };
 export type CalendarFeedRow = { membership_id: Uuid; token_hash: string; show_names: boolean; created_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
@@ -374,6 +378,10 @@ export interface Database {
       attendance: Table<AttendanceRow, 'booking_id' | 'org_id' | 'link_id' | 'status'>;
       pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
       calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
+      conversations: Table<ConversationRow, 'org_id' | 'kind'>;
+      messages: Table<MessageRow, 'id' | 'conversation_id' | 'org_id' | 'author_side'>;
+      reply_hours: Table<ReplyHoursRow, 'membership_id'>;
+      quick_replies: Table<QuickReplyRow, 'membership_id' | 'body'>;
       forms: Table<FormRow, 'org_id' | 'name'>;
       form_versions: Table<FormVersionRow, 'form_id' | 'org_id' | 'version' | 'name' | 'kind' | 'health' | 'questions'>;
       protocols: Table<ProtocolRow, 'org_id' | 'name'>;
@@ -424,6 +432,14 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      my_conversations: { Args: { _org?: string | null }; Returns: { id: string; org_id: string; kind: string; titulo: string | null; link_id: string | null; group_id: string | null; ultima: string | null; ultima_em: string | null; ultima_lado: string | null; por_ler: number; por_responder: boolean }[] };
+      send_message: { Args: { _id: string; _conv: string; _body: string; _kind?: string; _path?: string | null; _meta?: Json }; Returns: undefined };
+      mark_conversation_read: { Args: { _conv: string }; Returns: undefined };
+      open_client_conversation: { Args: { _link: string; _kind?: string }; Returns: string };
+      open_my_pt_conversation: { Args: { _link: string }; Returns: string };
+      open_group_conversation: { Args: { _group: string }; Returns: string };
+      reply_window: { Args: { _conv: string }; Returns: Json };
+      conversation_context: { Args: { _conv: string }; Returns: Json };
       publish_form: { Args: { _form: string }; Returns: number };
       publish_protocol: { Args: { _protocol: string }; Returns: number };
       send_requests: { Args: { _org: string; _form: string; _links: string[]; _due?: string | null; _remind?: boolean }; Returns: number };

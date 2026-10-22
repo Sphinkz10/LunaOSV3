@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  cancelarApagarConta, definirConsentimentoAnalise, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
+  cancelarApagarConta, definirConsentimentoAnalise, fetchConversas, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
   assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
   type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
@@ -9,7 +9,7 @@ import {
   Atalho, Avatar, Botao, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Interruptor, NavegacaoInferior, Nota, Tema, type TemaId,
 } from '@luna/ui/v3';
 import {
-  ArrowLeft, Barbell, Bell, CalendarBlank, CaretRight, ChartLineUp, Gear, Play, ShieldCheck, SignOut, Sun, UserCircle,
+  ArrowLeft, Barbell, Bell, CalendarBlank, ChatCircle, CaretRight, ChartLineUp, Gear, Play, ShieldCheck, SignOut, Sun, UserCircle,
 } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { AvaliacoesProgresso, PedidosHoje } from './AvaliacaoCliente';
@@ -100,10 +100,12 @@ export function HojeCliente() {
   const [hoje, setHoje] = useState<MeuHoje | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [naoLidas, setNaoLidas] = useState(0);
+  const [msgPorLer, setMsgPorLer] = useState(0);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
     setErro(null);
+    void fetchConversas(client).then((l) => setMsgPorLer(l.reduce((n, c) => n + c.porLer, 0))).catch(() => setMsgPorLer(0));
     void fetchMeuHoje(client).then(setHoje).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
     void fetchNotificacoes(client, 30).then((n) => setNaoLidas(n.filter((x) => !x.read_at).length)).catch(() => setNaoLidas(0));
   }, []);
@@ -119,6 +121,10 @@ export function HojeCliente() {
           <span className="lv-legenda">{DIAS[d.getDay()]}, {d.getDate()} de {MESES[d.getMonth()]}</span>
           <h1 className="lc-cabeca__titulo">Olá{primeiro ? `, ${primeiro}` : ''}</h1>
         </div>
+        <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label={msgPorLer ? `Mensagens, ${msgPorLer} por ler` : 'Mensagens'}
+          onClick={() => navigate('/mensagens')} style={{ position: 'relative' }}>
+          <ChatCircle size={18} aria-hidden />{msgPorLer > 0 && <span className="lc-ponto" aria-hidden />}
+        </button>
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label={naoLidas ? `Notificações, ${naoLidas} por ler` : 'Notificações'}
           onClick={() => navigate('/avisos')} style={{ position: 'relative' }}>
           <Bell size={18} aria-hidden />{naoLidas > 0 && <span className="lc-ponto" aria-hidden />}

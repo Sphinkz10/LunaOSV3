@@ -639,3 +639,32 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-grupos { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.6fr); gap: var(--espaco-16); align-items: start; }
 .lg-grupos .lv-linha-lista[aria-current="true"] { background: var(--cor-selecao); }
 @media (max-width: 900px) { .lg-grupos { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Mensagens (G-31) ── */
+.lg-mensagens { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr) minmax(240px, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-conversa { display: flex; align-items: center; gap: var(--espaco-12); width: 100%; padding: var(--espaco-8); border: 0; border-radius: var(--raio-linha); background: none; color: var(--cor-texto); font: inherit; text-align: left; cursor: pointer; }
+.lg-conversa[aria-current="true"] { background: var(--cor-selecao); }
+.lg-conversa .lv-legenda { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.lg-conversa .lv-linha-lista__corpo { min-width: 0; }
+.lg-conversa__lado { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.lg-conversa__n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--cor-acao); color: var(--cor-sobre-acao); font: 700 11px/1 var(--fonte-texto); }
+.lg-fio { display: flex; flex-direction: column; min-height: 60vh; }
+.lg-fio__voltar { display: none; }
+.lg-fio__msgs { display: flex; flex-direction: column; gap: var(--espaco-8); flex: 1; overflow-y: auto; max-height: 60vh; padding: var(--espaco-8) 0; }
+.lg-bolha { display: flex; flex-direction: column; gap: 4px; max-width: 75%; align-self: flex-start; padding: var(--espaco-8) var(--espaco-12); border: 1px solid var(--cor-linha); border-radius: var(--raio-nota, 16px); background: var(--cor-superficie); white-space: pre-wrap; }
+.lg-bolha--minha { align-self: flex-end; background: var(--cor-principal); border-color: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lg-bolha--minha .lv-legenda, .lg-bolha--minha a { color: inherit; }
+.lg-bolha--fila { opacity: .65; }
+.lg-bolha__hora { align-self: flex-end; font-size: 11px; opacity: .7; }
+.lg-bolha__resultado { display: flex; flex-direction: column; padding: var(--espaco-8); border-radius: var(--raio-linha); background: var(--cor-superficie-2); color: var(--cor-texto); }
+.lg-bolha__img { max-width: 240px; border-radius: var(--raio-linha); }
+.lg-fio__rapidas { display: flex; flex-wrap: wrap; gap: var(--espaco-8); align-items: center; }
+.lg-fio__escrever { display: flex; gap: var(--espaco-8); align-items: center; }
+.lg-fio__escrever .lv-campo-input { flex: 1; }
+.lg-gravar--ativo { border-color: var(--estado-erro); color: var(--estado-erro); }
+@media (max-width: 1100px) { .lg-mensagens { grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr); } .lg-fio__lado { display: none; } }
+@media (max-width: 760px) {
+  .lg-mensagens { grid-template-columns: minmax(0, 1fr); }
+  .lg-mensagens--aberta .lg-mensagens__lista { display: none; }
+  .lg-fio__voltar { display: inline-grid; }
+}

@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   fetchAptidao, fetchAssiduidade, fetchClientHealth, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, sincronizarAtrasos,
   type Aptidao, type Assiduidade, type ClientDetail, type Section,
-  useAuthStore,
+  useAuthStore, abrirConversaCliente,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
-import { Archive, ArrowCounterClockwise, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
+import { Archive, ArrowCounterClockwise, Barbell, ChatCircle, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
 import { ArquivarCliente, AtividadeTab, EditarDados, ObjetivosTab, ProgressoTab, ReativarCliente } from './FichaSeparadores';
 import { AtribuicoesCliente } from './Sessoes';
 import { PacksCliente } from './Packs';
@@ -147,6 +147,10 @@ export function Client360() {
                   <Botao variante="secundario" onClick={() => setEditar(true)}>Editar dados</Botao>
                   <Botao variante="secundario" icone={CalendarBlank} onClick={() => navigate(`/schedule?nova=1&cliente=${id}`)}>Marcar</Botao>
                   <Botao icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
+                  {modulos.includes('messages') && <Botao variante="secundario" icone={ChatCircle} onClick={() => {
+                    const c = getSupabaseClient();
+                    if (c) void abrirConversaCliente(c, id).then((cid) => navigate(`/messages/${cid}`)).catch(() => navigate('/messages'));
+                  }}>Mensagem</Botao>}
                   <MenuAcoes rotulo={`Mais ações para ${p.name}`} acoes={[
                     ...(p.hasAccount ? [] : [{ rotulo: 'Convidar para a app', icone: EnvelopeSimple, onClick: () => setConvidar({ id, nome: p.name, email: p.email, telefone: p.phone }) }]),
                     { rotulo: `Juntar com outro ${p1}`, icone: UsersThree, onClick: () => setJuntar(true) },
