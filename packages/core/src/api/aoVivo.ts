@@ -23,7 +23,9 @@ export const contaComoPresente = (p: Presenca | null) => p === 'presente' || p =
 export interface ExercicioPlano {
   exercise_id: string | null; nome: string; series: number | null; reps: string | null; carga: string | null; rpe: number | null;
   descanso: number | null; notas: string | null; trocado_de?: string | null;
+  articulacoes?: string[]; alternativas?: Alternativa[];
 }
+export interface Alternativa { exercise_id: string; nome: string; semelhanca: string | null; articulacoes: string[] | null }
 export interface BlocoPlano { rotulo: string | null; modo: string | null; voltas: number | null; minutos: number | null; exercicios: ExercicioPlano[] }
 export interface TreinoPlano { workout_id: string; nome: string; versao: number; blocos: BlocoPlano[]; trocas: { de: string; para: string | null }[] }
 export interface ParticipantePrep {
@@ -68,6 +70,7 @@ export interface SerieLocal { id: string; n: number; reps: number | null; carga:
 export interface ExercicioLocal {
   id: string; exerciseId: string | null; nome: string; posicao: number; bloco: string | null; series: number | null;
   alvo: { reps: string | null; carga: string | null; rpe: number | null }; descanso: number | null; nota: string; sets: SerieLocal[];
+  alternativas?: Alternativa[]; trocadoDe?: string | null;
 }
 export interface ParticipanteLocal {
   bookingId: string; linkId: string; nome: string; aptidao: AptidaoSessao; zonas: string[];
@@ -89,6 +92,7 @@ function exerciciosDoTreino(t: TreinoPlano | null): ExercicioLocal[] {
   return t.blocos.flatMap((b) => b.exercicios.map((e) => ({
     id: novoId(), exerciseId: e.exercise_id, nome: e.nome, posicao: pos++, bloco: b.rotulo, series: e.series,
     alvo: { reps: e.reps, carga: e.carga, rpe: e.rpe }, descanso: e.descanso, nota: '', sets: [],
+    alternativas: e.alternativas ?? [], trocadoDe: e.trocado_de ?? null,
   })));
 }
 
@@ -144,6 +148,17 @@ export const mudar = {
       id: novoId(), exerciseId: e.exerciseId, nome: e.nome, posicao: p.exercicios.reduce((m, x) => Math.max(m, x.posicao + 1), 0),
       bloco: null, series: null, alvo: { reps: null, carga: null, rpe: null }, descanso: null, nota: '', sets: [],
     }] })),
+  /** Trocar só hoje (P-08): sem séries, troca no lugar; com séries, junta a alternativa a seguir. */
+  trocar: (linkId: string, exId: string, alt: { exerciseId: string; nome: string }): Mudanca => (s) =>
+    noParticipante(s, linkId, (p) => {
+      const e = p.exercicios.find((x) => x.id === exId);
+      if (!e) return p;
+      if (e.sets.length === 0) {
+        return { ...p, exercicios: p.exercicios.map((x) => (x.id === exId ? { ...x, exerciseId: alt.exerciseId, nome: alt.nome, trocadoDe: x.nome } : x)) };
+      }
+      return { ...p, exercicios: [...p.exercicios, { ...e, id: novoId(), exerciseId: alt.exerciseId, nome: alt.nome, trocadoDe: e.nome, sets: [], nota: '',
+        posicao: p.exercicios.reduce((m, x) => Math.max(m, x.posicao + 1), 0) }] };
+    }),
   notaExercicio: (linkId: string, exId: string, nota: string): Mudanca => (s) =>
     noParticipante(s, linkId, (p) => ({ ...p, exercicios: p.exercicios.map((e) => (e.id === exId ? { ...e, nota } : e)) })),
   nota: (linkId: string, nota: string): Mudanca => (s) => noParticipante(s, linkId, (p) => ({ ...p, nota })),
@@ -281,4 +296,18 @@ export async function sessoesEsquecidas(client: LunaClient, scope: OrgScope): Pr
   const { data, error } = await client.rpc('stale_sessions', { _org: scope.orgId });
   if (error) throw error;
   return (data ?? []).map((x) => ({ id: x.id, bookingId: x.booking_id, cliente: x.cliente, inicio: x.inicio, series: x.series }));
+}
+
+/** As alternativas de um exercício para este cliente: as que a restrição bloqueia vêm com o motivo curto. */
+export function alternativasPara(e: ExercicioLocal, zonas: string[]): { alt: Alternativa; bloqueada: string | null }[] {
+  return (e.alternativas ?? []).map((alt) => {
+    const z = (alt.articulacoes ?? []).find((j) => zonas.includes(j));
+    return { alt, bloqueada: z ? `Não pode · ${z}` : null };
+  }).sort((a, b) => Number(!!a.bloqueada) - Number(!!b.bloqueada));
+}
+
+/** Terminar a meio (P-08): o que falta e o que fica guardado. */
+export function estadoDaSessao(p: ParticipanteLocal): { feitos: number; total: number; series: number } {
+  const feito = (e: ExercicioLocal) => e.sets.length >= (e.series ?? 1);
+  return { feitos: p.exercicios.filter(feito).length, total: p.exercicios.length, series: p.exercicios.reduce((n, e) => n + e.sets.length, 0) };
 }

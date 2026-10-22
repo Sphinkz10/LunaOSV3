@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  antesDeFechar, comecarSessao, confirmarDestrutivo, contaComoPresente, corrigirPresenca, enviarSessao, fecharSessao, fetchClientsLite,
+  alternativasPara, antesDeFechar, comecarSessao, estadoDaSessao, confirmarDestrutivo, contaComoPresente, corrigirPresenca, enviarSessao, fecharSessao, fetchClientsLite,
   fetchExercisesLite, fetchLastPerformance, fetchTodayBookings, guardarMarcacao, historicoSessao, marcarGrupo, sessoesEsquecidas, wallClock, mudar, porEnviar, prepararSessao, PRESENCAS, resumoFecho, segundosDecorridos,
   sessaoLocal, toast, useRede,
   type ClientLite, type DashboardBooking, type EntradaHistorico, type SessaoEsquecida, type ExerciseLite, type ExercicioLocal, type LastPerformance, type LinhaFecho, type ParticipanteLocal,
   type ParticipantePrep, type Preparacao, type Presenca, type SessaoLocal,
 } from '@luna/core';
-import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
-import { CheckCircle, Pause, Play, Plus, Timer, WifiSlash } from '@luna/icons';
+import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, type EstadoTom } from '@luna/ui/v3';
+import { ArrowLeft, ArrowsClockwise, Check, CheckCircle, Lock, Pause, Play, Plus, Timer, Warning, WifiSlash, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { VoltarA } from '../app/Estados';
 import { PartilharResumo } from '../app/PartilharResumo';
@@ -145,6 +145,9 @@ function EmCurso({ inicial, onFechada }: { inicial: SessaoLocal; onFechada: () =
   const [s, setS] = useState(inicial);
   const [quem, setQuem] = useState(inicial.participantes.find((p) => !['faltou', 'nao_treina'].includes(p.presenca ?? ''))?.linkId ?? inicial.participantes[0]?.linkId);
   const [rever, setRever] = useState(false);
+  const [terminar, setTerminar] = useState(false);
+  const [trocar, setTrocar] = useState<ExercicioLocal | null>(null);
+  const navigate = useNavigate();
   const [entrada, setEntrada] = useState(false);
   const [juntar, setJuntar] = useState(false);
   const [partilhar, setPartilhar] = useState<{ sessaoId: string; nome: string } | null>(null);
@@ -193,8 +196,13 @@ function EmCurso({ inicial, onFechada }: { inicial: SessaoLocal; onFechada: () =
             <b>{p?.exercicios.find((e) => e.sets.length < (e.series ?? 1))?.nome ?? s.titulo}</b></span>
           <span className="lg-vivo__relogio" aria-label={`Tempo de treino ${relogio(decorrido)}`}>{relogio(decorrido)}</span>
           <Botao variante="secundario" icone={s.pausadaDesde ? Play : Pause} onClick={() => aplicar(s.pausadaDesde ? mudar.retomar() : mudar.pausar())}>{s.pausadaDesde ? 'Retomar' : 'Pausa'}</Botao>
-          <Botao onClick={() => setRever(true)}>Fechar</Botao>
+          {!rever && <Botao onClick={() => {
+            const falta = s.participantes.some((x) => !['faltou', 'nao_treina'].includes(x.presenca ?? '') && estadoDaSessao(x).feitos < estadoDaSessao(x).total);
+            if (falta) setTerminar(true); else setRever(true);
+          }}>Terminar</Botao>}
         </section>
+        {rever ? <Rever s={s} aplicar={aplicar} onVoltar={() => setRever(false)}
+          onFechada={(partilha) => { setRever(false); if (partilha) setPartilhar(partilha); else onFechada(); }} /> : (
         <div className={grupo ? 'lg-vivo__palco' : 'lg-vivo__palco lg-vivo__palco--um'}>
           {grupo && (
             <section className="lg-vivo__grelha" aria-label="Presentes">
@@ -203,12 +211,16 @@ function EmCurso({ inicial, onFechada }: { inicial: SessaoLocal; onFechada: () =
             </section>
           )}
           {p && (
-            <Registo p={p} ultimas={ultimas} aplicar={aplicar} grupo={grupo} onJuntar={() => setJuntar(true)} onEntrada={() => setEntrada(true)} />
+            <Registo p={p} ultimas={ultimas} aplicar={aplicar} grupo={grupo} onJuntar={() => setJuntar(true)} onEntrada={() => setEntrada(true)} onTrocar={setTrocar} />
           )}
         </div>
+        )}
       </div>
-      <Rever aberta={rever} s={s} aplicar={aplicar} onFechar={() => setRever(false)}
-        onFechada={(partilha) => { setRever(false); if (partilha) setPartilhar(partilha); else onFechada(); }} />
+      <TerminarAMeio s={s} aberta={terminar} onFechar={() => setTerminar(false)}
+        onGuardar={() => { setTerminar(false); toast({ variant: 'success', title: 'Guardada para retomar', description: 'Fica em Iniciar sessão, neste aparelho.' }); navigate('/live'); }}
+        onTerminar={() => { setTerminar(false); setRever(true); }} />
+      <TrocarExercicio alvo={trocar} zonas={p?.zonas ?? []} nome={p?.nome ?? ''} onFechar={() => setTrocar(null)}
+        onTrocar={(a) => { if (p && trocar) aplicar(mudar.trocar(p.linkId, trocar.id, a)); setTrocar(null); }} />
       <EntradaSemReserva aberta={entrada} jaEstao={s.participantes.map((x) => x.linkId)} onFechar={() => setEntrada(false)}
         onEscolher={(c) => { aplicar(mudar.entrada({ linkId: c.id, nome: c.name })); setQuem(c.id); setEntrada(false); }} />
       <JuntarExercicio aberta={juntar} onFechar={() => setJuntar(false)}
@@ -230,8 +242,9 @@ function Tile({ p, ativo, onClick }: { p: ParticipanteLocal; ativo: boolean; onC
   );
 }
 
-function Registo({ p, ultimas, aplicar, grupo, onJuntar, onEntrada }: {
+function Registo({ p, ultimas, aplicar, grupo, onJuntar, onEntrada, onTrocar }: {
   p: ParticipanteLocal; ultimas: Map<string, LastPerformance>; aplicar: (f: (x: SessaoLocal) => SessaoLocal) => void; grupo: boolean; onJuntar: () => void; onEntrada: () => void;
+  onTrocar: (e: ExercicioLocal) => void;
 }) {
   const fora = p.presenca === 'faltou' || p.presenca === 'nao_treina';
   const [exId, setExId] = useState<string | null>(null);
@@ -267,6 +280,7 @@ function Registo({ p, ultimas, aplicar, grupo, onJuntar, onEntrada }: {
           {descanso && <Descanso ate={descanso.ate} onFim={() => setDescanso(null)} />}
           <div className="lg-import__acoes" style={{ padding: 0, justifyContent: 'flex-start' }}>
             <Botao variante="secundario" icone={Plus} onClick={onJuntar}>Juntar exercício</Botao>
+            {ex && <Botao variante="secundario" icone={ArrowsClockwise} onClick={() => onTrocar(ex)}>Trocar</Botao>}
             {!grupo && <Botao variante="secundario" onClick={onEntrada}>Juntar {vocab.pessoa()}</Botao>}
           </div>
           <label className="lv-campo"><span className="lv-campo-rotulo">Nota da {t('sessao')} (privada)</span>
@@ -292,21 +306,24 @@ function Series({ ex, ultima, onGravar, onNota }: {
     setEditar(null); setRpe('');
   };
   const passo = (d: number) => setCarga((c) => String(Math.max(0, (num(c) ?? 0) + d)));
+  const previsto = [ex.alvo.reps, ex.alvo.carga && (parseFloat(ex.alvo.carga.replace(',', '.')) || ex.alvo.carga)].filter(Boolean).join(' × ') || '—';
   return (
     <div className="lg-vivo__series">
       <span className="lv-legenda">
         {[ex.bloco && `Bloco ${ex.bloco}`, ex.series && `Alvo ${ex.series}×${ex.alvo.reps ?? '—'}`, ex.alvo.carga, ex.alvo.rpe && `esforço ${ex.alvo.rpe}`].filter(Boolean).join(' · ')}
         {ultima ? ` · Última vez ${ultima.reps ?? '—'}×${ultima.loadKg ?? '—'} kg` : ''}
       </span>
-      <div className="lg-vivo__serie lg-vivo__serie--cabeca"><span>Série</span><span>Reps</span><span>Kg</span><span>Esforço</span><span /></div>
+      {ex.trocadoDe && <span className="lv-legenda">Troca de hoje: em vez de {ex.trocadoDe}</span>}
+      <div className="lg-vivo__serie lg-vivo__serie--cabeca"><span>Série</span><span>Previsto</span><span>Reps</span><span>Kg</span><span>Esforço</span><span /></div>
       {ex.sets.map((x) => (
         <button key={x.id} type="button" className="lg-vivo__serie lg-vivo__serie--feita" onClick={() => { setEditar(x.n); setReps(x.reps?.toString() ?? ''); setCarga(x.carga?.toString() ?? ''); setRpe(x.rpe?.toString() ?? ''); }}
           aria-label={`Série ${x.n}: ${x.reps ?? '—'} repetições, ${x.carga ?? '—'} kg. Tocar para corrigir`}>
-          <span>{x.n}</span><span>{x.reps ?? '—'}</span><span>{x.carga ?? '—'}</span><span>{x.rpe ?? '—'}</span><CheckCircle size={20} weight="fill" aria-hidden />
+          <span>{x.n}</span><span className="lv-legenda">{previsto}</span><span>{x.reps ?? '—'}</span><span>{x.carga ?? '—'}</span><span>{x.rpe ?? '—'}</span><CheckCircle size={20} weight="fill" aria-hidden />
         </button>
       ))}
       <div className="lg-vivo__serie lg-vivo__serie--nova">
         <span>{editar ?? ex.sets.length + 1}</span>
+        <span className="lv-legenda">{previsto}</span>
         <input className="lv-campo-input" inputMode="numeric" aria-label="Repetições" value={reps} onChange={(e) => setReps(e.target.value)} />
         <input className="lv-campo-input" inputMode="decimal" aria-label="Carga em kg" value={carga} onChange={(e) => setCarga(e.target.value)} />
         <input className="lv-campo-input" inputMode="decimal" aria-label="Esforço de 1 a 10" placeholder="—" value={rpe} onChange={(e) => setRpe(e.target.value)} />
@@ -320,13 +337,16 @@ function Series({ ex, ultima, onGravar, onNota }: {
   );
 }
 
-function Descanso({ ate, onFim }: { ate: number; onFim: () => void }) {
+function Descanso({ ate: inicio, onFim }: { ate: number; onFim: () => void }) {
   useAgora(250);
+  const [ate, setAte] = useState(inicio);
+  useEffect(() => setAte(inicio), [inicio]);
   const resta = Math.max(0, Math.ceil((ate - Date.now()) / 1000));
   useEffect(() => { if (resta === 0) onFim(); }, [resta, onFim]);
   return (
     <div className="lg-vivo__descanso" role="timer" aria-live="off">
       <Timer size={18} aria-hidden /><b>{relogio(resta)}</b><span className="lv-legenda">descanso</span>
+      <Botao variante="secundario" onClick={() => setAte((a) => a + 30_000)}>+30 s</Botao>
       <Botao variante="secundario" onClick={onFim}>Saltar</Botao>
     </div>
   );
@@ -388,25 +408,24 @@ function JuntarExercicio({ aberta, onFechar, onEscolher }: { aberta: boolean; on
   );
 }
 
-/* ── G-14 Rever e fechar (uma vez) ──────────────────────────────────────── */
-function Rever({ aberta, s, aplicar, onFechar, onFechada }: {
-  aberta: boolean; s: SessaoLocal; aplicar: (f: (x: SessaoLocal) => SessaoLocal) => void; onFechar: () => void;
+/* ── G-14 Rever e fechar (uma vez; no tablet, um toque por pessoa) ──────── */
+function Rever({ s, aplicar, onVoltar, onFechada }: {
+  s: SessaoLocal; aplicar: (f: (x: SessaoLocal) => SessaoLocal) => void; onVoltar: () => void;
   onFechada: (partilha: { sessaoId: string; nome: string } | null) => void;
 }) {
   const online = useRede((r) => r.online);
   const [aFechar, setAFechar] = useState(false);
   const v = antesDeFechar(s);
+  const presentes = s.participantes.filter((p) => contaComoPresente(p.presenca) || (!p.presenca && p.exercicios.some((e) => e.sets.length)));
+  const faltas = s.participantes.filter((p) => p.presenca === 'faltou');
+  const naoTreinou = s.participantes.filter((p) => p.presenca === 'nao_treina');
   const fechar = async () => {
     const client = getSupabaseClient();
     if (!client) return;
     const ok = await confirmarDestrutivo({
       titulo: `Fechar a ${t('sessao')}?`, verbo: 'Fechar', manter: 'Continuar a sessão',
       texto: 'Fecha-se uma vez. Depois, cada correção pede um motivo e fica no histórico.',
-      efeitos: [
-        `${s.participantes.filter((p) => contaComoPresente(p.presenca) || (!p.presenca && p.exercicios.some((e) => e.sets.length))).length} presentes`,
-        `${s.participantes.filter((p) => p.presenca === 'faltou').length} faltas`,
-        `${v.creditos} ${v.creditos === 1 ? 'crédito' : 'créditos'} a descontar dos packs`,
-      ],
+      efeitos: [`${presentes.length} presentes`, `${faltas.length} faltas`, `${v.creditos} ${v.creditos === 1 ? 'crédito' : 'créditos'} a descontar dos packs`],
       acao: async () => {
         setAFechar(true);
         try {
@@ -416,30 +435,100 @@ function Rever({ aberta, s, aplicar, onFechar, onFechada }: {
       },
     });
     if (!ok) return;
-    const unico = s.participantes.filter((p) => contaComoPresente(p.presenca) || p.exercicios.some((e) => e.sets.length));
-    onFechada(unico.length === 1 ? { sessaoId: unico[0].sessaoId, nome: unico[0].nome } : null);
+    onFechada(presentes.length === 1 ? { sessaoId: presentes[0].sessaoId, nome: presentes[0].nome } : null);
   };
   return (
-    <Janela aberta={aberta} onFechar={onFechar} titulo={`Rever antes de fechar`} sub={`${relogio(segundosDecorridos(s))} de treino`} forma="painel">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+    <div className="lg-vivo__rever">
+      <section className="lv-lista" aria-label="Presenças">
+        <div className="lv-lista__cabeca">
+          <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>Rever antes de fechar</h2>
+          <span className="lv-legenda">{relogio(segundosDecorridos(s))} de treino</span>
+        </div>
         {s.participantes.map((p) => {
           const series = p.exercicios.reduce((n, e) => n + e.sets.length, 0);
+          const veio = contaComoPresente(p.presenca) || (!p.presenca && series > 0);
+          const conta = veio || p.presenca === 'faltou';
           return (
-            <div key={p.linkId} className="lv-linha-lista" style={{ cursor: 'default', flexWrap: 'wrap' }}>
-              <Avatar nome={p.nome} tamanho={32} />
-              <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{p.nome}</span>
-                <span className="lv-legenda">{series ? `${series} séries` : 'Sem resultados'}{p.pack ? ` · pack ${p.pack.restam} → ${p.pack.restam - (contaComoPresente(p.presenca) || p.presenca === 'faltou' || series ? 1 : 0)}` : ''}</span></span>
-              <select className="lv-campo-input" style={{ width: 'auto' }} aria-label={`Presença de ${p.nome}`} value={p.presenca ?? ''}
-                onChange={(e) => e.target.value && aplicar(mudar.presenca(p.linkId, e.target.value as Presenca))}>
-                <option value="">Por marcar</option>{PRESENCAS.map((x) => <option key={x.id} value={x.id}>{x.rotulo}</option>)}
-              </select>
+            <div key={p.linkId} className="lg-vivo__presenca">
+              <span className="lg-seg__quem"><Avatar nome={p.nome} tamanho={36} /><span><b>{p.nome}</b>
+                <span className="lv-legenda" style={{ display: 'block' }}>
+                  {p.entradaSemReserva ? 'Sem reserva · ' : ''}{p.pack ? `Pack · ${p.pack.restam} → ${p.pack.restam - (conta ? 1 : 0)}` : 'Sem pack'}
+                  {p.presenca && !['presente', 'faltou'].includes(p.presenca) ? ` · ${PRESENCA[p.presenca].texto}` : ''}</span></span></span>
+              <span className={series ? 'lv-legenda' : 'lv-legenda lg-vivo__por-registar'}>{series ? `${series} séries` : veio && p.exercicios.length ? 'Por registar' : '—'}</span>
+              <button type="button" className={`lg-vivo__toque${veio ? ' lg-vivo__toque--sim' : ''}`} aria-pressed={veio}
+                onClick={() => aplicar(mudar.presenca(p.linkId, 'presente'))}><Check size={16} aria-hidden />Presente</button>
+              <button type="button" className={`lg-vivo__toque${p.presenca === 'faltou' ? ' lg-vivo__toque--nao' : ''}`} aria-pressed={p.presenca === 'faltou'}
+                onClick={() => aplicar(mudar.presenca(p.linkId, 'faltou'))}><X size={16} aria-hidden />Faltou</button>
+              <MenuAcoes rotulo={`Mais para ${p.nome}`} acoes={PRESENCAS.filter((x) => !['presente', 'faltou'].includes(x.id)).map((x) => ({
+                rotulo: x.rotulo, onClick: () => aplicar(mudar.presenca(p.linkId, x.id)),
+              }))} />
             </div>
           );
         })}
-        {v.semPresenca.length > 0 && <Nota>Falta marcar a presença de {v.semPresenca.join(', ')}.</Nota>}
-        {v.semResultados.length > 0 && <Nota>Sem resultados registados: {v.semResultados.join(', ')}. Podes fechar na mesma.</Nota>}
-        {!online && <Nota>Sem rede: a sessão fica guardada neste aparelho. Fecha quando a rede voltar.</Nota>}
-        <Botao aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar {t('sessao')}</Botao>
+        <div className="lg-import__acoes" style={{ padding: 0, justifyContent: 'flex-start' }}>
+          <Botao variante="secundario" icone={ArrowLeft} onClick={onVoltar}>Voltar à {t('sessao')}</Botao>
+        </div>
+      </section>
+      <aside className="lv-lista" aria-label="Antes de fechar">
+        <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Antes de fechar</h3>
+        <dl className="lg-conta__dados">
+          <dt>Presentes</dt><dd><b>{presentes.length} de {s.participantes.length}</b></dd>
+          <dt>Entradas sem reserva</dt><dd><b>{s.participantes.filter((p) => p.entradaSemReserva).length}</b></dd>
+          <dt>Créditos a descontar</dt><dd><b>{v.creditos}</b></dd>
+          <dt>Faltas</dt><dd><b>{faltas.length}</b>{faltas.length ? ' · aplica-se a regra do pack' : ''}</dd>
+        </dl>
+        {v.semPresenca.length > 0 && <Nota icone={Warning}>Falta marcar a presença de {v.semPresenca.join(', ')}.</Nota>}
+        {v.semResultados.length > 0 && <Nota icone={Warning}>Falta o resultado de {v.semResultados.join(', ')}. Podes fechar na mesma.</Nota>}
+        {naoTreinou.map((p) => <Nota key={p.linkId}>{p.nome} não treinou{p.aptidao === 'atestado' ? ': atestado em falta' : ''}. Não conta como falta.</Nota>)}
+        {!online && <Nota icone={WifiSlash}>Sem rede: está tudo guardado neste aparelho. Fecha quando a rede voltar.</Nota>}
+        <Botao icone={Check} aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar a {t('sessao')}</Botao>
+      </aside>
+    </div>
+  );
+}
+
+/* ── P-08 Trocar exercício e terminar a meio ────────────────────────────── */
+function TrocarExercicio({ alvo, zonas, nome, onFechar, onTrocar }: {
+  alvo: ExercicioLocal | null; zonas: string[]; nome: string; onFechar: () => void; onTrocar: (a: { exerciseId: string; nome: string }) => void;
+}) {
+  const [escolha, setEscolha] = useState<string | null>(null);
+  useEffect(() => setEscolha(null), [alvo]);
+  if (!alvo) return null;
+  const lista = alternativasPara(alvo, zonas);
+  const sel = lista.find((x) => x.alt.exercise_id === escolha && !x.bloqueada);
+  return (
+    <Janela aberta onFechar={onFechar} titulo={`Trocar ${alvo.nome.toLocaleLowerCase('pt-PT')}`} sub={`Alternativas autorizadas para ${nome.split(' ')[0]}`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-8)' }}>
+        {lista.length === 0 ? <Nota>Este exercício não tem alternativas na biblioteca. Usa Juntar exercício.</Nota> : lista.map(({ alt, bloqueada }) => (
+          <button key={alt.exercise_id} type="button" className="lv-linha-lista" disabled={!!bloqueada} aria-pressed={escolha === alt.exercise_id}
+            onClick={() => setEscolha(alt.exercise_id)} style={bloqueada ? { opacity: 0.5 } : undefined}>
+            <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{alt.nome}</span>
+              <span className="lv-legenda">{bloqueada ?? (alt.semelhanca === 'igual' ? 'Mesmo músculo' : alt.semelhanca ?? 'Alternativa')}</span></span>
+            {bloqueada ? <Lock size={16} aria-hidden /> : escolha === alt.exercise_id ? <CheckCircle size={18} weight="fill" aria-hidden /> : null}
+          </button>
+        ))}
+        {alvo.sets.length > 0 && <Nota>Já tem séries: a alternativa entra a seguir e o que está feito fica.</Nota>}
+        <Botao disabled={!sel} onClick={() => sel && onTrocar({ exerciseId: sel.alt.exercise_id, nome: sel.alt.nome })}>Trocar só hoje</Botao>
+      </div>
+    </Janela>
+  );
+}
+
+function TerminarAMeio({ s, aberta, onFechar, onGuardar, onTerminar }: {
+  s: SessaoLocal; aberta: boolean; onFechar: () => void; onGuardar: () => void; onTerminar: () => void;
+}) {
+  const presentes = s.participantes.filter((p) => !['faltou', 'nao_treina'].includes(p.presenca ?? ''));
+  const est = presentes.map(estadoDaSessao);
+  const falta = est.reduce((n, e) => n + (e.total - e.feitos), 0);
+  const series = est.reduce((n, e) => n + e.series, 0);
+  const total = est.reduce((n, e) => n + e.total, 0);
+  return (
+    <Janela aberta={aberta} onFechar={onFechar} titulo={`Terminar a ${t('sessao')}?`} sub={total ? `Faltam ${falta} de ${total} exercícios` : undefined}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <p style={{ margin: 0 }}><Check size={16} aria-hidden /> <b>{series} séries</b> registadas ficam guardadas.</p>
+        <p className="lv-legenda" style={{ margin: 0 }}>Terminar assim fecha-a e desconta {presentes.filter((p) => p.pack).length === 1 ? '1 sessão' : 'uma sessão a cada um'} do pack.</p>
+        <Botao onClick={onGuardar}>Guardar para retomar</Botao>
+        <Botao variante="secundario" onClick={onTerminar}>Terminar assim</Botao>
       </div>
     </Janela>
   );

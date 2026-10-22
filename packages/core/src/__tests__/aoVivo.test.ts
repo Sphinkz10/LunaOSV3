@@ -1,5 +1,5 @@
 import {
-  antesDeFechar, comecarSessao, contarPorEnviar, enviarSessao, mudar, payloadSync, porEnviar, segundosDecorridos, sessaoLocal,
+  alternativasPara, antesDeFechar, comecarSessao, estadoDaSessao, contarPorEnviar, enviarSessao, mudar, payloadSync, porEnviar, segundosDecorridos, sessaoLocal,
   type Preparacao, type SessaoLocal,
 } from '../api/aoVivo';
 import type { LunaClient } from '../api/client';
@@ -20,7 +20,7 @@ const prep: Preparacao = {
     { booking_id: 'b1', link_id: 'rita', nome: 'Rita', avatar: null, estado_marcacao: 'confirmed', presenca: null, entrada_sem_reserva: false,
       aptidao: 'ok', zonas: [], pack: { nome: 'Pack 10', restam: 7, total: 10 }, sessoes_semana: 2, sessao_id: null,
       treino: { workout_id: 'w1', nome: 'Força', versao: 2, trocas: [], blocos: [{ rotulo: 'A', modo: null, voltas: null, minutos: null, exercicios: [
-        { exercise_id: 'e1', nome: 'Kettlebell swing', series: 3, reps: '10', carga: '16 kg', rpe: 7, descanso: 60, notas: null }] }] } },
+        { exercise_id: 'e1', nome: 'Kettlebell swing', series: 3, reps: '10', carga: '16 kg', rpe: 7, descanso: 60, notas: null, alternativas: [{ exercise_id: 'e2', nome: 'Goblet squat', semelhanca: 'igual', articulacoes: ['anca'] }, { exercise_id: 'e3', nome: 'Saltos para a caixa', semelhanca: null, articulacoes: ['joelho'] }] }] }] } },
     { booking_id: 'b2', link_id: 'joana', nome: 'Joana', avatar: null, estado_marcacao: 'confirmed', presenca: null, entrada_sem_reserva: false,
       aptidao: 'nao_pode', zonas: [], pack: null, sessoes_semana: 0, sessao_id: null, treino: null },
   ],
@@ -109,5 +109,18 @@ describe('sessão ao vivo (T08)', () => {
     const p = payloadSync(s).participantes as { sessao_id: string | null }[];
     expect(p[0].sessao_id).toBeNull();
     expect(p[1].sessao_id).toBeNull();
+  });
+
+  it('trocar mostra as alternativas bloqueadas com motivo e troca só hoje', () => {
+    let s = comecarSessao(prep);
+    const e = s.participantes[0].exercicios[0];
+    const alts = alternativasPara(e, ['joelho']);
+    expect(alts.map((x) => [x.alt.nome, x.bloqueada])).toEqual([['Goblet squat', null], ['Saltos para a caixa', 'Não pode · joelho']]);
+    s = mudar.trocar('rita', e.id, { exerciseId: 'e2', nome: 'Goblet squat' })(s);
+    expect(s.participantes[0].exercicios[0]).toMatchObject({ id: e.id, nome: 'Goblet squat', trocadoDe: 'Kettlebell swing' });
+    s = mudar.serie('rita', e.id, { reps: 10, carga: 16, rpe: 6 })(s);
+    s = mudar.trocar('rita', e.id, { exerciseId: 'e1', nome: 'Kettlebell swing' })(s);
+    expect(s.participantes[0].exercicios).toHaveLength(2);
+    expect(estadoDaSessao(s.participantes[0])).toEqual({ feitos: 0, total: 2, series: 1 });
   });
 });

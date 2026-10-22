@@ -544,7 +544,7 @@ button.lg-pack__linha { cursor: pointer; }
 .lg-vivo__tile-num b { font: 600 20px/1 var(--fonte-titulo); }
 .lg-vivo__registo { position: sticky; top: var(--espaco-16); }
 .lg-vivo__series { display: flex; flex-direction: column; gap: var(--espaco-8); }
-.lg-vivo__serie { display: grid; grid-template-columns: 44px repeat(3, minmax(0, 1fr)) 96px; gap: var(--espaco-8); align-items: center; text-align: center; font: inherit; color: var(--cor-texto); }
+.lg-vivo__serie { display: grid; grid-template-columns: 40px minmax(0, 1.1fr) repeat(3, minmax(0, 1fr)) 96px; gap: var(--espaco-8); align-items: center; text-align: center; font: inherit; color: var(--cor-texto); }
 .lg-vivo__serie--cabeca { font: 600 12px/1.4 var(--fonte-texto); color: var(--cor-texto-secundario); }
 .lg-vivo__serie--feita { padding: var(--espaco-8) 0; border: 0; border-radius: var(--raio-linha); background: var(--cor-superficie-2); cursor: pointer; }
 .lg-vivo__serie--feita svg { justify-self: center; color: var(--estado-ok); }
@@ -561,3 +561,20 @@ button.lg-pack__linha { cursor: pointer; }
   .lg-vivo__fecho > :nth-child(3), .lg-vivo__fecho > :nth-child(4) { display: none; }
   .lg-vivo__relogio { font-size: 34px; }
 }
+.lg-vivo__rever { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-vivo__presenca { display: grid; grid-template-columns: minmax(0, 1fr) auto 128px 128px auto; gap: var(--espaco-8); align-items: center; padding: var(--espaco-8) 0; border-bottom: 1px solid var(--cor-linha); }
+.lg-vivo__toque { display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-4); min-height: 48px; border: 1px solid var(--cor-linha); border-radius: var(--raio-nota, 16px); background: var(--cor-superficie); color: var(--cor-texto); font: 600 14px/1 var(--fonte-texto); cursor: pointer; }
+.lg-vivo__toque--sim { background: var(--estado-ok); border-color: var(--estado-ok); color: var(--cor-sobre-principal); }
+.lg-vivo__toque--nao { background: var(--estado-erro); border-color: var(--estado-erro); color: var(--cor-sobre-principal); }
+.lg-vivo__toque:focus-visible { outline: 2px solid var(--cor-texto); outline-offset: 2px; }
+.lg-vivo__por-registar { color: var(--estado-aviso); font-weight: 600; }
+@media (max-width: 900px) {
+  .lg-vivo__rever { grid-template-columns: minmax(0, 1fr); }
+  .lg-vivo__presenca { grid-template-columns: minmax(0, 1fr) 104px 104px auto; }
+  .lg-vivo__presenca > :nth-child(2) { display: none; }
+  .lg-vivo__serie { grid-template-columns: 32px repeat(4, minmax(0, 1fr)) 80px; }
+}
+.lg-inbox__linha { position: relative; }
+.lg-inbox__deslize { position: absolute; top: 50%; transform: translateY(-50%); font: 600 13px/1 var(--fonte-texto); padding: var(--espaco-8); border-radius: var(--raio-linha); }
+.lg-inbox__deslize--resolver { left: -96px; color: var(--estado-ok); }
+.lg-inbox__deslize--adiar { right: -80px; color: var(--estado-aviso); }

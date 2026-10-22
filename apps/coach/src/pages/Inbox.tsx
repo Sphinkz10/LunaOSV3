@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   adiarPendencias, atribuirPendencias, avisar, sincronizarAtrasos, contarAdiadas, fetchInbox, fetchStaff, reabrirPendencia, toast,
@@ -38,7 +38,8 @@ export function Inbox() {
   const [adiadas, setAdiadas] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [categoria, setCategoria] = useState<CategoriaInbox | 'tudo'>('tudo');
-  const [minhas, setMinhas] = useState(false);
+  // O PT vê só o que é dele (T18); quem gere a carteira vê tudo e filtra
+  const [minhas, setMinhas] = useState(!gere);
   const [resolvidas, setResolvidas] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [aberta, setAberta] = useState<string | null>(null);
@@ -100,7 +101,8 @@ export function Inbox() {
                 {visiveis.map((p) => {
                   const Ic = ICONE[p.categoria];
                   return (
-                    <div key={p.id} className={`lg-inbox__linha${detalhe?.id === p.id ? ' lg-inbox__linha--aberta' : ''}`}>
+                    <Deslizar key={p.id} ativo={!resolvidas} className={`lg-inbox__linha${detalhe?.id === p.id ? ' lg-inbox__linha--aberta' : ''}`}
+                      onDireita={() => abrirDono(p)} onEsquerda={() => setAdiar([p.id])}>
                       {!resolvidas && (
                         <input type="checkbox" aria-label={`Selecionar ${p.cliente}`} checked={sel.has(p.id)} onChange={() => alternar(p.id)} />
                       )}
@@ -112,7 +114,7 @@ export function Inbox() {
                       {p.dono && <span title={p.dono}><Avatar nome={p.dono} tamanho={28} /></span>}
                       <span className="lv-legenda lg-inbox__quando">{ha(resolvidas && p.resolvidaEm ? p.resolvidaEm : p.criadaEm)}</span>
                       {!resolvidas && <Botao variante="secundario" onClick={() => abrirDono(p)}>{p.acao.rotulo}</Botao>}
-                    </div>
+                    </Deslizar>
                   );
                 })}
               </section>
@@ -206,5 +208,35 @@ function Atribuir({ ids, onFechar, onFeito }: { ids: string[] | null; onFechar: 
         ))}
       </div>
     </Janela>
+  );
+}
+
+/**
+ * No telemóvel (T18): deslizar para a direita resolve (abre o ecrã dono, onde
+ * se resolve), para a esquerda adia. Os botões continuam lá para quem não desliza.
+ */
+function Deslizar({ ativo, className, onDireita, onEsquerda, children }: {
+  ativo: boolean; className: string; onDireita: () => void; onEsquerda: () => void; children: ReactNode;
+}) {
+  const [dx, setDx] = useState(0);
+  const inicio = useRef<{ x: number; y: number } | null>(null);
+  const LIMITE = 80;
+  return (
+    <div className={className} style={dx ? { transform: `translateX(${dx}px)`, transition: 'none' } : undefined}
+      onTouchStart={(e) => { if (ativo) inicio.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+      onTouchMove={(e) => {
+        if (!inicio.current) return;
+        const x = e.touches[0].clientX - inicio.current.x; const y = e.touches[0].clientY - inicio.current.y;
+        if (Math.abs(y) > Math.abs(x)) { inicio.current = null; setDx(0); return; }
+        setDx(Math.max(-120, Math.min(120, x)));
+      }}
+      onTouchEnd={() => {
+        if (dx > LIMITE) onDireita(); else if (dx < -LIMITE) onEsquerda();
+        inicio.current = null; setDx(0);
+      }}>
+      {dx > 20 && <span className="lg-inbox__deslize lg-inbox__deslize--resolver" aria-hidden>Resolver</span>}
+      {dx < -20 && <span className="lg-inbox__deslize lg-inbox__deslize--adiar" aria-hidden>Adiar</span>}
+      {children}
+    </div>
   );
 }
