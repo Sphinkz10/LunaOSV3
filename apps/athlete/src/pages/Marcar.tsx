@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  desmarcar, fetchMeusPacks, icsDeMarcacao, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
+  desmarcar, deveMostrarPedidoAvisos, fetchMeusPacks, icsDeMarcacao, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
   type MeuPack, type MinhaLigacao, type MinhaMarcacao,
 } from '@luna/core';
 import { Botao, BotaoFixo, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
 import { CalendarBlank, CaretRight } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
+import { PedirAvisos } from './Permissoes';
 import { t } from '../vocab';
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -30,6 +31,7 @@ export function MarcarPT() {
   const [aGravar, setAGravar] = useState(false);
   const [packs, setPacks] = useState<MeuPack[]>([]);
   const [feita, setFeita] = useState<MinhaMarcacao | null>(null);
+  const [pedirAvisosAgora, setPedirAvisosAgora] = useState(false);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -113,7 +115,9 @@ export function MarcarPT() {
       )}
       <Nota>Desmarcar até ao prazo do ginásio não conta; depois disso, a sessão conta.</Nota>
       {escolha && <BotaoFixo aCarregar={aGravar} onClick={() => void marcar()}>Marcar {DIAS_LONGO[d.getDay()]} às {hora(escolha)}</BotaoFixo>}
-      <SessaoMarcada m={feita} onFechar={() => setFeita(null)} />
+      {/* Avisos pedem-se a primeira vez que fazem falta: depois de marcar (P-09) */}
+      <SessaoMarcada m={feita} onFechar={() => { setFeita(null); if (deveMostrarPedidoAvisos()) setPedirAvisosAgora(true); }} />
+      <PedirAvisos aberta={pedirAvisosAgora} onFechar={() => setPedirAvisosAgora(false)} />
       <ConfirmarDestrutivo aberta={!!desm} titulo="Desmarcar esta sessão?" verbo="Desmarcar" manter="Manter"
         texto={desm ? (desm.semContar ? 'Ainda estás dentro do prazo: não conta.' : 'Já passou o prazo do ginásio: esta sessão conta.') : undefined}
         onConfirmar={() => void fazerDesmarcar()} onFechar={() => setDesm(null)} />
