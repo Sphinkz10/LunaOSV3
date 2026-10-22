@@ -179,6 +179,30 @@ export type BookingRulesRow = {
 export type PackUsageRow = { id: Uuid; org_id: Uuid; pack_id: Uuid; booking_id: Uuid | null; session_id: Uuid | null; motivo: 'sessao' | 'falta' | 'fora_do_prazo'; used_at: Ts; reverted_at: Ts | null };
 export type AttendanceRow = { booking_id: Uuid; org_id: Uuid; link_id: Uuid; status: 'presente' | 'atrasado' | 'saiu_cedo' | 'faltou' | 'nao_treina'; walk_in: boolean; marked_at: Ts; marked_by: Uuid | null };
 export type PtLocationRow = { id: Uuid; org_id: Uuid; membership_id: Uuid; kind: 'estudio' | 'casa_cliente' | 'parque' | 'online'; label: string; address: string | null; archived_at: Ts | null; created_at: Ts };
+export type FormRow = { id: Uuid; org_id: Uuid; kind: 'anamnese' | 'satisfacao' | 'checkin_semanal' | 'outro'; name: string; health: boolean; questions: Json; version: number; archived_at: Ts | null; created_at: Ts; updated_at: Ts };
+export type FormVersionRow = { id: Uuid; form_id: Uuid; org_id: Uuid; version: number; name: string; kind: string; health: boolean; questions: Json; published_at: Ts; published_by: Uuid | null };
+export type ProtocolRow = { id: Uuid; org_id: Uuid; name: string; blocks: Json; version: number; archived_at: Ts | null; created_at: Ts; updated_at: Ts };
+export type ProtocolVersionRow = { id: Uuid; protocol_id: Uuid; org_id: Uuid; version: number; name: string; blocks: Json; published_at: Ts; published_by: Uuid | null };
+export type RequestRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; kind: 'form' | 'protocol'; form_version_id: Uuid | null; protocol_version_id: Uuid | null; schedule_id: Uuid | null;
+  booking_id: Uuid | null; status: 'pendente' | 'respondido' | 'retirado' | 'expirado'; due_at: Ts | null; remind: boolean; reminded_at: Ts | null;
+  opened_at: Ts | null; answered_at: Ts | null; withdrawn_reason: string | null; created_by: Uuid | null; created_at: Ts;
+};
+export type RequestScheduleRow = { id: Uuid; org_id: Uuid; form_id: Uuid; links: Uuid[]; group_id: Uuid | null; weekday: number; hour: number; due_days: number; until_plan_end: boolean; until_date: string | null; remind: boolean; notify_pt: boolean; stopped_at: Ts | null; created_by: Uuid | null; created_at: Ts };
+export type FormResponseRow = {
+  id: Uuid; person_id: Uuid; org_id: Uuid; link_id: Uuid; request_id: Uuid | null; form_version_id: Uuid; answers: Json; score: Json;
+  needs_review: boolean; reviewed_at: Ts | null; reviewed_by: Uuid | null; reply: string | null; submitted_at: Ts;
+};
+export type DailyCheckinRow = { id: Uuid; person_id: Uuid; day: string; sleep: number | null; energy: number | null; pain: boolean; pain_where: string | null; created_at: Ts };
+export type ProgressPhotoRow = { id: Uuid; person_id: Uuid; org_id: Uuid | null; link_id: Uuid | null; source: 'checkin' | 'avaliacao'; ref_id: Uuid | null; pose: string | null; path: string; created_at: Ts };
+export type AssessmentRow = {
+  id: Uuid; org_id: Uuid; link_id: Uuid; person_id: Uuid; protocol_version_id: Uuid; request_id: Uuid | null; membership_id: Uuid | null;
+  status: 'em_curso' | 'fechada'; show_client: boolean; started_at: Ts; closed_at: Ts | null; reviewed_at: Ts | null; reply: string | null;
+};
+export type AssessmentValueRow = {
+  id: Uuid; assessment_id: Uuid; person_id: Uuid; test_key: string; name: string; unit: string; attempts: number[]; value: number | null;
+  skipped_reason: string | null; lower_is_better: boolean; invalidated_at: Ts | null; invalidated_reason: string | null; invalidated_by: Uuid | null; recorded_at: Ts;
+};
 export type CalendarFeedRow = { membership_id: Uuid; token_hash: string; show_names: boolean; created_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
@@ -347,6 +371,17 @@ export interface Database {
       attendance: Table<AttendanceRow, 'booking_id' | 'org_id' | 'link_id' | 'status'>;
       pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
       calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
+      forms: Table<FormRow, 'org_id' | 'name'>;
+      form_versions: Table<FormVersionRow, 'form_id' | 'org_id' | 'version' | 'name' | 'kind' | 'health' | 'questions'>;
+      protocols: Table<ProtocolRow, 'org_id' | 'name'>;
+      protocol_versions: Table<ProtocolVersionRow, 'protocol_id' | 'org_id' | 'version' | 'name' | 'blocks'>;
+      requests: Table<RequestRow, 'org_id' | 'link_id' | 'kind'>;
+      request_schedules: Table<RequestScheduleRow, 'org_id' | 'form_id' | 'weekday'>;
+      form_responses: Table<FormResponseRow, 'id' | 'person_id' | 'org_id' | 'link_id' | 'form_version_id' | 'answers'>;
+      daily_checkins: Table<DailyCheckinRow, 'id' | 'person_id' | 'day'>;
+      progress_photos: Table<ProgressPhotoRow, 'id' | 'person_id' | 'source' | 'path'>;
+      assessments: Table<AssessmentRow, 'id' | 'org_id' | 'link_id' | 'person_id' | 'protocol_version_id'>;
+      assessment_values: Table<AssessmentValueRow, 'id' | 'assessment_id' | 'person_id' | 'test_key' | 'name' | 'unit'>;
       pack_products: Table<PackProductRow, 'org_id' | 'name' | 'sessions' | 'validity_days'>;
       client_packs: Table<ClientPackRow, 'org_id' | 'link_id' | 'name' | 'sessions_total' | 'valid_until'>;
       pack_usages: Table<PackUsageRow, 'org_id' | 'pack_id'>;
@@ -386,6 +421,23 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      publish_form: { Args: { _form: string }; Returns: number };
+      publish_protocol: { Args: { _protocol: string }; Returns: number };
+      send_requests: { Args: { _org: string; _form: string; _links: string[]; _due?: string | null; _remind?: boolean }; Returns: number };
+      schedule_requests: { Args: { _org: string; _form: string; _links: string[]; _group: string | null; _weekday: number; _hour: number; _due_days: number; _until_plan_end?: boolean; _until?: string | null; _remind?: boolean; _notify_pt?: boolean }; Returns: string };
+      withdraw_request: { Args: { _request: string; _reason: string }; Returns: undefined };
+      my_requests: { Args: Record<string, never>; Returns: { id: string; org: string; nome: string; tipo: string; saude: boolean; prazo: string | null; perguntas: number; de: string | null }[] };
+      open_request: { Args: { _request: string }; Returns: Json };
+      submit_response: { Args: { _id: string; _request: string; _answers: Json }; Returns: undefined };
+      submit_daily_checkin: { Args: { _id: string; _day: string; _sleep: number | null; _energy: number | null; _pain: boolean; _pain_where?: string | null }; Returns: undefined };
+      add_progress_photo: { Args: { _id: string; _link: string; _source: string; _ref: string | null; _pose: string | null; _path: string }; Returns: undefined };
+      sync_assessment: { Args: { _p: Json }; Returns: undefined };
+      close_assessment: { Args: { _id: string; _show_client?: boolean }; Returns: undefined };
+      invalidate_value: { Args: { _value: string; _reason: string }; Returns: undefined };
+      review_item: { Args: { _kind: string; _id: string; _reply?: string | null }; Returns: undefined };
+      assessment_overview: { Args: { _org: string }; Returns: Json };
+      compare_assessment: { Args: { _id: string }; Returns: { chave: string; nome: string; unidade: string; antes: number | null; agora: number | null; mudou: number | null; melhor: boolean | null; estado: string; valor_id: string; motivo: string | null; saltado: string | null }[] };
+      test_trend: { Args: { _person: string; _key: string }; Returns: { em: string; valor: number }[] };
       my_analytics_consent: { Args: Record<string, never>; Returns: boolean };
       set_analytics_consent: { Args: { _granted: boolean }; Returns: undefined };
       is_lunaos_staff: { Args: Record<string, never>; Returns: boolean };

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   fetchAptidao, fetchAssiduidade, fetchClientHealth, fetchClientesAtencao, fetchClientProfile, MOTIVO_ATENCAO, sincronizarAtrasos,
   type Aptidao, type Assiduidade, type ClientDetail, type Section,
+  useAuthStore,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
 import { Archive, ArrowCounterClockwise, Barbell, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
@@ -11,6 +12,7 @@ import { AtribuicoesCliente } from './Sessoes';
 import { PacksCliente } from './Packs';
 import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
 import { CoachShell } from '../app/CoachShell';
+import { PedidosCliente } from './Avaliacao';
 import { DocumentosCliente, NotasPrivadas } from '../app/FichaNotasDocs';
 import { useScope } from '../app/ModuleLayout';
 import { VoltarA } from '../app/Estados';
@@ -74,6 +76,7 @@ function PedirMotivoSaude({ onEnviar }: { onEnviar?: (m: string) => void }) {
  * entradas chegam com o plano Ginásio (F2). Cada secção falha sozinha.
  */
 export function Client360() {
+  const modulos = useAuthStore((st) => st.modules);
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const scope = useScope();
@@ -286,6 +289,7 @@ export function Client360() {
                   </Secao>
                 </section>
               )}
+              {sep === 'avaliacoes' && modulos.includes('assessment') && <PedidosCliente linkId={id} />}
 
               {sep === 'saude' && (
                 <div className="lg-ficha__grelha">

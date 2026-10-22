@@ -598,3 +598,39 @@ button.lg-lista__linha:hover { background: var(--cor-superficie-2); }
   .lg-lista__linha > :nth-child(3), .lg-lista__linha > :nth-child(4) { display: none; }
   .lg-mes__dia { min-height: 52px; padding: var(--espaco-4); }
 }
+
+/* ── Avaliação (passo 22) ── */
+.lg-construtor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: var(--espaco-16); align-items: start; }
+.lg-construtor__lado { position: sticky; top: var(--espaco-16); }
+.lg-pergunta { display: flex; align-items: flex-start; gap: var(--espaco-12); width: 100%; text-align: left; font: inherit; color: var(--cor-texto); cursor: pointer; }
+.lg-pergunta--ativa { border-color: var(--cor-texto); box-shadow: 0 0 0 1px var(--cor-texto); }
+.lg-pergunta:disabled { opacity: .5; cursor: default; }
+.lg-pergunta__n { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--raio-linha); background: var(--cor-superficie-2); font-weight: 600; }
+.lg-escala { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--espaco-8); }
+.lg-escala__n { min-height: 52px; border: 1px solid var(--cor-linha); border-radius: var(--raio-nota, 16px); background: var(--cor-superficie); color: var(--cor-texto); font: 600 18px/1 var(--fonte-titulo); cursor: pointer; }
+.lg-escala__n[aria-checked="true"] { background: var(--cor-principal); border-color: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lg-protocolo__linha { display: grid; grid-template-columns: minmax(0, 2fr) 90px 80px minmax(0, 1fr); gap: var(--espaco-12); align-items: center; width: 100%; padding: var(--espaco-8) var(--espaco-12); border: 0; border-bottom: 1px solid var(--cor-linha); background: none; color: var(--cor-texto); font: inherit; text-align: left; }
+button.lg-protocolo__linha { cursor: pointer; }
+.lg-protocolo__linha--ativa { background: var(--cor-selecao); }
+.lg-comparar { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(70px, 1fr)) auto; gap: var(--espaco-12); align-items: center; padding: var(--espaco-12) var(--espaco-16); border-bottom: 1px solid var(--cor-linha); }
+.lg-comparar--ativa { background: var(--cor-superficie-2); }
+.lg-tendencia__linha { color: var(--cor-principal); }
+.lg-tendencia__ponto { fill: var(--cor-principal); }
+.lg-tendencia__ultimo { fill: var(--cor-acao); }
+.lg-aplicar { display: flex; flex-direction: column; gap: var(--espaco-16); max-width: 640px; }
+.lg-aplicar__passos { display: flex; gap: var(--espaco-4); }
+.lg-aplicar__passos i { flex: 1; height: 5px; border-radius: 3px; background: var(--cor-linha); }
+.lg-aplicar__passos i.feito { background: var(--cor-principal); }
+.lg-aplicar__passos i.agora { background: var(--cor-acao); }
+.lg-aplicar__valor { display: flex; align-items: baseline; justify-content: center; gap: var(--espaco-8); padding: var(--espaco-24); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao, 24px); }
+.lg-aplicar__valor b { font: 700 48px/1 var(--fonte-titulo); }
+.lg-aplicar__tentativas { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: var(--espaco-8); }
+.lg-aplicar__tentativas .lv-campo-input { min-height: 52px; text-align: center; font-size: 20px; }
+@media (max-width: 900px) {
+  .lg-construtor { grid-template-columns: minmax(0, 1fr); }
+  .lg-construtor__lado { position: static; }
+  .lg-comparar { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(56px, 1fr)); }
+  .lg-comparar > :nth-child(5) { grid-column: 1 / -1; }
+  .lg-protocolo__linha { grid-template-columns: minmax(0, 1fr) 60px 60px; }
+  .lg-protocolo__linha > :nth-child(4) { display: none; }
+}

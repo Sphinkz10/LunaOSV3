@@ -23,6 +23,7 @@ export * from './api/packs';
 export * from './api/pecasPT';
 export * from './api/aoVivo';
 export * from './api/metricas';
+export * from './api/avaliacao';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

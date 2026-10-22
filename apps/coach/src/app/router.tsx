@@ -25,6 +25,7 @@ import { Equipa } from '../pages/Equipa';
 import { RegrasPT } from '../pages/RegrasPT';
 import { Ajuda } from '../pages/Ajuda';
 import { MetricasInternas } from '../pages/MetricasInternas';
+import { AplicarAvaliacao, AvaliacaoInicio, ConstrutorProtocolo, ConstrutorQuestionario, EnviarPedido, RespostaPagina, ResultadoAvaliacao } from '../pages/Avaliacao';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
@@ -68,6 +69,14 @@ const routes: RouteObject[] = [
   { path: '/inbox', element: <Protected><Inbox /></Protected> },
   { path: '/ajuda', element: <Protected><Ajuda /></Protected> },
   { path: '/interno/metricas', element: <Protected><MetricasInternas /></Protected> },
+  { path: '/assessment', element: <Protected module="assessment"><AvaliacaoInicio /></Protected> },
+  { path: '/assessment/questionario/:id', element: <Protected module="assessment"><ConstrutorQuestionario /></Protected> },
+  { path: '/assessment/protocolo/:id', element: <Protected module="assessment"><ConstrutorProtocolo /></Protected> },
+  { path: '/assessment/enviar', element: <Protected module="assessment"><EnviarPedido /></Protected> },
+  { path: '/assessment/resposta/:id', element: <Protected module="assessment"><RespostaPagina /></Protected> },
+  { path: '/assessment/avaliacao/:id', element: <Protected module="assessment"><ResultadoAvaliacao /></Protected> },
+  { path: '/assessment/aplicar', element: <Protected module="assessment"><AplicarAvaliacao /></Protected> },
+  { path: '/avaliacao/resposta/:id', element: <Protected module="assessment"><RespostaPagina /></Protected> },
   { path: '/settings', element: <Protected module="settings"><Definicoes /></Protected> },
   { path: '/settings/equipa', element: <Protected><Equipa /></Protected> },
   { path: '/settings/seguranca', element: <Protected module="settings"><Seguranca /></Protected> },
