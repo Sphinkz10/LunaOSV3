@@ -9,7 +9,7 @@ import {
   Atalho, Avatar, Botao, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Interruptor, NavegacaoInferior, Nota, Tema, type TemaId,
 } from '@luna/ui/v3';
 import {
-  ArrowLeft, Barbell, Bell, CalendarBlank, ChatCircle, CaretRight, ChartLineUp, Gear, Play, ShieldCheck, SignOut, Sun, UserCircle,
+  ArrowLeft, Barbell, Bell, CalendarBlank, ChatCircle, Wallet, CaretRight, ChartLineUp, Gear, Play, ShieldCheck, SignOut, Sun, UserCircle,
 } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { AvaliacoesProgresso, PedidosHoje } from './AvaliacaoCliente';
@@ -344,6 +344,7 @@ export function EuCliente() {
   const veem = ligacoes?.length ?? 0;
   const linhas: { icone: typeof Gear; titulo: string; sub: string; to: string }[] = [
     { icone: ShieldCheck, titulo: 'Privacidade e partilha', sub: ligacoes ? `${veem} ${veem === 1 ? 'organização vê' : 'organizações veem'} dados teus` : '…', to: '/eu/privacidade' },
+    { icone: Wallet, titulo: 'O meu pack', sub: 'Sessões que faltam e pagamentos', to: '/eu/pack' },
     { icone: UserCircle, titulo: `Ligar a um ${t('responsavel')}`, sub: 'Código, QR ou convite', to: '/eu/treinador' },
     { icone: Gear, titulo: 'Definições', sub: 'Tema e consentimentos', to: '/eu/definicoes' },
   ];

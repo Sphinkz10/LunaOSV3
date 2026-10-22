@@ -28,6 +28,7 @@ import { MetricasInternas } from '../pages/MetricasInternas';
 import { AplicarAvaliacao, AvaliacaoInicio, ConstrutorProtocolo, ConstrutorQuestionario, EnviarPedido, RespostaPagina, ResultadoAvaliacao } from '../pages/Avaliacao';
 import { Grupos } from '../pages/Grupos';
 import { Mensagens } from '../pages/Mensagens';
+import { Dinheiro } from '../pages/Dinheiro';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
 import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
@@ -85,6 +86,8 @@ const routes: RouteObject[] = [
   { path: '/settings/ginasio', element: <Protected module="settings"><Ginasio /></Protected> },
   { path: '/clients/importar', element: <Protected module="clients"><Importar /></Protected> },
   { path: '/business/packs', element: <Protected module="clients"><Packs /></Protected> },
+  { path: '/business/dinheiro', element: <Protected module="clients"><Dinheiro /></Protected> },
+  { path: '/business', element: <Navigate to="/business/dinheiro" replace /> },
   { path: '/training/biblioteca', element: <Protected module="training"><Biblioteca /></Protected> },
   { path: '/training/exercicio/:id', element: <Protected module="training"><ConstrutorExercicio /></Protected> },
   { path: '/training/treino/:id', element: <Protected module="training"><ConstrutorTreino /></Protected> },

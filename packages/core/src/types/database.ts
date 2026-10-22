@@ -169,7 +169,7 @@ export type WorkoutBlockRow = {
   mode: 'normal' | 'superset' | 'circuito' | 'emom' | 'amrap' | 'for_time'; rounds: number | null; minutes: number | null; notes: string | null;
   rest_between_rounds: number | null; rest_after: number | null;
 };
-export type PackProductRow = { id: Uuid; org_id: Uuid; name: string; sessions: number; validity_days: number; price_cents: number; archived_at: Ts | null; created_at: Ts };
+export type PackProductRow = { id: Uuid; org_id: Uuid; name: string; sessions: number; validity_days: number; price_cents: number; archived_at: Ts | null; created_at: Ts; kind: 'pack' | 'avulsa' };
 export type ClientPackRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; product_id: Uuid | null; name: string; sessions_total: number; sessions_used: number;
   starts_on: string; valid_until: string; price_cents: number; sold_by: Uuid | null; created_at: Ts;
@@ -209,6 +209,11 @@ export type ConversationRow = { id: Uuid; org_id: Uuid; kind: 'pt' | 'ginasio' |
 export type MessageRow = { id: Uuid; conversation_id: Uuid; org_id: Uuid; author_user: Uuid | null; author_side: 'equipa' | 'cliente'; kind: 'texto' | 'audio' | 'anexo' | 'resultado'; body: string | null; attachment_path: string | null; meta: Json; created_at: Ts };
 export type ReplyHoursRow = { membership_id: Uuid; start_time: string; end_time: string; days: number[]; updated_at: Ts };
 export type QuickReplyRow = { id: Uuid; membership_id: Uuid; body: string; position: number; created_at: Ts };
+export type MonthlyProductRow = { id: Uuid; org_id: Uuid; name: string; price_cents: number; sessions_per_week: number | null; billing_day: number; leftover: 'perdem' | 'passam_ate_2' | 'passam'; renews: boolean; archived_at: Ts | null; created_at: Ts };
+export type ProgramProductRow = { id: Uuid; org_id: Uuid; name: string; plan_id: Uuid; price_cents: number; archived_at: Ts | null; created_at: Ts };
+export type ClientMonthlyRow = { id: Uuid; org_id: Uuid; link_id: Uuid; product_id: Uuid | null; name: string; price_cents: number; sessions_per_week: number | null; billing_day: number; leftover: string; renews: boolean; starts_on: string; ends_on: string | null; end_reason: string | null; sold_by: Uuid | null; created_at: Ts };
+export type ClientProgramRow = { id: Uuid; org_id: Uuid; link_id: Uuid; product_id: Uuid | null; name: string; price_cents: number; assignment_id: Uuid | null; starts_on: string; sold_by: Uuid | null; created_at: Ts };
+export type PackSharerRow = { pack_id: Uuid; org_id: Uuid; link_id: Uuid; created_at: Ts };
 export type CalendarFeedRow = { membership_id: Uuid; token_hash: string; show_names: boolean; created_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
@@ -378,6 +383,11 @@ export interface Database {
       attendance: Table<AttendanceRow, 'booking_id' | 'org_id' | 'link_id' | 'status'>;
       pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
       calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
+      monthly_products: Table<MonthlyProductRow, 'org_id' | 'name' | 'price_cents'>;
+      program_products: Table<ProgramProductRow, 'org_id' | 'name' | 'plan_id' | 'price_cents'>;
+      client_monthlies: Table<ClientMonthlyRow, 'org_id' | 'link_id' | 'name' | 'price_cents' | 'billing_day' | 'leftover' | 'renews'>;
+      client_programs: Table<ClientProgramRow, 'org_id' | 'link_id' | 'name' | 'price_cents'>;
+      pack_sharers: Table<PackSharerRow, 'pack_id' | 'org_id' | 'link_id'>;
       solo_plans: Table<{ id: Uuid; person_id: Uuid; name: string; source: string; snapshot: Json; started_on: string; archived_at: Ts | null; created_at: Ts }, 'person_id' | 'name' | 'snapshot'>;
       conversations: Table<ConversationRow, 'org_id' | 'kind'>;
       messages: Table<MessageRow, 'id' | 'conversation_id' | 'org_id' | 'author_side'>;
@@ -433,6 +443,17 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      sell_monthly: { Args: { _link: string; _product: string; _starts_on?: string }; Returns: string };
+      end_monthly: { Args: { _id: string; _on: string; _reason: string }; Returns: undefined };
+      sell_program: { Args: { _link: string; _product: string; _starts_on?: string }; Returns: string };
+      share_pack: { Args: { _pack: string; _link: string; _share?: boolean }; Returns: undefined };
+      record_payment: { Args: { _link: string; _kind: string; _target: string | null; _period: string | null; _amount_cents: number; _paid_on: string; _method: string; _invoice?: string | null; _note?: string | null; _booking?: string | null }; Returns: string };
+      correct_payment: { Args: { _payment: string; _amount_cents: number; _reason: string; _method?: string | null; _invoice?: string | null }; Returns: string };
+      client_payments: { Args: { _link: string }; Returns: { id: string; kind: string; alvo: string; periodo: string | null; valor: number; pago_em: string; metodo: string; fatura: string | null; nota: string | null; corrige: string | null; motivo: string | null; atual: boolean; quem: string | null; em: string }[] };
+      my_payments: { Args: Record<string, never>; Returns: { org: string; alvo: string; periodo: string | null; valor: number; pago_em: string; metodo: string; fatura: string | null; corrigido: boolean }[] };
+      my_plans: { Args: Record<string, never>; Returns: { tipo: string; org: string; nome: string; restam: number | null; total: number | null; valido_ate: string | null; preco: number; pago: number | null; treinador: string | null }[] };
+      money_overview: { Args: { _org: string; _month?: string }; Returns: Json };
+      export_business: { Args: { _org: string }; Returns: Json };
       start_solo: { Args: { _goal: string; _level: string; _days: number; _place: string }; Returns: string };
       my_solo_workout: { Args: { _day?: string | null; _on?: string }; Returns: Json };
       my_solo_week: { Args: { _from?: string }; Returns: { dia: string; workout_id: string; nome: string; plano: string | null }[] };

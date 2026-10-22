@@ -28,7 +28,7 @@ export const DESTINOS: Destino[] = [
   { to: '/assessment', label: 'Avaliação', icone: ClipboardText, module: 'assessment', perms: ['training.write', 'health.read'], pronto: true },
   { to: '/health', label: 'Saúde', icone: Heartbeat, module: 'health', perms: ['health.read'], pronto: false },
   { to: '/messages', label: 'Mensagens', icone: ChatCircle, module: 'messages', perms: [], pronto: true },
-  { to: '/business', label: 'Negócio', icone: Wallet, module: 'business', perms: ['org.manage', 'schedule.read_all'], pronto: false },
+  { to: '/business/dinheiro', label: 'Negócio', icone: Wallet, module: 'clients', perms: ['org.manage', 'schedule.read_all'], pronto: true },
   { to: '/reports', label: 'Relatórios', icone: ClipboardText, module: 'reports', perms: ['org.manage', 'clients.read_own'], pronto: false },
   { to: '/documents', label: 'Documentos', icone: ClipboardText, module: 'documents', perms: ['org.manage', 'schedule.read_all', 'health.read'], pronto: false },
   { to: '/settings', label: 'Definições', icone: Gear, module: 'settings', perms: ['org.manage', 'team.manage'], pronto: true },

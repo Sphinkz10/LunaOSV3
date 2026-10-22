@@ -12,7 +12,7 @@ export interface SaldoPack { packId: string; nome: string; restam: number; total
 export const euros = (c: number) => (c / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
 
 export async function fetchPackProdutos(client: LunaClient, scope: OrgScope): Promise<PackProduto[]> {
-  const { data, error } = await client.from('pack_products').select('id,name,sessions,validity_days,price_cents,archived_at').eq('org_id', scope.orgId).order('sessions');
+  const { data, error } = await client.from('pack_products').select('id,name,sessions,validity_days,price_cents,archived_at').eq('org_id', scope.orgId).eq('kind', 'pack').order('sessions');
   if (error) throw error;
   return (data ?? []).map((p) => ({ id: p.id, nome: p.name, sessoes: p.sessions, validadeDias: p.validity_days, precoCent: p.price_cents, arquivado: !!p.archived_at }));
 }

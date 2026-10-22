@@ -9,6 +9,7 @@ import { MarcarPT } from './pages/Marcar';
 import { CheckinDiario, ResponderPedido } from './pages/AvaliacaoCliente';
 import { ConversaCliente, MensagensCliente } from './pages/MensagensCliente';
 import { ComecarSozinho, LigarTreinador } from './pages/Solo';
+import { OMeuPack } from './pages/OMeuPack';
 
 /** App do cliente · F1a: conta, consentimentos, convite, PAR-Q e encarregado (C-01, C-25); Hoje, avisos, Eu e privacidade (C-03, C-20, C-21, C-24). */
 export const router = createBrowserRouter([
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
   { path: '/mensagens', element: <MensagensCliente /> },
   { path: '/sozinho', element: <ComecarSozinho /> },
   { path: '/eu/treinador', element: <LigarTreinador /> },
+  { path: '/eu/pack', element: <OMeuPack /> },
   { path: '/ligar', element: <LigarTreinador /> },
   { path: '/mensagens/:id', element: <ConversaCliente /> },
   { path: '/messages/:id', element: <ConversaCliente /> },

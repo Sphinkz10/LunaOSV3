@@ -59,7 +59,7 @@ describe('Porta da Gestão (X-02, AUD-71)', () => {
 describe('Menu por direitos (G-00)', () => {
   it('só mostra destinos ligados, com o vocabulário da modalidade', () => {
     const labels = navItems(['today', 'clients']).map((i) => i.label);
-    expect(labels).toEqual(['Hoje', 'Clientes']);
+    expect(labels).toEqual(['Hoje', 'Clientes', 'Negócio']);
     expect(navItems([]).length).toBe(0);
   });
 
@@ -70,7 +70,7 @@ describe('Menu por direitos (G-00)', () => {
       .toEqual(['/today', '/clients', '/schedule', '/training/biblioteca']);
     // Receção: sem Treino
     expect(navItems(plano, ['clients.read_all', 'schedule.read_all', 'schedule.write']).map((i) => i.to))
-      .toEqual(['/today', '/clients', '/schedule']);
+      .toEqual(['/today', '/clients', '/schedule', '/business/dinheiro']);
   });
 });
 

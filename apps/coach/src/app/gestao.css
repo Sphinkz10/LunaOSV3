@@ -668,3 +668,6 @@ button.lg-protocolo__linha { cursor: pointer; }
   .lg-mensagens--aberta .lg-mensagens__lista { display: none; }
   .lg-fio__voltar { display: inline-grid; }
 }
+
+/* ── Pagamentos (P-14) ── */
+.lg-pagamento { display: flex; flex-direction: column; gap: var(--espaco-8); padding: var(--espaco-12); border: 1px solid var(--cor-linha); border-radius: var(--raio-nota, 16px); }
