@@ -27,7 +27,7 @@ alter table public.bookings add constraint bookings_no_overlap
 
 alter table public.link_events drop constraint link_events_kind_check;
 alter table public.link_events add constraint link_events_kind_check
-  check (kind in ('arquivado','reativado','objetivo','marco','revisao','dados','sessao'));
+  check (kind in ('arquivado','reativado','objetivo','marco','revisao','dados','presenca'));
 
 create table public.attendance (
   booking_id uuid primary key,
@@ -302,7 +302,7 @@ begin
       n_nao := n_nao + 1;
     end if;
     insert into public.link_events (org_id, link_id, kind, title, ref_id, actor_user)
-      values (x.org_id, x.link_id, 'sessao',
+      values (x.org_id, x.link_id, 'presenca',
               case a when 'faltou' then 'Faltou à sessão' when 'nao_treina' then 'Não treinou (sem falta)' else 'Sessão dada' end, x.id, auth.uid());
   end loop;
   update public.bookings set submitted_at = now(), submitted_by = auth.uid() where id in (select id from public._do_grupo(_booking));
@@ -334,7 +334,7 @@ begin
   insert into public.attendance_corrections (org_id, booking_id, link_id, before, after, reason, actor_user)
     values (b.org_id, _booking, b.link_id, antes, _status, trim(_reason), auth.uid());
   insert into public.link_events (org_id, link_id, kind, title, ref_id, actor_user)
-    values (b.org_id, b.link_id, 'sessao', 'Presença corrigida: ' || coalesce(antes, '—') || ' → ' || _status, _booking, auth.uid());
+    values (b.org_id, b.link_id, 'presenca', 'Presença corrigida: ' || coalesce(antes, '—') || ' → ' || _status, _booking, auth.uid());
   tz := coalesce((select timezone from public.organizations where id = b.org_id), 'Europe/Lisbon');
   insert into public.notifications (user_id, org_id, type, title, body, action_url)
     select p.user_id, b.org_id, 'presenca_corrigida', 'A tua sessão foi corrigida',

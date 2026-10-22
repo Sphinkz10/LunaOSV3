@@ -26,7 +26,7 @@ import { RegrasPT } from '../pages/RegrasPT';
 import { Ajuda } from '../pages/Ajuda';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
-import { Live } from '../pages/Live';
+import { AoVivo, IniciarSessao } from '../pages/AoVivo';
 import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
 
@@ -50,8 +50,8 @@ const routes: RouteObject[] = [
     children: [{ index: true, element: <Today /> }] },
   { path: '/schedule', element: <Protected module="schedule"><ModuleLayout module="schedule" /></Protected>,
     children: [{ index: true, element: <Horario /> }, { path: 'disponibilidade', element: <Disponibilidade /> }, { path: 'regras', element: <RegrasPT /> }] },
-  { path: '/live/:bookingId?', element: <Protected module="training"><ModuleLayout module="live" /></Protected>,
-    children: [{ index: true, element: <Live /> }] },
+  { path: '/live', element: <Protected module="training"><ModuleLayout module="live" /></Protected>,
+    children: [{ index: true, element: <IniciarSessao /> }, { path: ':bookingId', element: <AoVivo /> }] },
   { path: '/clients', element: <Protected module="clients"><ModuleLayout module="clients" /></Protected>,
     children: [
       { index: true, element: <Clients /> },

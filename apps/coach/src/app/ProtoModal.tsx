@@ -29,10 +29,13 @@ export function ProtoModal({
   closeOnBackdrop?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // AUD-72: o foco vai para a janela só ao abrir; quem a usa pode redesenhar à vontade
+  const fechar = useRef(onClose);
+  fechar.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar.current(); };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -41,7 +44,7 @@ export function ProtoModal({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

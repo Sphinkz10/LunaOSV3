@@ -128,7 +128,7 @@ export async function sessoesEquipa(client: LunaClient, scope: OrgScope): Promis
   return data ?? [];
 }
 
-export interface LinhaResumo { exercicio: string; serie: number; previsto: string; feitoReps: number | null; feitoCarga: number | null; rpe: number | null; desvio: number | null }
+export interface LinhaResumo { setId: string; exercicio: string; serie: number; previsto: string; feitoReps: number | null; feitoCarga: number | null; rpe: number | null; desvio: number | null }
 export interface ResumoSessao {
   id: string; cliente: string | null; inicio: string | null; minutos: number; rpeMedio: number | null; linhas: LinhaResumo[];
   correcoes: { em: string; texto: string }[]; origem: { treino: string | null; versao: number | null; marcacao: string | null; plano: string | null };
@@ -159,7 +159,7 @@ export async function resumoSessao(client: LunaClient, sessionId: string): Promi
   const linhas: LinhaResumo[] = (ex.data ?? []).flatMap((e) => (sets.data ?? []).filter((x) => x.session_exercise_id === e.id).map((x) => {
     const prevReps = Number(plan.data?.find((p) => p.exercise_id === e.exercise_id)?.target_reps ?? NaN);
     return {
-      exercicio: nome(e.exercise_id), serie: x.set_index, previsto: previstoDe(e.exercise_id), feitoReps: x.reps, feitoCarga: x.load_kg == null ? null : Number(x.load_kg),
+      setId: x.id, exercicio: nome(e.exercise_id), serie: x.set_index, previsto: previstoDe(e.exercise_id), feitoReps: x.reps, feitoCarga: x.load_kg == null ? null : Number(x.load_kg),
       rpe: x.rpe == null ? null : Number(x.rpe), desvio: Number.isFinite(prevReps) && x.reps != null ? x.reps - prevReps : null,
     };
   }));

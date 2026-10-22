@@ -66,7 +66,7 @@ export function ProgressoTab({ linkId, nome }: { linkId: string; nome: string })
   const m = metricas?.find((x) => x.chave === metrica);
   const ultimo = p?.atual[p.atual.length - 1];
   const abrirOrigem = (k: string, id: string | null) => {
-    if (k === 'sessao' && id) navigate(`/live/${id}`);
+    if (k === 'sessao' && id) navigate(`/training/sessao/${id}`);
     else toast({ variant: 'info', title: k === 'medida' ? 'Registo de medida' : 'Origem', description: 'O detalhe abre na Avaliação (próxima tarefa).' });
   };
   if (erro) return <AvisoSecao tipo="falha-parcial" texto={`Não foi possível carregar o progresso: ${erro}`} />;
@@ -401,7 +401,8 @@ export function AtividadeTab({ linkId, nome }: { linkId: string; nome: string })
     return [...m.entries()];
   }, [eventos, origem]);
   const abrirOrigem = (e: EventoAtividade) => {
-    if (e.refKind === 'sessao' && e.refId) navigate(`/live/${e.refId}`);
+    if (e.refKind === 'sessao' && e.refId) navigate(`/training/sessao/${e.refId}`);
+    else if (e.refKind === 'presenca' && e.refId) navigate(`/live/${e.refId}`);
     else if (e.refKind === 'marcacao') navigate('/schedule');
     else toast({ variant: 'info', title: e.titulo, description: e.detalhe || undefined });
   };

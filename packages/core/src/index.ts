@@ -21,6 +21,7 @@ export * from './api/treinoAntigas';
 export * from './api/horario';
 export * from './api/packs';
 export * from './api/pecasPT';
+export * from './api/aoVivo';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

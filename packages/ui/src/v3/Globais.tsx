@@ -65,6 +65,9 @@ export function Janela({ aberta, onFechar, titulo, sub, children, acoes, forma =
   const estreito = useEstreito();
   const ref = useRef<HTMLDivElement>(null);
   const tituloId = useId();
+  // O foco entra só ao abrir (AUD-72): redesenhar o ecrã por trás não o rouba
+  const fechar = useRef(onFechar);
+  fechar.current = onFechar;
   useEffect(() => {
     if (!aberta) return;
     const anterior = document.activeElement as HTMLElement | null;
@@ -73,7 +76,7 @@ export function Janela({ aberta, onFechar, titulo, sub, children, acoes, forma =
       foco?.focus();
     }, 0);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onFechar();
+      if (e.key === 'Escape') fechar.current();
       if (e.key === 'Tab' && ref.current) {
         const f = [...ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
           .filter((el) => !el.hasAttribute('disabled'));
@@ -85,7 +88,7 @@ export function Janela({ aberta, onFechar, titulo, sub, children, acoes, forma =
     };
     document.addEventListener('keydown', onKey);
     return () => { clearTimeout(t); document.removeEventListener('keydown', onKey); anterior?.focus?.(); };
-  }, [aberta, onFechar]);
+  }, [aberta]);
   if (!aberta) return null;
   const tipo = estreito ? 'folha' : forma;
   return createPortal(

@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   fetchPlanos, fetchTreinos, historicoAtribuicoes, resumoSessao, retirarAtribuicao, sessoesEquipa, substituirAtribuicao, toast,
   ultimaVersaoPlano, ultimaVersaoTreino,
-  type AtribuicaoHistorico, type PlanoResumo, type ResumoSessao, type SessaoEquipa, type TreinoResumo,
+  corrigirSerie, type AtribuicaoHistorico, type LinhaResumo, type PlanoResumo, type ResumoSessao, type SessaoEquipa, type TreinoResumo,
 } from '@luna/core';
-import { AvisoSecao, Botao, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
+import { AvisoSecao, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
 import { Play } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { PartilharResumo } from '../app/PartilharResumo';
@@ -70,6 +70,7 @@ export function ResumoSessaoPagina() {
   const [r, setR] = useState<ResumoSessao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [partilhar, setPartilhar] = useState(false);
+  const [corrigir, setCorrigir] = useState<LinhaResumo | null>(null);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
@@ -109,7 +110,7 @@ export function ResumoSessaoPagina() {
               </section>
             </div>
             <section className="lv-lista lg-tabela" aria-label="Previsto contra feito">
-              <div className="lg-resumo__linha lg-tabela__cabeca"><span>Exercício</span><span>Série</span><span>Previsto</span><span>Feito</span><span className="lg-num">RPE</span></div>
+              <div className="lg-resumo__linha lg-tabela__cabeca"><span>Exercício</span><span>Série</span><span>Previsto</span><span>Feito</span><span className="lg-num">RPE</span><span /></div>
               {r.linhas.map((l, i) => (
                 <div key={i} className="lg-resumo__linha">
                   <span className="lv-linha-lista__titulo">{i === 0 || r.linhas[i - 1].exercicio !== l.exercicio ? l.exercicio : ''}</span>
@@ -118,6 +119,7 @@ export function ResumoSessaoPagina() {
                   <span><b>{l.feitoReps ?? '—'}{l.feitoCarga != null ? ` × ${l.feitoCarga.toLocaleString('pt-PT')} kg` : ''}</b>
                     {l.desvio ? <span className={l.desvio > 0 ? 'lg-resumo__mais' : 'lg-resumo__menos'}> {l.desvio > 0 ? '+' : ''}{l.desvio}</span> : null}</span>
                   <span className="lg-num">{l.rpe ?? '—'}</span>
+                  <Botao variante="secundario" onClick={() => setCorrigir(l)}>Corrigir</Botao>
                 </div>
               ))}
               <div className="lg-import__acoes" style={{ justifyContent: 'flex-start' }}>
@@ -128,6 +130,7 @@ export function ResumoSessaoPagina() {
           </div>
         )}
       </div>
+      <CorrigirSerie linha={corrigir} onFechar={() => setCorrigir(null)} onFeito={() => { setCorrigir(null); carregar(); }} />
       <PartilharResumo aberta={partilhar} sessaoId={r?.id ?? null} cliente={r?.cliente ?? null} textoInicial={r?.partilhado?.texto ?? ''} onFechar={() => { setPartilhar(false); carregar(); }} />
     </CoachShell>
   );
@@ -218,5 +221,34 @@ export function AtribuicoesCliente({ linkId, nome }: { linkId: string; nome: str
         </div>
       </Janela>
     </section>
+  );
+}
+
+/** Corrigir uma série depois de gravada: pede motivo e fica nas correções desta sessão. */
+function CorrigirSerie({ linha, onFechar, onFeito }: { linha: LinhaResumo | null; onFechar: () => void; onFeito: () => void }) {
+  const [reps, setReps] = useState(''); const [carga, setCarga] = useState(''); const [rpe, setRpe] = useState(''); const [motivo, setMotivo] = useState('');
+  useEffect(() => {
+    setReps(linha?.feitoReps?.toString() ?? ''); setCarga(linha?.feitoCarga?.toString() ?? ''); setRpe(linha?.rpe?.toString() ?? ''); setMotivo('');
+  }, [linha]);
+  if (!linha) return null;
+  const n = (v: string) => (v.trim() === '' ? null : Number(v.replace(',', '.')));
+  const gravar = async () => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    try { await corrigirSerie(client, linha.setId, { reps: n(reps), carga: n(carga), rpe: n(rpe) }, motivo); onFeito(); }
+    catch (e) { toast({ variant: 'danger', title: 'Não foi possível corrigir', description: e instanceof Error ? e.message : undefined }); }
+  };
+  return (
+    <Janela aberta onFechar={onFechar} titulo={`Corrigir ${linha.exercicio} · série ${linha.serie}`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <div className="lg-conta__prefs">
+          <Campo rotulo="Repetições" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+          <Campo rotulo="Carga (kg)" inputMode="decimal" value={carga} onChange={(e) => setCarga(e.target.value)} />
+          <Campo rotulo="Esforço" inputMode="decimal" value={rpe} onChange={(e) => setRpe(e.target.value)} />
+        </div>
+        <Campo rotulo="Motivo" placeholder="Ex.: contei mal as repetições" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+        <Botao disabled={!motivo.trim()} onClick={() => void gravar()}>Corrigir</Botao>
+      </div>
+    </Janela>
   );
 }

@@ -176,6 +176,8 @@ export type BookingRulesRow = {
   org_id: Uuid; slot_minutes: number; min_notice_hours: number; cancel_hours: number; auto_confirm: boolean; horizon_days: number; updated_at: Ts;
   no_show_counts: boolean; max_per_week: number | null; client_can_book: boolean; remind_24h: boolean; remind_2h: boolean; remind_sms: boolean; notify_pt: boolean;
 };
+export type PackUsageRow = { id: Uuid; org_id: Uuid; pack_id: Uuid; booking_id: Uuid | null; session_id: Uuid | null; motivo: 'sessao' | 'falta' | 'fora_do_prazo'; used_at: Ts; reverted_at: Ts | null };
+export type AttendanceRow = { booking_id: Uuid; org_id: Uuid; link_id: Uuid; status: 'presente' | 'atrasado' | 'saiu_cedo' | 'faltou' | 'nao_treina'; walk_in: boolean; marked_at: Ts; marked_by: Uuid | null };
 export type PtLocationRow = { id: Uuid; org_id: Uuid; membership_id: Uuid; kind: 'estudio' | 'casa_cliente' | 'parque' | 'online'; label: string; address: string | null; archived_at: Ts | null; created_at: Ts };
 export type CalendarFeedRow = { membership_id: Uuid; token_hash: string; show_names: boolean; created_at: Ts };
 export type ExerciseFieldRow = {
@@ -218,7 +220,7 @@ export type BookingRow = {
   class_id: Uuid | null; assignment_id: Uuid | null; type: Enums['booking_type']; session_type: string | null;
   status: Enums['booking_status']; title: string | null; starts_at: Ts; ends_at: Ts; location: string | null;
   notes: string | null; capacity: number | null; source: string; cancel_reason: string | null; created_at: Ts; updated_at: Ts;
-  series_id: Uuid | null; late_cancel: boolean; location_kind: 'estudio' | 'casa_cliente' | 'parque' | 'online' | null;
+  series_id: Uuid | null; late_cancel: boolean; location_kind: 'estudio' | 'casa_cliente' | 'parque' | 'online' | null; group_id: Uuid | null; submitted_at: Ts | null; submitted_by: Uuid | null;
 };
 export type WaitlistRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; class_id: Uuid | null; membership_id: Uuid | null;
@@ -342,10 +344,12 @@ export interface Database {
       workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
       exercise_fields: Table<ExerciseFieldRow, 'org_id' | 'exercise_id' | 'label' | 'kind'>;
       booking_rules: Table<BookingRulesRow, 'org_id'>;
+      attendance: Table<AttendanceRow, 'booking_id' | 'org_id' | 'link_id' | 'status'>;
       pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
       calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
       pack_products: Table<PackProductRow, 'org_id' | 'name' | 'sessions' | 'validity_days'>;
       client_packs: Table<ClientPackRow, 'org_id' | 'link_id' | 'name' | 'sessions_total' | 'valid_until'>;
+      pack_usages: Table<PackUsageRow, 'org_id' | 'pack_id'>;
       session_set_edits: Table<SessionSetEditRow, 'set_id' | 'session_id' | 'person_id' | 'before' | 'after'>;
       plan_workouts: Table<PlanWorkoutRow, 'org_id' | 'plan_id' | 'workout_id'>;
       exercise_alternatives: Table<ExerciseAlternativeRow, 'org_id' | 'exercise_id' | 'alternative_id'>;
@@ -382,6 +386,14 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      prepare_session: { Args: { _booking: string }; Returns: Json };
+      sync_live: { Args: { _p: Json }; Returns: Json };
+      submit_live: { Args: { _booking: string }; Returns: Json };
+      correct_attendance: { Args: { _booking: string; _status: string; _reason: string }; Returns: undefined };
+      correct_set: { Args: { _set: string; _reps: number | null; _carga: number | null; _rpe: number | null; _reason: string }; Returns: undefined };
+      session_history: { Args: { _booking: string }; Returns: { em: string; quem: string | null; texto: string; motivo: string | null }[] };
+      stale_sessions: { Args: { _org: string }; Returns: { id: string; booking_id: string | null; cliente: string; inicio: string; series: number }[] };
+      create_group_booking: { Args: { _org: string; _membership: string; _links: string[]; _starts: string; _minutes: number; _title?: string | null; _room?: string | null }; Returns: string };
       new_calendar_feed: { Args: { _org: string; _show_names?: boolean }; Returns: string };
       share_session_summary: { Args: { _session: string; _note: string }; Returns: undefined };
       transfer_clients: { Args: { _org: string; _from: string; _to: string; _links?: string[] | null }; Returns: number };
