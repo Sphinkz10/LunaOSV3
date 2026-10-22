@@ -53,6 +53,7 @@ try {
   await correr(db, 'tests/treino2_asserts.sql', ler(join(SUPA, 'tests/treino2_asserts.sql')));
   await correr(db, 'tests/horario_asserts.sql', ler(join(SUPA, 'tests/horario_asserts.sql')));
   await correr(db, 'tests/packs_asserts.sql', ler(join(SUPA, 'tests/packs_asserts.sql')));
+  await correr(db, 'tests/pt_asserts.sql', ler(join(SUPA, 'tests/pt_asserts.sql')));
   await correr(db, 'seed.sql', ler(join(SUPA, 'seed.sql')));
   const c = await db.query("select (select count(*) from public.organizations)::int as orgs, (select count(*) from public.links)::int as links");
   console.log(`✅ Migrações, provas SQL e seeds OK · ${c.rows[0].orgs} organizações, ${c.rows[0].links} ligações`);
