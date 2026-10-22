@@ -220,7 +220,7 @@ export type BookingRow = {
   class_id: Uuid | null; assignment_id: Uuid | null; type: Enums['booking_type']; session_type: string | null;
   status: Enums['booking_status']; title: string | null; starts_at: Ts; ends_at: Ts; location: string | null;
   notes: string | null; capacity: number | null; source: string; cancel_reason: string | null; created_at: Ts; updated_at: Ts;
-  series_id: Uuid | null; late_cancel: boolean; location_kind: 'estudio' | 'casa_cliente' | 'parque' | 'online' | null; group_id: Uuid | null; submitted_at: Ts | null; submitted_by: Uuid | null;
+  series_id: Uuid | null; late_cancel: boolean; location_kind: 'estudio' | 'casa_cliente' | 'parque' | 'online' | null; group_id: Uuid | null; submitted_at: Ts | null; submitted_by: Uuid | null; confirm_by: Ts | null;
 };
 export type WaitlistRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; class_id: Uuid | null; membership_id: Uuid | null;
@@ -386,6 +386,8 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      expire_pending: { Args: { _org: string }; Returns: number };
+      booking_history: { Args: { _booking: string }; Returns: { em: string; quem: string | null; what: string; before: string | null; after: string | null; reason: string | null }[] };
       prepare_session: { Args: { _booking: string }; Returns: Json };
       sync_live: { Args: { _p: Json }; Returns: Json };
       submit_live: { Args: { _booking: string }; Returns: Json };

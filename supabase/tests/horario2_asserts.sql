@@ -34,6 +34,7 @@ do $$ begin
   if not exists (select 1 from public.booking_events where booking_id = current_setting('x.b')::uuid and what = 'Cancelada' and reason = 'PT doente') then
     raise exception 'PROVA X2 FALHOU: motivo';
   end if;
+  if (select count(*) from public.booking_history(current_setting('x.b')::uuid)) <> 3 then raise exception 'PROVA X2 FALHOU: histórico com nomes'; end if;
 end $$;
 reset role;
 -- ... e a Carla foi avisada

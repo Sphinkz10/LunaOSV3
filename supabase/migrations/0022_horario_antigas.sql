@@ -130,3 +130,18 @@ begin
 end $$;
 revoke execute on function public._enviar_lembretes_e_expirar(timestamptz) from public, anon, authenticated;
 grant execute on function public._enviar_lembretes_e_expirar(timestamptz) to service_role;
+
+-- Histórico de uma marcação com o nome de quem mudou
+create or replace function public.booking_history(_booking uuid)
+returns table (em timestamptz, quem text, what text, before text, after text, reason text)
+language sql stable security definer set search_path = '' as $$
+  select e.created_at, p.full_name, e.what, e.before, e.after, e.reason
+  from public.booking_events e left join public.persons p on p.user_id = e.actor_user
+  where e.booking_id = _booking
+    and exists (select 1 from public.bookings b where b.id = _booking
+                and (b.membership_id = public.my_membership_id(b.org_id) or public.has_perm(b.org_id, 'schedule.read_all')
+                     or (b.link_id is not null and public.can_see_link(b.link_id))))
+  order by e.created_at desc, e.id desc;
+$$;
+revoke execute on function public.booking_history(uuid) from public, anon;
+grant execute on function public.booking_history(uuid) to authenticated;

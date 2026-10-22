@@ -578,3 +578,23 @@ button.lg-pack__linha { cursor: pointer; }
 .lg-inbox__deslize { position: absolute; top: 50%; transform: translateY(-50%); font: 600 13px/1 var(--fonte-texto); padding: var(--espaco-8); border-radius: var(--raio-linha); }
 .lg-inbox__deslize--resolver { left: -96px; color: var(--estado-ok); }
 .lg-inbox__deslize--adiar { right: -80px; color: var(--estado-aviso); }
+
+/* ── Horário: Mês e Lista (T24) ── */
+.lg-mes__grelha { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--espaco-4); }
+.lg-mes__cabeca { font: 600 12px/1.4 var(--fonte-texto); color: var(--cor-texto-secundario); text-align: center; padding: var(--espaco-4) 0; }
+.lg-mes__dia { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: var(--espaco-8); border: 1px solid var(--cor-linha); border-radius: var(--raio-linha); background: var(--cor-superficie); color: var(--cor-texto); font: inherit; text-align: left; cursor: pointer; }
+.lg-mes__dia--fora { opacity: .45; }
+.lg-mes__dia--hoje { border-color: var(--cor-texto); box-shadow: 0 0 0 1px var(--cor-texto); }
+.lg-mes__dia:focus-visible { outline: 2px solid var(--cor-texto); outline-offset: 2px; }
+.lg-mes__ponto { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: var(--estado-aviso); }
+.lg-lista__filtros { display: flex; flex-direction: column; gap: var(--espaco-8); padding: var(--espaco-16); border-bottom: 1px solid var(--cor-linha); }
+.lg-lista__linha { display: grid; grid-template-columns: 140px minmax(0, 2fr) 100px minmax(0, 1fr) 150px; gap: var(--espaco-12); align-items: center; width: 100%; padding: var(--espaco-12) var(--espaco-16); border: 0; border-bottom: 1px solid var(--cor-linha); background: none; color: var(--cor-texto); font: inherit; text-align: left; }
+button.lg-lista__linha { cursor: pointer; }
+button.lg-lista__linha:hover { background: var(--cor-superficie-2); }
+.lg-grade--dia .lg-grade__cabeca, .lg-grade--dia .lg-grade__corpo { grid-template-columns: 56px minmax(0, 1fr); min-width: 0; }
+.lg-horario__historico summary { cursor: pointer; padding: var(--espaco-8) 0; }
+@media (max-width: 760px) {
+  .lg-lista__linha { grid-template-columns: minmax(0, 1fr) auto; }
+  .lg-lista__linha > :nth-child(3), .lg-lista__linha > :nth-child(4) { display: none; }
+  .lg-mes__dia { min-height: 52px; padding: var(--espaco-4); }
+}

@@ -11,12 +11,15 @@ export interface MarcacaoSemana {
   id: string; inicio: string; fim: string; titulo: string; tipo: EnumOf<'booking_type'>; estado: EnumOf<'booking_status'>;
   clienteId: string | null; cliente: string | null; membershipId: string | null; pt: string | null; salaId: string | null; sala: string | null;
   serieId: string | null; notas: string | null;
+  confirmarAte: string | null; motivoCancelar: string | null; grupoId: string | null; origem: string;
 }
 
-export async function fetchSemana(client: LunaClient, scope: OrgScope, inicio: Date, dias = 7): Promise<MarcacaoSemana[]> {
+export async function fetchSemana(client: LunaClient, scope: OrgScope, inicio: Date, dias = 7, incluirCanceladas = false): Promise<MarcacaoSemana[]> {
   const fim = new Date(inicio.getTime() + dias * 86_400_000);
-  const { data, error } = await client.from('bookings').select('*').eq('org_id', scope.orgId).neq('type', 'class')
-    .gte('starts_at', inicio.toISOString()).lt('starts_at', fim.toISOString()).neq('status', 'cancelled').order('starts_at').limit(1000);
+  let q = client.from('bookings').select('*').eq('org_id', scope.orgId).neq('type', 'class')
+    .gte('starts_at', inicio.toISOString()).lt('starts_at', fim.toISOString());
+  if (!incluirCanceladas) q = q.neq('status', 'cancelled');
+  const { data, error } = await q.order('starts_at').limit(2000);
   if (error) throw error;
   const rows = (data ?? []) as BookingRow[];
   const links = [...new Set(rows.map((r) => r.link_id).filter((x): x is string => !!x))];
@@ -32,6 +35,7 @@ export async function fetchSemana(client: LunaClient, scope: OrgScope, inicio: D
     clienteId: r.link_id, cliente: c.data?.find((x) => x.id === r.link_id)?.full_name ?? null,
     membershipId: r.membership_id, pt: m.data?.find((x) => x.id === r.membership_id)?.full_name ?? null,
     salaId: r.room_id, sala: s.data?.find((x) => x.id === r.room_id)?.name ?? null, serieId: r.series_id, notas: r.notes,
+    confirmarAte: r.confirm_by, motivoCancelar: r.cancel_reason, grupoId: r.group_id, origem: r.source,
   }));
 }
 
@@ -180,4 +184,66 @@ export async function fetchMeusAvisos(client: LunaClient, userId: string): Promi
 export async function guardarMeusAvisos(client: LunaClient, userId: string, a: MeusAvisos): Promise<void> {
   const { error } = await client.from('user_settings').update({ reminders_on: a.lembretes, quiet_hours_start: a.silencioDe, quiet_hours_end: a.silencioAte }).eq('user_id', userId);
   if (error) throw error;
+}
+
+/* ── Funções antigas do horário (T24): prazo, cancelar com motivo, histórico ── */
+/** Liberta as marcações por confirmar que passaram do prazo (também corre no agendador). */
+export async function expirarPorConfirmar(client: LunaClient, scope: OrgScope): Promise<number> {
+  const { data, error } = await client.rpc('expire_pending', { _org: scope.orgId });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+export const MOTIVOS_CANCELAR = ['PT indisponível', 'Sala', 'Pedido do cliente', 'Outro'];
+export async function cancelarMarcacao(client: LunaClient, scope: OrgScope, id: string, motivo: string, nota = ''): Promise<void> {
+  const m = [motivo.trim(), nota.trim()].filter(Boolean).join(' · ');
+  if (!m) throw new Error('Escolhe o motivo.');
+  const { error } = await client.from('bookings').update({ status: 'cancelled', cancel_reason: m }).eq('org_id', scope.orgId).eq('id', id);
+  if (error) throw error;
+}
+export interface EventoMarcacao { em: string; quem: string | null; oque: string; antes: string | null; depois: string | null; motivo: string | null }
+export async function historicoMarcacao(client: LunaClient, bookingId: string): Promise<EventoMarcacao[]> {
+  const { data, error } = await client.rpc('booking_history', { _booking: bookingId });
+  if (error) throw error;
+  return (data ?? []).map((e) => ({ em: e.em, quem: e.quem, oque: e.what, antes: e.before, depois: e.after, motivo: e.reason }));
+}
+
+/** Diferença à UTC (minutos) de um fuso numa data. */
+export function desvioMinutos(instante: Date, tz: string): number {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(instante).reduce<Record<string, string>>((a, x) => ({ ...a, [x.type]: x.value }), {});
+  const local = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+  return Math.round((local - instante.getTime()) / 60000);
+}
+/** O dia em que a hora muda neste intervalo (aaaa-mm-dd), ou null. */
+export function mudancaDeHora(tz: string, de: Date, dias: number): string | null {
+  let antes = desvioMinutos(new Date(de.getTime() + 12 * 3_600_000), tz);
+  for (let i = 1; i <= dias; i++) {
+    const d = new Date(de.getTime() + i * 86_400_000 + 12 * 3_600_000);
+    const agora = desvioMinutos(d, tz);
+    if (agora !== antes) return d.toISOString().slice(0, 10);
+    antes = agora;
+  }
+  return null;
+}
+
+/** Vista Mês: quantas por dia e se há alguma por confirmar. */
+export function contarPorDia(lista: MarcacaoSemana[], tz: string): Map<string, { n: number; porConfirmar: boolean }> {
+  const m = new Map<string, { n: number; porConfirmar: boolean }>();
+  for (const b of lista) {
+    if (b.estado === 'cancelled') continue;
+    const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(b.inicio));
+    const x = m.get(p) ?? { n: 0, porConfirmar: false };
+    m.set(p, { n: x.n + 1, porConfirmar: x.porConfirmar || b.estado === 'pending' });
+  }
+  return m;
+}
+
+/** Vista Lista: pesquisa por sessão, PT ou cliente e filtro por estado. */
+export type FiltroLista = 'todas' | 'pending' | 'cancelled' | 'confirmed';
+export function filtrarLista(lista: MarcacaoSemana[], q: string, estado: FiltroLista, clienteId: string | null): MarcacaoSemana[] {
+  const t = q.trim().toLocaleLowerCase('pt-PT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const n = (s: string | null) => (s ?? '').toLocaleLowerCase('pt-PT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return lista.filter((b) => (estado === 'todas' ? true : b.estado === estado)
+    && (!clienteId || b.clienteId === clienteId)
+    && (!t || n(b.titulo).includes(t) || n(b.cliente).includes(t) || n(b.pt).includes(t) || n(b.sala).includes(t)));
 }
