@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   const auth = req.headers.get('Authorization') ?? '';
   if (auth !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) return new Response('Sem permissão', { status: 401 });
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-  const { data, error } = await admin.rpc('_enviar_lembretes', {});
+  const { data, error } = await admin.rpc('_enviar_lembretes_e_expirar', {});
   if (error) return new Response(JSON.stringify({ erro: error.message }), { status: 500 });
   return new Response(JSON.stringify({ enviados: data }), { headers: { 'Content-Type': 'application/json' } });
 });

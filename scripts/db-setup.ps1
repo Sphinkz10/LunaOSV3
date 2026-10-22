@@ -50,6 +50,7 @@ Invoke-PsqlFile "supabase/tests/horario_asserts.sql"
 Invoke-PsqlFile "supabase/tests/packs_asserts.sql"
 Invoke-PsqlFile "supabase/tests/pt_asserts.sql"
 Invoke-PsqlFile "supabase/tests/ao_vivo_asserts.sql"
+Invoke-PsqlFile "supabase/tests/horario2_asserts.sql"
 
 Write-Host "==> Seeds de desenvolvimento"
 Invoke-PsqlFile "supabase/seed.sql"

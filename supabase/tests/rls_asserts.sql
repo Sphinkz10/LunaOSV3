@@ -445,7 +445,7 @@ insert into public.bookings (id, org_id, class_id, membership_id, link_id, type,
 insert into public.waitlist (org_id, link_id, class_id, requested_starts_at, priority) values
   (current_setting('t.studio')::uuid, current_setting('t.link_c')::uuid, '00000000-0000-0000-0000-0000000c1a55', '2026-07-10 18:00+00', 1),
   (current_setting('t.studio')::uuid, current_setting('t.link_b')::uuid, '00000000-0000-0000-0000-0000000c1a55', '2026-07-03 18:00+00', 2);
-update public.bookings set status = 'cancelled' where id = '00000000-0000-0000-0000-00000000b0c1';
+update public.bookings set status = 'cancelled', cancel_reason = 'Prova' where id = '00000000-0000-0000-0000-00000000b0c1';
 do $$ begin
   if not exists (select 1 from public.bookings
                  where link_id = current_setting('t.link_b')::uuid and source = 'waitlist'
