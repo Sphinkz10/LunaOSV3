@@ -12,6 +12,7 @@ import { Notificacoes } from './Notificacoes';
 import { SessaoExpirada } from './SessaoExpirada';
 import { Atalhos } from './Atalhos';
 import { GravacoesPorConfirmar } from './Estados';
+import { AvisoSubscricao } from './AvisoSubscricao';
 import './gestao.css';
 
 const ORG_TIPO: Record<string, string> = {
@@ -229,6 +230,7 @@ export function CoachShell({
 
         <div className="lg-corpo">
           <main className="lg-conteudo">
+            {scope && <AvisoSubscricao />}
             {legado ? <div className="lg-legado">{children}</div> : children}
           </main>
           {board != null && <aside className="lg-lateral" aria-label="Resumo">{board}</aside>}

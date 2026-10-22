@@ -31,7 +31,7 @@ describe('Porta da Gestão (X-02, AUD-71)', () => {
   it('conta sem equipa cria o seu negócio e não vê nada de outros (J32)', () => {
     useAuthStore.getState().signIn('u1', []);
     renderAt('/business');
-    expect(screen.getByText('Cria o teu negócio')).toBeInTheDocument();
+    expect(screen.getByText('Como trabalhas?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument();
     expect(screen.queryByText('conteúdo')).toBeNull();
   });

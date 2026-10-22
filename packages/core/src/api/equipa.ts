@@ -15,7 +15,7 @@ export interface Lugares { lugares: number; ocupados: number }
 
 export async function fetchEquipa(client: LunaClient, scope: OrgScope): Promise<{
   membros: MembroEquipa[]; convites: ConviteEquipa[]; eventos: EventoEquipa[]; lugares: Lugares | null;
-  papeis: { key: string; nome: string }[];
+  papeis: { key: string; nome: string; ocupaLugar: boolean }[];
 }> {
   const [staff, mr, roles, inv, ev, seats] = await Promise.all([
     client.from('staff').select('id,full_name,email,title,status,joined_at').eq('org_id', scope.orgId).order('full_name'),
@@ -42,7 +42,7 @@ export async function fetchEquipa(client: LunaClient, scope: OrgScope): Promise<
       estado: i.accepted_at ? 'aceite' : i.revoked_at ? 'cancelado' : Date.parse(i.expires_at) < agora ? 'expirado' : 'pendente',
     })),
     eventos: ev.error ? [] : (ev.data ?? []).map((e) => ({ id: e.id, membershipId: e.membership_id, acao: e.action, motivo: e.reason, em: e.created_at })),
-    papeis: (roles.data ?? []).filter((r) => r.key !== 'owner').map((r) => ({ key: r.key, nome: r.name })),
+    papeis: (roles.data ?? []).filter((r) => r.key !== 'owner').map((r) => ({ key: r.key, nome: r.name, ocupaLugar: r.occupies_seat })),
     lugares: s && typeof s.seats === 'number' ? { lugares: s.seats, ocupados: s.used ?? 0 } : null,
   };
 }

@@ -82,10 +82,11 @@ export type LinkShareRow = {
 export type SubscriptionRow = {
   id: Uuid; org_id: Uuid; plan: string; seats: number; status: Enums['subscription_status'];
   trial_ends_at: Ts | null; provider_ref: string | null; created_at: Ts; updated_at: Ts;
+  grace_ends_at: Ts | null; payment_method: string | null;
 };
 export type EntitlementRow = {
   id: Uuid; org_id: Uuid | null; person_id: Uuid | null; module: string; limit_value: number | null;
-  source: Enums['entitlement_source']; created_at: Ts;
+  source: Enums['entitlement_source']; created_at: Ts; read_only: boolean;
 };
 export type OrgSportRow = { org_id: Uuid; sport_id: string; sport_version: number; vocabulary_override: Json; created_at: Ts }
 export type UserSettingsRow = {
@@ -430,7 +431,14 @@ export interface Database {
       staff: { Row: StaffViewRow; Relationships: [] };
     };
     Functions: {
-      create_organization: { Args: { _name: string; _type: Enums['org_type']; _sport?: string; _timezone?: string }; Returns: string };
+      create_organization: { Args: { _name: string; _type: Enums['org_type']; _sport?: string; _timezone?: string; _unit?: string | null }; Returns: string };
+      join_sport_waitlist: { Args: { _sports: string[]; _org?: string | null }; Returns: number };
+      subscription_overview: { Args: { _org: string }; Returns: Json };
+      preview_subscription_change: { Args: { _org: string; _plan: string; _seats: number }; Returns: Json };
+      change_subscription: { Args: { _org: string; _plan: string; _seats: number; _free?: string[]; _reason?: string | null }; Returns: Json };
+      add_payment_method: { Args: { _org: string }; Returns: undefined };
+      cancel_subscription: { Args: { _org: string; _reason: string }; Returns: undefined };
+      resume_subscription: { Args: { _org: string }; Returns: undefined };
       create_invite: { Args: { _org: string; _email: string; _role_key: string; _unit?: string | null; _confirm_over_seats?: boolean }; Returns: string };
       accept_invite: { Args: { _token: string }; Returns: string };
       add_client: { Args: { _org: string; _full_name: string; _email?: string | null; _phone?: string | null; _birth_date?: string | null; _responsible?: string | null; _type?: Enums['link_type']; _tax_id?: string | null }; Returns: string };

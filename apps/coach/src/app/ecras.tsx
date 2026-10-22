@@ -56,7 +56,7 @@ export const ECRAS_G: EcraG[] = [
   { id: 'G-44', ecra: 'Equipa e acessos', destino: 'Definições', fase: 'F1a', rota: '/settings/equipa' },
   { id: 'G-45', ecra: 'Segurança e auditoria', destino: 'Definições', fase: 'F1a', rota: '/settings/seguranca' },
   { id: 'G-46', ecra: 'Ginásio e preferências', destino: 'Definições', fase: 'F1a', rota: '/settings/ginasio' },
-  { id: 'G-47', ecra: 'Subscrição e lugares', destino: 'Definições', fase: 'F1b' },
+  { id: 'G-47', ecra: 'Subscrição e lugares', destino: 'Definições', fase: 'F1b', rota: '/settings/subscricao' },
   { id: 'G-48', ecra: 'Modalidades e vocabulário', destino: 'Definições', fase: 'F5' },
 ];
 

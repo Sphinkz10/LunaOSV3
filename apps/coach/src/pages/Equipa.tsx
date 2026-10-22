@@ -210,7 +210,7 @@ export function Equipa() {
 
       <EditarMembro membro={editar} catalogo={catalogo} titulo={editar ? titulos.get(editar.id) ?? null : null}
         onFechar={() => setEditar(null)} onFeito={carregar} />
-      <Convidar aberta={convidar} papeis={dados?.papeis ?? []} onFechar={() => setConvidar(false)} onConvidado={carregar} />
+      <Convidar aberta={convidar} papeis={dados?.papeis ?? []} lugares={dados?.lugares ?? null} onFechar={() => setConvidar(false)} onConvidado={carregar} />
       <PedirMotivo membro={desativar} titulo={(n) => `Desativar o acesso de ${n}?`} verbo="Desativar" perigo
         texto="Sai já de todos os aparelhos. O que fez fica no histórico."
         onFechar={() => setDesativar(null)} onConfirmar={async (m, motivo) => {
@@ -239,8 +239,9 @@ export function Equipa() {
   );
 }
 
-function Convidar({ aberta, papeis, onFechar, onConvidado }: {
-  aberta: boolean; papeis: { key: string; nome: string }[]; onFechar: () => void; onConvidado: () => void;
+function Convidar({ aberta, papeis, lugares, onFechar, onConvidado }: {
+  aberta: boolean; papeis: { key: string; nome: string; ocupaLugar: boolean }[]; lugares: { lugares: number; ocupados: number } | null;
+  onFechar: () => void; onConvidado: () => void;
 }) {
   const scope = useScope();
   const [email, setEmail] = useState('');
@@ -251,12 +252,15 @@ function Convidar({ aberta, papeis, onFechar, onConvidado }: {
   const [aGravar, setAGravar] = useState(false);
   useEffect(() => { if (aberta) { setEmail(''); setLigacao(null); setErro(null); setLugarExtra(false); } }, [aberta]);
 
+  // J33: o efeito no lugar aparece antes de confirmar
+  const ocupa = papeis.find((p) => p.key === papel)?.ocupaLugar ?? false;
+  const acima = ocupa && lugares != null && lugares.ocupados >= lugares.lugares;
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     const client = getSupabaseClient();
     if (!client) return;
     setAGravar(true); setErro(null);
-    try { setLigacao(await convidarMembro(client, scope, email.trim(), papel, lugarExtra)); onConvidado(); }
+    try { setLigacao(await convidarMembro(client, scope, email.trim(), papel, lugarExtra || acima)); onConvidado(); }
     catch (err) {
       if (err instanceof LugaresEsgotadosError) setLugarExtra(true);
       setErro(err instanceof Error ? err.message : 'Não foi possível convidar.');
@@ -277,8 +281,11 @@ function Convidar({ aberta, papeis, onFechar, onConvidado }: {
           <div role="radiogroup" aria-label="Papel" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
             {papeis.map((p) => <Chip key={p.key} role="radio" aria-checked={papel === p.key} ativo={papel === p.key} onClick={() => setPapel(p.key)}>{p.nome}</Chip>)}
           </div>
+          {lugares && (acima
+            ? <Nota>Os {lugares.lugares} lugares contratados estão ocupados. Este convite acrescenta um lugar: passas a {lugares.lugares + 1}. Só quem gere a subscrição pode confirmar.</Nota>
+            : <span className="lv-legenda">{ocupa ? `Ocupa um lugar: ${lugares.ocupados + 1} de ${lugares.lugares}.` : 'Este papel não ocupa lugar.'}</span>)}
           {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
-          <Botao type="submit" aCarregar={aGravar}>{lugarExtra ? 'Convidar com lugar extra' : 'Criar convite'}</Botao>
+          <Botao type="submit" aCarregar={aGravar}>{lugarExtra || acima ? 'Convidar com lugar extra' : 'Criar convite'}</Botao>
         </form>
       )}
     </Janela>

@@ -29,6 +29,8 @@ import { AplicarAvaliacao, AvaliacaoInicio, ConstrutorProtocolo, ConstrutorQuest
 import { Grupos } from '../pages/Grupos';
 import { Mensagens } from '../pages/Mensagens';
 import { Dinheiro } from '../pages/Dinheiro';
+import { Subscricao } from '../pages/Subscricao';
+import { ParaTreinadores } from '../pages/ParaTreinadores';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
 import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
@@ -48,6 +50,7 @@ const routes: RouteObject[] = [
   { path: '/login', element: <Login /> },
   { path: '/recuperar', element: <Recuperar /> },
   { path: '/criar-conta', element: <CriarConta /> },
+  { path: '/treinadores', element: <ParaTreinadores /> },
   { path: '/', element: <Navigate to="/today" replace /> },
   { path: '/today', element: <Protected module="today"><ModuleLayout module="today" /></Protected>,
     children: [{ index: true, element: <Today /> }] },
@@ -83,6 +86,7 @@ const routes: RouteObject[] = [
   { path: '/settings', element: <Protected module="settings"><Definicoes /></Protected> },
   { path: '/settings/equipa', element: <Protected><Equipa /></Protected> },
   { path: '/settings/seguranca', element: <Protected module="settings"><Seguranca /></Protected> },
+  { path: '/settings/subscricao', element: <Protected><Subscricao /></Protected> },
   { path: '/settings/ginasio', element: <Protected module="settings"><Ginasio /></Protected> },
   { path: '/clients/importar', element: <Protected module="clients"><Importar /></Protected> },
   { path: '/business/packs', element: <Protected module="clients"><Packs /></Protected> },
