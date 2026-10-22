@@ -5,7 +5,7 @@ import {
   erroResposta, fecharAvaliacao, fetchAvaliacao, fetchClients, fetchProtocolos, fetchQuestionario, fetchQuestionarios, fetchResposta, fetchResumoAvaliacao,
   fetchVersaoAtual, guardarProtocolo, guardarQuestionario, invalidarValor, MODELO_PROTOCOLO, MODELOS_QUESTIONARIO, mudarTentativa, perguntaVisivel,
   publicarProtocolo, publicarQuestionario, rever, saltarTeste, tendencia, testesDe, TIPOS_PERGUNTA, TIPOS_QUESTIONARIO, toast, ultimosValores,
-  useRede, validarPerguntas, valorGuardado,
+  useRede, validarPerguntas, valorGuardado, abrirConversaCliente, enviarMensagem, useAuthStore,
   type AvaliacaoDetalhe, type AvaliacaoLocal, type BlocoProtocolo, type ClientRow, type ItemAvaliar, type LinhaComparar, type Pergunta,
   type Protocolo, type Questionario, type RespostaDetalhe, type Respostas, type ResumoAvaliacao, type TesteProtocolo, type TipoPergunta,
   type TipoQuestionario,
@@ -618,6 +618,7 @@ export function RespostaPagina() {
 }
 
 export function ResultadoAvaliacao() {
+  const modulos = useAuthStore((st) => st.modules);
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [a, setA] = useState<AvaliacaoDetalhe | null>(null);
@@ -650,7 +651,17 @@ export function ResultadoAvaliacao() {
   const responder = async () => {
     const client = getSupabaseClient();
     if (!client) return;
-    try { await rever(client, 'avaliacao', id, texto); setTexto(''); toast({ variant: 'success', title: texto.trim() ? 'Enviado com o resultado' : 'Marcada como revista' }); carregar(); }
+    try {
+      await rever(client, 'avaliacao', id, texto);
+      // Com mensagem e com as Mensagens ligadas, segue na conversa com o resultado anexado (G-25)
+      if (texto.trim() && a && linhas && modulos.includes('messages')) {
+        const ok = linhas.filter((l) => l.estado === 'ok');
+        const conv = await abrirConversaCliente(client, a.linkId);
+        await enviarMensagem(client, conv, texto, 'equipa', { tipo: 'resultado', meta: {
+          titulo: `${a.protocolo} · ${dia(a.inicio)}`, resumo: `${ok.filter((l) => l.melhor).length} de ${ok.length} medidas melhoraram`, rota: '/progresso' } });
+      }
+      setTexto(''); toast({ variant: 'success', title: texto.trim() ? 'Enviado com o resultado' : 'Marcada como revista' }); carregar();
+    }
     catch (e) { toast({ variant: 'danger', title: 'Não foi possível', description: erroDe(e) }); }
   };
   const melhorou = linhas?.filter((l) => l.estado === 'ok' && l.melhor).length ?? 0;
