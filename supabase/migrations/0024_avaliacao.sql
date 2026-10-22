@@ -385,7 +385,7 @@ begin
   if not found or not public.is_my_link(r.link_id) then raise exception 'sem permissão' using errcode = 'insufficient_privilege'; end if;
   update public.requests set opened_at = coalesce(opened_at, now()) where id = _request;
   select * into v from public.form_versions where id = r.form_version_id;
-  return jsonb_build_object('id', r.id, 'nome', v.name, 'tipo', v.kind, 'saude', v.health, 'perguntas', v.questions, 'estado', r.status, 'prazo', r.due_at,
+  return jsonb_build_object('id', r.id, 'link_id', r.link_id, 'person_id', (select person_id from public.links where id = r.link_id), 'nome', v.name, 'tipo', v.kind, 'saude', v.health, 'perguntas', v.questions, 'estado', r.status, 'prazo', r.due_at,
     'quem_ve', case when v.health then 'Só o teu PT e quem trata da saúde no ginásio veem estas respostas.' else 'O teu PT vê estas respostas.' end);
 end $$;
 

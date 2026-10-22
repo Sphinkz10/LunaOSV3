@@ -12,6 +12,7 @@ import {
   ArrowLeft, Barbell, Bell, CalendarBlank, CaretRight, ChartLineUp, Gear, Play, ShieldCheck, SignOut, Sun, UserCircle,
 } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
+import { AvaliacoesProgresso, PedidosHoje } from './AvaliacaoCliente';
 import { useSessao } from '../sessao';
 import { t } from '../vocab';
 
@@ -143,6 +144,8 @@ export function HojeCliente() {
               </section>
             )}
 
+            <PedidosHoje />
+
             <div className="lc-atalhos">
               <Atalho icone={CalendarBlank} rotulo="Marcar" onClick={() => navigate('/aulas')} />
               <Atalho icone={Barbell} rotulo="Treino" onClick={() => navigate('/treino')} />
@@ -225,6 +228,7 @@ export function ProgressoCliente() {
           ))}
         </section>
       )}
+      <AvaliacoesProgresso />
       {historico && historico.length > 0 && (
         <section className="lc-grupo" aria-label="Histórico de treinos">
           <h2 className="lv-sobretitulo">Histórico de treinos</h2>

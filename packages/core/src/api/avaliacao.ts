@@ -332,7 +332,7 @@ export async function fetchMeusPedidos(client: LunaClient): Promise<MeuPedido[]>
   if (error) throw error;
   return data ?? [];
 }
-export interface PedidoAberto { id: string; nome: string; tipo: string; saude: boolean; perguntas: Pergunta[]; estado: string; prazo: string | null; quem_ve: string }
+export interface PedidoAberto { id: string; link_id: string; person_id: string; nome: string; tipo: string; saude: boolean; perguntas: Pergunta[]; estado: string; prazo: string | null; quem_ve: string }
 export async function abrirPedido(client: LunaClient, id: string): Promise<PedidoAberto> {
   const { data, error } = await client.rpc('open_request', { _request: id });
   if (error) throw error;

@@ -6,6 +6,7 @@ import { Tutela } from './pages/Tutela';
 import { AppCliente, AvisosCliente, DefinicoesCliente, EuCliente, HojeCliente, PrivacidadeCliente, ProgressoCliente } from './pages/App';
 import { TreinoAntevisao, TreinoEmCurso, TreinoSemana } from './pages/TreinoCliente';
 import { MarcarPT } from './pages/Marcar';
+import { CheckinDiario, ResponderPedido } from './pages/AvaliacaoCliente';
 
 /** App do cliente · F1a: conta, consentimentos, convite, PAR-Q e encarregado (C-01, C-25); Hoje, avisos, Eu e privacidade (C-03, C-20, C-21, C-24). */
 export const router = createBrowserRouter([
@@ -20,6 +21,8 @@ export const router = createBrowserRouter([
   { path: '/conta/pronto', element: <Pronto /> },
   { path: '/encarregado/:token', element: <Tutela /> },
   { path: '/treino/:id/agora', element: <TreinoEmCurso /> },
+  { path: '/checkin', element: <CheckinDiario /> },
+  { path: '/pedido/:id', element: <ResponderPedido /> },
   {
     element: <AppCliente />,
     children: [
