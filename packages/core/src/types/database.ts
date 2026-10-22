@@ -386,6 +386,10 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      my_analytics_consent: { Args: Record<string, never>; Returns: boolean };
+      set_analytics_consent: { Args: { _granted: boolean }; Returns: undefined };
+      is_lunaos_staff: { Args: Record<string, never>; Returns: boolean };
+      activation_metrics: { Args: { _weeks?: number }; Returns: Json };
       expire_pending: { Args: { _org: string }; Returns: number };
       booking_history: { Args: { _booking: string }; Returns: { em: string; quem: string | null; what: string; before: string | null; after: string | null; reason: string | null }[] };
       prepare_session: { Args: { _booking: string }; Returns: Json };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  cancelarApagarConta, definirPartilhas, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
+  cancelarApagarConta, definirConsentimentoAnalise, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
   assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
   type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
@@ -458,6 +458,7 @@ export function PrivacidadeCliente() {
             </div>
           </section>
         ))}
+      <AnaliseAnonima />
       <div className="lc-par">
         <Botao variante="secundario" onClick={() => void exportar()}>Exportar dados</Botao>
         {!apagarEm && <Botao variante="secundario" className="lc-perigo" onClick={() => setConfirmar(true)}>Apagar conta</Botao>}
@@ -541,5 +542,35 @@ function AvisosPrefs() {
         </div>
       </div>
     </>
+  );
+}
+
+/** C-24 · Análise anónima (T28): desligar tira-te de qualquer métrica individual, já e para trás. */
+export function AnaliseAnonima() {
+  const [sim, setSim] = useState<boolean | null>(null);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    void fetchConsentimentoAnalise(client).then(setSim).catch(() => setSim(null));
+  }, []);
+  if (sim === null) return null;
+  const mudar = (v: boolean) => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    setSim(v);
+    void definirConsentimentoAnalise(client, v)
+      .then(() => toast({ variant: 'success', title: v ? 'Obrigado por ajudar' : 'Deixaste de contar nas métricas', description: v ? undefined : 'Ficou registado.' }))
+      .catch(() => { setSim(!v); toast({ variant: 'danger', title: 'Não foi possível mudar' }); });
+  };
+  return (
+    <section className="lc-escolhas" aria-label="Análise anónima">
+      <div className="lc-escolha">
+        <span>
+          <span style={{ display: 'block' }}>Ajudar a melhorar a LunaOS</span>
+          <span className="lv-legenda">Contamos o uso da app sem nomes, notas nem dados de saúde.</span>
+        </span>
+        <Interruptor rotulo="Ajudar a melhorar a LunaOS" ligado={sim} onMudar={mudar} />
+      </div>
+    </section>
   );
 }

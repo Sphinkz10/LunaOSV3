@@ -99,4 +99,40 @@ export const myOrgSchema = z.object({
 });
 export type MyOrg = z.infer<typeof myOrgSchema>;
 
+/* ── Eventos de produto (tarefa 28): só identificadores internos ───────── */
+// Cada evento tem o seu esquema estrito: uma chave a mais (nome, email, nota…) é recusada.
+const id = z.string().uuid();
+const baseEvento = { org_id: id.nullable(), actor_user: id.nullable(), person_id: id.nullable() };
+const semProps = z.object({}).strict();
+export const eventoProdutoSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('org_criada'), ...baseEvento, props: z.object({ tipo: orgTypeSchema }).strict() }).strict(),
+  z.object({ kind: z.literal('cliente_adicionado'), ...baseEvento, props: z.object({ origem: z.enum(['manual', 'invite', 'athlete_code', 'signup']) }).strict() }).strict(),
+  z.object({ kind: z.literal('primeiro_treino_criado'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('plano_atribuido'), ...baseEvento, props: z.object({ primeiro: z.boolean() }).strict() }).strict(),
+  z.object({ kind: z.literal('cliente_entrou_app'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('treino_app_feito'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('sessao_ao_vivo_concluida'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('checkin_enviado'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('checkin_revisto'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('atleta_solo_criado'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('ligacao_atleta_treinador'), ...baseEvento, props: z.object({ quem_comecou: z.enum(['atleta', 'treinador']) }).strict() }).strict(),
+  z.object({ kind: z.literal('trial_iniciado'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('trial_convertido'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('trial_expirado'), ...baseEvento, props: semProps }).strict(),
+  z.object({ kind: z.literal('org_so_leitura'), ...baseEvento, props: semProps }).strict(),
+]);
+export type EventoProduto = z.infer<typeof eventoProdutoSchema>;
+export const TIPOS_EVENTO = eventoProdutoSchema.options.map((o) => o.shape.kind.value);
+
+/** Resultado de activation_metrics() (painel interno). */
+export const metricasAtivacaoSchema = z.object({
+  semanas: z.array(z.object({ semana: z.string(), pt_ativos: z.number(), clientes_app: z.number(), clientes_por_pt: z.number().nullable() })),
+  dias_ate_primeiro_plano: z.number().nullable(),
+  organizacoes: z.number(), organizacoes_com_plano: z.number(),
+  retencao_4_semanas: z.number().nullable(), coorte_retencao: z.number().nullable(),
+  trial_convertidos: z.number(), trial_expirados: z.number(),
+  ligacoes_vindas_do_atleta: z.number(), ligacoes_total: z.number(), so_leitura: z.number(), sessoes_ao_vivo: z.number(),
+});
+export type MetricasAtivacao = z.infer<typeof metricasAtivacaoSchema>;
+
 export { z };

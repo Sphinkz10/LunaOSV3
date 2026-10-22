@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   fetchEntradas, fetchPerfil, guardarPerfil, guardarPreferencias, listarFatores, mudarPalavraPasse, removerFator,
-  terminarOutrasSessoes, toast, useAuthStore,
+  definirConsentimentoAnalise, fetchConsentimentoAnalise, terminarOutrasSessoes, toast, useAuthStore,
   type Entrada, type FatorAtivo, type Perfil, type Preferencias,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Interruptor, Janela, Nota } from '@luna/ui/v3';
-import { LockKey, ShieldCheck, SignOut } from '@luna/icons';
+import { ChartLineUp, LockKey, ShieldCheck, SignOut } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { signOutEverywhere } from '../app/session';
@@ -134,6 +134,7 @@ export function Conta() {
                     </span>
                     <Interruptor rotulo="Verificação em dois passos" ligado={fatores.length > 0} onMudar={(v) => void mudar2f(v)} />
                   </div>
+                  <AnaliseConta />
                 </section>
               </div>
 
@@ -310,5 +311,32 @@ function Ativar2f({ pedido, onFechar, onAtivado }: { pedido: { id: string; qr: s
         <Botao type="submit" aCarregar={aGravar} disabled={codigo.length !== 6}>Ligar</Botao>
       </form>
     </Janela>
+  );
+}
+
+/** Análise anónima (T28): quem recusa fica fora de qualquer métrica individual. */
+function AnaliseConta() {
+  const [sim, setSim] = useState<boolean | null>(null);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    void fetchConsentimentoAnalise(client).then(setSim).catch(() => setSim(null));
+  }, []);
+  if (sim === null) return null;
+  const mudar = (v: boolean) => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    setSim(v);
+    void definirConsentimentoAnalise(client, v).catch(() => { setSim(!v); toast({ variant: 'danger', title: 'Não foi possível mudar' }); });
+  };
+  return (
+    <div className="lv-linha-lista" style={{ cursor: 'default' }}>
+      <ChartLineUp size={18} aria-hidden />
+      <span className="lv-linha-lista__corpo">
+        <span className="lv-linha-lista__titulo">Ajudar a melhorar a LunaOS</span>
+        <span className="lv-legenda">Contamos o uso sem nomes, notas nem dados de saúde</span>
+      </span>
+      <Interruptor rotulo="Ajudar a melhorar a LunaOS" ligado={sim} onMudar={mudar} />
+    </div>
   );
 }

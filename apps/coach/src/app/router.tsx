@@ -24,6 +24,7 @@ import { ResumoSessaoPagina, SessoesEquipa } from '../pages/Sessoes';
 import { Equipa } from '../pages/Equipa';
 import { RegrasPT } from '../pages/RegrasPT';
 import { Ajuda } from '../pages/Ajuda';
+import { MetricasInternas } from '../pages/MetricasInternas';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
@@ -66,6 +67,7 @@ const routes: RouteObject[] = [
   { path: '/conta', element: <Protected><Conta /></Protected> },
   { path: '/inbox', element: <Protected><Inbox /></Protected> },
   { path: '/ajuda', element: <Protected><Ajuda /></Protected> },
+  { path: '/interno/metricas', element: <Protected><MetricasInternas /></Protected> },
   { path: '/settings', element: <Protected module="settings"><Definicoes /></Protected> },
   { path: '/settings/equipa', element: <Protected><Equipa /></Protected> },
   { path: '/settings/seguranca', element: <Protected module="settings"><Seguranca /></Protected> },
