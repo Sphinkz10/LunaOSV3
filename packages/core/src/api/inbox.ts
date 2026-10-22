@@ -21,6 +21,7 @@ const KIND: Record<string, { categoria: CategoriaInbox; acao: string; origem: st
   encarregado_em_falta: { categoria: 'clientes', acao: 'Ver', origem: 'Menor sem encarregado', to: (l) => `/clients/${l}` },
   revisao_em_atraso: { categoria: 'clientes', acao: 'Rever', origem: 'Revisão em atraso', to: (l) => `/clients/${l}?sep=objetivos` },
   marco_em_atraso: { categoria: 'clientes', acao: 'Ver marco', origem: 'Marco em atraso', to: (l) => `/clients/${l}?sep=objetivos` },
+  pedido_ligacao: { categoria: 'clientes', acao: 'Responder', origem: 'Pediu para treinar contigo (código)', to: () => '/inbox' },
 };
 
 export async function fetchInbox(

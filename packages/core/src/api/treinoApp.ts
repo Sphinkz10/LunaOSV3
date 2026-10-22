@@ -19,14 +19,20 @@ export interface MeuTreino { workout_id: string; versao: number; link_id: string
 export async function fetchMeuTreino(client: LunaClient, workoutId?: string | null, dia?: string): Promise<MeuTreino | null> {
   const { data, error } = await client.rpc('my_workout', { _workout: workoutId ?? null, ...(dia ? { _on: dia } : {}) });
   if (error) throw error;
-  return (data as unknown as MeuTreino) ?? null;
+  if (data) return data as unknown as MeuTreino;
+  // Sem plano do treinador: o plano solo da pessoa (C-26)
+  const solo = await client.rpc('my_solo_workout', { _day: workoutId ?? null, ...(dia ? { _on: dia } : {}) });
+  return (solo.data as unknown as MeuTreino) ?? null;
 }
 
 export interface DiaDaSemana { dia: string; workoutId: string; nome: string; plano: string | null }
 export async function fetchMinhaSemana(client: LunaClient): Promise<DiaDaSemana[]> {
-  const { data, error } = await client.rpc('my_week', {});
-  if (error) throw error;
-  return (data ?? []).map((d) => ({ dia: d.dia, workoutId: d.workout_id, nome: d.nome, plano: d.plano }));
+  const [t, s] = await Promise.all([client.rpc('my_week', {}), client.rpc('my_solo_week', {})]);
+  if (t.error) throw t.error;
+  // O plano do treinador passa para a frente; nos dias sem ele, o plano solo
+  return [...(t.data ?? []), ...(s.data ?? []).filter((x) => !(t.data ?? []).some((y) => y.dia === x.dia))]
+    .sort((a, b) => a.dia.localeCompare(b.dia))
+    .map((d) => ({ dia: d.dia, workoutId: d.workout_id, nome: d.nome, plano: d.plano }));
 }
 
 export interface SerieFeita { n: number; reps: number | null; carga: number | null; rpe: number | null; feito: boolean; em: string }

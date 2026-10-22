@@ -2,9 +2,8 @@ import type { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { hasModule, useAuthStore, type OrgScope } from '@luna/core';
 import { Skeleton } from '@luna/ui';
-import { getSupabaseClient } from '../lib/supabase';
-import { signOutEverywhere } from './session';
 import { DoisFatores } from './DoisFatores';
+import { CriarNegocio } from './CriarNegocio';
 
 /** Acento por módulo (Guia §3.6): UMA var; componentes só conhecem `accent`. */
 const ACCENT: Record<string, string> = {
@@ -31,9 +30,6 @@ function StatePage({ title, body, action }: { title: string; body: string; actio
   );
 }
 
-const LeaveButton = () => (
-  <button type="button" className="btn ghost" onClick={() => void signOutEverywhere(getSupabaseClient())}>Sair</button>
-);
 
 /**
  * Porta da Gestão (X-02): a carregar, sem configuração, erro, sem papel de equipa,
@@ -66,13 +62,8 @@ export function Protected({ children, module: mod }: { children: ReactNode; modu
     );
   }
   if (status === 'signedOut') return <Navigate to="/login" replace />;
-  if (status === 'noRole') {
-    return (
-      <StatePage title="Esta conta não pertence a nenhuma equipa"
-        body="A Gestão é para quem trabalha numa organização. Pede um convite a quem gere a tua organização e abre a ligação do convite com esta conta."
-        action={<LeaveButton />} />
-    );
-  }
+  // Sem organização: um treinador novo cria o seu negócio (J32); quem trabalha num ginásio pede o convite
+  if (status === 'noRole') return <CriarNegocio />;
   // Direitos ainda por carregar: mostra; módulo desligado: não aparece
   if (mod && modules.length > 0 && !hasModule(modules, mod)) return <Navigate to="/today" replace />;
   // Papéis que veem saúde só entram com dois fatores (D18)

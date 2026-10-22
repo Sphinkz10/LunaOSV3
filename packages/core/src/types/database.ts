@@ -378,6 +378,7 @@ export interface Database {
       attendance: Table<AttendanceRow, 'booking_id' | 'org_id' | 'link_id' | 'status'>;
       pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
       calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
+      solo_plans: Table<{ id: Uuid; person_id: Uuid; name: string; source: string; snapshot: Json; started_on: string; archived_at: Ts | null; created_at: Ts }, 'person_id' | 'name' | 'snapshot'>;
       conversations: Table<ConversationRow, 'org_id' | 'kind'>;
       messages: Table<MessageRow, 'id' | 'conversation_id' | 'org_id' | 'author_side'>;
       reply_hours: Table<ReplyHoursRow, 'membership_id'>;
@@ -432,6 +433,16 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      start_solo: { Args: { _goal: string; _level: string; _days: number; _place: string }; Returns: string };
+      my_solo_workout: { Args: { _day?: string | null; _on?: string }; Returns: Json };
+      my_solo_week: { Args: { _from?: string }; Returns: { dia: string; workout_id: string; nome: string; plano: string | null }[] };
+      my_trainer_code: { Args: { _org: string; _novo?: boolean }; Returns: string };
+      lookup_trainer_code: { Args: { _code: string }; Returns: Json };
+      request_link: { Args: { _code: string; _shares: Enums['share_category'][] }; Returns: string };
+      answer_link_request: { Args: { _link: string; _accept: boolean; _reason?: string | null }; Returns: undefined };
+      invite_my_trainer: { Args: { _channel: string; _destination: string; _shares: Enums['share_category'][] }; Returns: undefined };
+      claim_trainer_invite: { Args: { _token: string; _org: string }; Returns: string };
+      my_trainers: { Args: Record<string, never>; Returns: { link_id: string; org: string; treinador: string | null; estado: string; desde: string; partilhas: string[] }[] };
       my_conversations: { Args: { _org?: string | null }; Returns: { id: string; org_id: string; kind: string; titulo: string | null; link_id: string | null; group_id: string | null; ultima: string | null; ultima_em: string | null; ultima_lado: string | null; por_ler: number; por_responder: boolean }[] };
       send_message: { Args: { _id: string; _conv: string; _body: string; _kind?: string; _path?: string | null; _meta?: Json }; Returns: undefined };
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined };

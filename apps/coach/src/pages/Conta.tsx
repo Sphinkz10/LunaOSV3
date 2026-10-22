@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   fetchEntradas, fetchPerfil, guardarPerfil, guardarPreferencias, listarFatores, mudarPalavraPasse, removerFator,
-  definirConsentimentoAnalise, fetchConsentimentoAnalise, terminarOutrasSessoes, toast, useAuthStore,
+  definirConsentimentoAnalise, fetchConsentimentoAnalise, meuCodigoDeTreinador, terminarOutrasSessoes, toast, useAuthStore,
   type Entrada, type FatorAtivo, type Perfil, type Preferencias,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Interruptor, Janela, Nota } from '@luna/ui/v3';
@@ -135,6 +135,7 @@ export function Conta() {
                     <Interruptor rotulo="Verificação em dois passos" ligado={fatores.length > 0} onMudar={(v) => void mudar2f(v)} />
                   </div>
                   <AnaliseConta />
+                  <CodigoTreinador />
                 </section>
               </div>
 
@@ -337,6 +338,28 @@ function AnaliseConta() {
         <span className="lv-legenda">Contamos o uso sem nomes, notas nem dados de saúde</span>
       </span>
       <Interruptor rotulo="Ajudar a melhorar a LunaOS" ligado={sim} onMudar={mudar} />
+    </div>
+  );
+}
+
+/** O código que os atletas usam para pedir para treinar contigo (C-27). */
+function CodigoTreinador() {
+  const scope = useAuthStore((st) => st.scope);
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const pedir = (novo: boolean) => {
+    const client = getSupabaseClient();
+    if (!client || !scope) return;
+    void meuCodigoDeTreinador(client, scope, novo).then(setCodigo).catch(() => setCodigo(null));
+  };
+  useEffect(() => { pedir(false); }, [scope?.orgId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!codigo) return null;
+  return (
+    <div className="lv-linha-lista" style={{ cursor: 'default' }}>
+      <span className="lv-linha-lista__corpo">
+        <span className="lv-linha-lista__titulo">O teu código de treinador: <b>{codigo}</b></span>
+        <span className="lv-legenda">Quem treina sozinho na app usa-o para pedir para treinar contigo. Aceitas na Inbox.</span>
+      </span>
+      <Botao variante="secundario" onClick={() => pedir(true)}>Gerar outro</Botao>
     </div>
   );
 }

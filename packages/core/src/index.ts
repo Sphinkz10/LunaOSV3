@@ -26,6 +26,7 @@ export * from './api/metricas';
 export * from './api/avaliacao';
 export * from './api/grupos';
 export * from './api/mensagens';
+export * from './api/solo';
 export * from './api/minhaConta';
 export * from './auth';
 export * from './authStore';

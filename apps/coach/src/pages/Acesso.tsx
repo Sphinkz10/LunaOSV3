@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { guardarConviteDeAtleta } from '../app/CriarNegocio';
 import { Link, useSearchParams } from 'react-router-dom';
 import { criarConta, definirPalavraPasse } from '@luna/core';
 import { Botao, Campo } from '@luna/ui/v3';
@@ -66,6 +67,7 @@ export function Recuperar() {
  */
 export function CriarConta() {
   const [params] = useSearchParams();
+  guardarConviteDeAtleta();
   const convite = params.get('convite') ?? '';
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -91,12 +93,12 @@ export function CriarConta() {
     <Moldura titulo={enviado ? 'Confirma o teu email' : 'Criar conta'}>
       {enviado ? (
         <p className="lv-legenda" style={{ margin: 0 }} role="status">
-          Enviámos um link para {email}. Abre-o para confirmar; depois entras e o convite fica aceite.
+          Enviámos um link para {email}. Abre-o para confirmar; depois entras{convite ? ' e o convite fica aceite' : ' e crias o teu negócio'}.
         </p>
       ) : (
         <form onSubmit={(e) => void criar(e)} style={{ display: 'contents' }}>
           <Campo rotulo="Nome" autoComplete="name" value={nome} onChange={(e) => setNome(e.target.value)} required />
-          <Campo rotulo="Email (o do convite)" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Campo rotulo={convite ? 'Email (o do convite)' : 'Email'} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Campo rotulo="Palavra-passe" type="password" autoComplete="new-password" minLength={10}
             ajuda="Pelo menos 10 caracteres." value={password} onChange={(e) => setPassword(e.target.value)} required />
           {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}

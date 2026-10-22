@@ -28,10 +28,10 @@ describe('Porta da Gestão (X-02, AUD-71)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('VITE_SUPABASE_URL');
   });
 
-  it('conta sem equipa é recusada', () => {
+  it('conta sem equipa cria o seu negócio e não vê nada de outros (J32)', () => {
     useAuthStore.getState().signIn('u1', []);
     renderAt('/business');
-    expect(screen.getByText('Esta conta não pertence a nenhuma equipa')).toBeInTheDocument();
+    expect(screen.getByText('Cria o teu negócio')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument();
     expect(screen.queryByText('conteúdo')).toBeNull();
   });

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  adiarPendencias, atribuirPendencias, avisar, sincronizarAtrasos, contarAdiadas, fetchInbox, fetchStaff, reabrirPendencia, toast,
+  adiarPendencias, atribuirPendencias, responderPedidoLigacao, avisar, sincronizarAtrasos, contarAdiadas, fetchInbox, fetchStaff, reabrirPendencia, toast,
   type CategoriaInbox, type Pendencia, type StaffLite,
 } from '@luna/core';
-import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Janela } from '@luna/ui/v3';
+import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
 import { ArrowCounterClockwise, Heartbeat, Users } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
@@ -124,6 +124,7 @@ export function Inbox() {
                   <span className="lv-sobretitulo">{CATEGORIA[detalhe.categoria]}</span>
                   <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>{detalhe.cliente} · {detalhe.titulo}</h2>
                   <p className="lv-legenda" style={{ margin: 0 }}>{detalhe.origem}</p>
+                  {detalhe.kind === 'pedido_ligacao' && !resolvidas && <PedidoLigacao linkId={detalhe.linkId} nome={detalhe.cliente} onFeito={carregar} />}
                   {detalhe.categoria === 'saude' && (
                     <p className="lv-nota" style={{ margin: 0 }}>Aqui vê-se só o que falta. O detalhe clínico fica com quem tem acesso à saúde, com dois fatores.</p>
                   )}
@@ -237,6 +238,34 @@ function Deslizar({ ativo, className, onDireita, onEsquerda, children }: {
       {dx > 20 && <span className="lg-inbox__deslize lg-inbox__deslize--resolver" aria-hidden>Resolver</span>}
       {dx < -20 && <span className="lg-inbox__deslize lg-inbox__deslize--adiar" aria-hidden>Adiar</span>}
       {children}
+    </div>
+  );
+}
+
+/** C-27 do lado do treinador: aceitar começa a ligação; recusar pede motivo. */
+function PedidoLigacao({ linkId, nome, onFeito }: { linkId: string; nome: string; onFeito: () => void }) {
+  const [recusar, setRecusar] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const responder = async (aceitar: boolean) => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    try { await responderPedidoLigacao(client, linkId, aceitar, motivo); toast({ variant: 'success', title: aceitar ? `${nome} está ligado a ti` : 'Pedido recusado' }); onFeito(); }
+    catch (e) { toast({ variant: 'danger', title: 'Não foi possível', description: e instanceof Error ? e.message : undefined }); }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-8)' }}>
+      <Nota>Aceitar dá-te acesso ao que {nome.split(' ')[0]} escolheu partilhar, incluindo o histórico de quando treinava sozinho.</Nota>
+      {recusar ? (
+        <>
+          <Campo rotulo="Motivo" placeholder="Ex.: não tenho vagas este mês" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+          <Botao variante="secundario" disabled={!motivo.trim()} onClick={() => void responder(false)}>Recusar</Botao>
+        </>
+      ) : (
+        <span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
+          <Botao onClick={() => void responder(true)}>Aceitar</Botao>
+          <Botao variante="secundario" onClick={() => setRecusar(true)}>Recusar</Botao>
+        </span>
+      )}
     </div>
   );
 }

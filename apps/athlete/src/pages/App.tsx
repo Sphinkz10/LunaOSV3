@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  cancelarApagarConta, definirConsentimentoAnalise, fetchConversas, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
+  cancelarApagarConta, definirConsentimentoAnalise, fetchConversas, fetchTreinoSolo, temPlanoSolo, type MeuTreino, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
   assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
   type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
@@ -101,11 +101,15 @@ export function HojeCliente() {
   const [erro, setErro] = useState<string | null>(null);
   const [naoLidas, setNaoLidas] = useState(0);
   const [msgPorLer, setMsgPorLer] = useState(0);
+  const [solo, setSolo] = useState<MeuTreino | null>(null);
+  const [temSolo, setTemSolo] = useState(true);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
     setErro(null);
     void fetchConversas(client).then((l) => setMsgPorLer(l.reduce((n, c) => n + c.porLer, 0))).catch(() => setMsgPorLer(0));
+    void fetchTreinoSolo(client).then(setSolo).catch(() => setSolo(null));
+    void temPlanoSolo(client).then(setTemSolo).catch(() => setTemSolo(true));
     void fetchMeuHoje(client).then(setHoje).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
     void fetchNotificacoes(client, 30).then((n) => setNaoLidas(n.filter((x) => !x.read_at).length)).catch(() => setNaoLidas(0));
   }, []);
@@ -145,9 +149,18 @@ export function HojeCliente() {
             ) : (
               <section className="lc-destaque lc-destaque--calmo" aria-label="Treino de hoje">
                 <span className="lc-destaque__sobre"><Barbell size={16} aria-hidden />Treino de hoje</span>
-                <h2 className="lc-destaque__titulo">Dia livre</h2>
-                <span>{hoje.organizacoes ? `Hoje não tens treino no plano. O teu ${t('responsavel')} pode atribuir-te um a qualquer momento.` : `Quando o teu ${t('responsavel')} te ligar, o plano aparece aqui.`}</span>
+                <h2 className="lc-destaque__titulo">{solo ? solo.nome : 'Dia livre'}</h2>
+                <span>{solo ? `O teu plano · ${solo.duracao_min ?? 30} min` : hoje.organizacoes ? `Hoje não tens treino no plano. O teu ${t('responsavel')} pode atribuir-te um a qualquer momento.` : 'Podes começar já, sozinho e de graça.'}</span>
+                {solo && <Botao variante="no-destaque" icone={Play} className="lc-destaque__acao" onClick={() => navigate('/treino')}>Começar</Botao>}
+                {!solo && !hoje.organizacoes && !temSolo && <Botao variante="no-destaque" icone={Play} className="lc-destaque__acao" onClick={() => navigate('/sozinho')}>Começar sozinho</Botao>}
               </section>
+            )}
+            {!hoje.organizacoes && (
+              <button type="button" className="lc-lista__linha lc-cartao" onClick={() => navigate('/eu/treinador')}>
+                <span className="lc-lista__icone"><UserCircle size={18} aria-hidden /></span>
+                <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Ter um {t('responsavel')}</span><span className="lv-legenda">Liga-te ao teu PT</span></span>
+                <CaretRight size={16} aria-hidden />
+              </button>
             )}
 
             <PedidosHoje />
@@ -331,6 +344,7 @@ export function EuCliente() {
   const veem = ligacoes?.length ?? 0;
   const linhas: { icone: typeof Gear; titulo: string; sub: string; to: string }[] = [
     { icone: ShieldCheck, titulo: 'Privacidade e partilha', sub: ligacoes ? `${veem} ${veem === 1 ? 'organização vê' : 'organizações veem'} dados teus` : '…', to: '/eu/privacidade' },
+    { icone: UserCircle, titulo: `Ligar a um ${t('responsavel')}`, sub: 'Código, QR ou convite', to: '/eu/treinador' },
     { icone: Gear, titulo: 'Definições', sub: 'Tema e consentimentos', to: '/eu/definicoes' },
   ];
   return (

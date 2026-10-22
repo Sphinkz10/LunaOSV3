@@ -122,6 +122,7 @@ export function Login() {
             <div className="lg-entrar__links">
               <button type="button" className="lg-entrar__link" onClick={() => { setErro(null); setPasso('recuperar'); }}>Esqueci-me da palavra-passe</button>
               {passo === 'entrar' && <button type="button" className="lg-entrar__link" onClick={() => { setErro(null); setPasso('convite'); }}>Recebi um convite</button>}
+              {passo === 'entrar' && <button type="button" className="lg-entrar__link" onClick={() => navigate(`/criar-conta${window.location.search}`)}>Sou treinador e quero experimentar</button>}
             </div>
             {erro && <p className="lv-campo-erro" role="alert">{erro}</p>}
             <Botao type="submit" fixo aCarregar={aCarregar}>Entrar</Botao>
