@@ -11,6 +11,7 @@ import { AtribuicoesCliente } from './Sessoes';
 import { PacksCliente } from './Packs';
 import { ConvidarApp, JuntarClientes, type ParaConvidar } from '../app/ClientesP07';
 import { CoachShell } from '../app/CoachShell';
+import { DocumentosCliente, NotasPrivadas } from '../app/FichaNotasDocs';
 import { useScope } from '../app/ModuleLayout';
 import { VoltarA } from '../app/Estados';
 import { getSupabaseClient } from '../lib/supabase';
@@ -36,10 +37,6 @@ const MARCACAO: Record<string, { texto: string; tom: EstadoTom }> = {
 };
 const ATRIBUICAO: Record<string, string> = { active: 'Ativo', scheduled: 'Agendado', completed: 'Concluído', cancelled: 'Cancelado' };
 const GRAVIDADE: Record<string, string> = { critical: 'Crítica', severe: 'Grave', moderate: 'Moderada', mild: 'Ligeira' };
-const DOC: Record<string, { texto: string; tom: EstadoTom }> = {
-  valid: { texto: 'Válido', tom: 'ok' }, expiring: { texto: 'A expirar', tom: 'aviso' }, expired: { texto: 'Expirado', tom: 'erro' },
-  missing: { texto: 'Em falta', tom: 'erro' }, pending: { texto: 'Pendente', tom: 'aviso' },
-};
 
 type Separador = 'geral' | 'treino' | 'progresso' | 'objetivos' | 'avaliacoes' | 'saude' | 'documentos' | 'atividade';
 const dia = (iso: string | null) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -208,6 +205,7 @@ export function Client360() {
                           ))}
                       </Secao>
                     </section>
+                    <NotasPrivadas linkId={id} />
                   </div>
 
                   <aside className="lv-lista lg-ficha__lado" aria-label="Resumo">
@@ -318,21 +316,9 @@ export function Client360() {
               )}
 
               {sep === 'documentos' && (
-                <section className="lv-lista" aria-label="Documentos">
-                  <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Documentos</h3></div>
-                  <Secao s={data.documents} o="os documentos">
-                    {(d) => d.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Sem documentos.</p>
-                      : d.map((x) => (
-                        <div key={x.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
-                          <span className="lv-linha-lista__corpo">
-                            <span className="lv-linha-lista__titulo">{x.name}</span>
-                            <span className="lv-legenda">{x.docType ?? 'Documento'}{x.expiresOn ? ` · válido até ${dia(x.expiresOn)}` : ''}</span>
-                          </span>
-                          <Estado tom={DOC[x.status]?.tom ?? 'neutro'}>{DOC[x.status]?.texto ?? x.status}</Estado>
-                        </div>
-                      ))}
-                  </Secao>
-                </section>
+                <Secao s={data.documents} o="os documentos">
+                  {(d) => <DocumentosCliente linkId={id} documentos={d} onMudou={carregar} />}
+                </Secao>
               )}
             </>
           )}

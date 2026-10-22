@@ -22,6 +22,8 @@ import { Biblioteca } from '../pages/Biblioteca';
 import { Atribuir, ConstrutorExercicio, ConstrutorPlano, ConstrutorTreino } from '../pages/Treino';
 import { ResumoSessaoPagina, SessoesEquipa } from '../pages/Sessoes';
 import { Equipa } from '../pages/Equipa';
+import { RegrasPT } from '../pages/RegrasPT';
+import { Ajuda } from '../pages/Ajuda';
 import { Groups } from '../pages/Groups';
 import { Group360 } from '../pages/Group360';
 import { Live } from '../pages/Live';
@@ -47,7 +49,7 @@ const routes: RouteObject[] = [
   { path: '/today', element: <Protected module="today"><ModuleLayout module="today" /></Protected>,
     children: [{ index: true, element: <Today /> }] },
   { path: '/schedule', element: <Protected module="schedule"><ModuleLayout module="schedule" /></Protected>,
-    children: [{ index: true, element: <Horario /> }, { path: 'disponibilidade', element: <Disponibilidade /> }] },
+    children: [{ index: true, element: <Horario /> }, { path: 'disponibilidade', element: <Disponibilidade /> }, { path: 'regras', element: <RegrasPT /> }] },
   { path: '/live/:bookingId?', element: <Protected module="training"><ModuleLayout module="live" /></Protected>,
     children: [{ index: true, element: <Live /> }] },
   { path: '/clients', element: <Protected module="clients"><ModuleLayout module="clients" /></Protected>,
@@ -63,6 +65,7 @@ const routes: RouteObject[] = [
     ] },
   { path: '/conta', element: <Protected><Conta /></Protected> },
   { path: '/inbox', element: <Protected><Inbox /></Protected> },
+  { path: '/ajuda', element: <Protected><Ajuda /></Protected> },
   { path: '/settings', element: <Protected module="settings"><Definicoes /></Protected> },
   { path: '/settings/equipa', element: <Protected><Equipa /></Protected> },
   { path: '/settings/seguranca', element: <Protected module="settings"><Seguranca /></Protected> },

@@ -26,6 +26,13 @@ describe('importar clientes (G-05)', () => {
     expect(r[1].avisos).toContain('Sem email nem telemóvel: não dá para convidar');
   });
 
+  it('lê o saldo de sessões do pack e recusa o que não é número inteiro', () => {
+    expect(reconhecerColuna('Sessões por usar')).toBe('saldo');
+    const r = validarImport([['Ana', '912345678', '7'], ['Rui', '912345679', '2,5']], ['nome', 'telefone', 'saldo']);
+    expect(r[0].saldo).toBe(7);
+    expect(r[1].erros).toContain('Saldo tem de ser um número inteiro de sessões');
+  });
+
   it('as falhas saem em CSV para corrigir e repetir', () => {
     expect(falhasEmCsv([{ linha: 3, nome: 'Jo "J"', motivo: 'Já existe' }])).toBe('linha;nome;motivo\n"3";"Jo ""J""";"Já existe"');
   });

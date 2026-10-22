@@ -5,8 +5,9 @@ import {
   type ClienteAtencao, type DashboardBooking, type DashboardKpis, type Pendencia, type SessoesPorPt,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, Tema, type EstadoTom } from '@luna/ui/v3';
-import { CalendarBlank, Clock, Heartbeat, ListChecks, Play, Plus, Users, Warning } from '@luna/icons';
+import { Barbell, CalendarBlank, Clock, Heartbeat, ListChecks, Package, Play, Plus, Users, Warning } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { ParaComecar } from '../app/ParaComecar';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 import { captureEvent } from '../lib/observability';
@@ -88,8 +89,12 @@ export function Today() {
             <Botao icone={CalendarBlank} onClick={() => navigate('/schedule?nova=1')}>Marcar</Botao>
             <Botao variante="secundario" icone={Plus} onClick={() => navigate('/clients?novo=1')}>Novo {vocab.pessoa()}</Botao>
             <Botao variante="secundario" icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
+            <Botao variante="secundario" icone={Barbell} onClick={() => navigate('/training/biblioteca?novo=treino')}>Novo treino</Botao>
+            <Botao variante="secundario" icone={Package} onClick={() => navigate('/business/packs')}>Vender pack</Botao>
           </div>
         </section>
+
+        <ParaComecar />
 
         <div className="lg-hoje__contagens">
           {contagens.map((c) => (

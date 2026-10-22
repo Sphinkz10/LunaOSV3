@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   avisoPack, confirmarDestrutivo, conflitosAntes, fetchClients, fetchSaldo, fetchSemana, fetchStaff, fetchUnidades, guardarMarcacao, instante, setBookingStatus, toast,
   wallClock, type ClientRow, type MarcacaoEditavel, type MarcacaoSemana, type StaffLite, type Unidade,
+  fetchLocais, type LocalPT,
 } from '@luna/core';
 import { Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Nota, type EstadoTom } from '@luna/ui/v3';
 import { CalendarBlank, CaretRight, Plus, Warning } from '@luna/icons';
@@ -84,6 +85,7 @@ export function Horario() {
     <CoachShell headStrong="Horário" headSub={semanaTxt} legado={false}
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
         <Botao variante="secundario" onClick={() => navigate('/schedule/disponibilidade')}>Disponibilidade</Botao>
+        <Botao variante="secundario" onClick={() => navigate('/schedule/regras')}>Regras e lembretes</Botao>
         <Botao icone={Plus} onClick={() => { setAtual(null); setAberto(novaBase()); }}>Nova {t('sessao')}</Botao>
       </span>}>
       <div className="lv-root lg-ficha">
@@ -168,6 +170,12 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
     void fetchSaldo(client, e.clienteId).then((s) => setAviso(avisoPack(s))).catch(() => setAviso(null));
   }, [e.clienteId, e.tipo]);
   const [aGravar, setAGravar] = useState(false);
+  const [locais, setLocais] = useState<LocalPT[]>([]);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    void fetchLocais(client, scope, e.membershipId).then(setLocais).catch(() => setLocais([]));
+  }, [e.membershipId, scope]);
   useEffect(() => { setE(marcacao); setRepetir(false); }, [marcacao]);
   // Conflitos de PT, sala, férias e folgas antes de guardar
   useEffect(() => {
@@ -224,6 +232,14 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
             <option value="">Sem sala</option>{salas.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
           </select></label>
       </div>
+      {locais.length > 0 && (
+        <div role="radiogroup" aria-label="Local" className="lg-ficha__metricas">
+          {locais.map((l) => {
+            const ativo = e.local?.tipo === l.tipo && e.local?.texto === (l.morada ? `${l.nome}, ${l.morada}` : l.nome);
+            return <Chip key={l.id} role="radio" aria-checked={ativo} ativo={ativo} onClick={() => set({ local: ativo ? null : { tipo: l.tipo, texto: l.morada ? `${l.nome}, ${l.morada}` : l.nome } })}>{l.nome}</Chip>;
+          })}
+        </div>
+      )}
       {equipa.length > 1 && (
         <label className="lv-campo"><span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
           <select className="lv-campo-input" value={e.membershipId} onChange={(x) => set({ membershipId: x.target.value })}>{equipa.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>

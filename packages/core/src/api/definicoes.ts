@@ -147,10 +147,11 @@ export async function guardarMarca(client: LunaClient, scope: OrgScope, m: Parti
 }
 
 /* ── G-05: importar clientes ────────────────────────────────────────────── */
-export type CampoImport = 'nome' | 'telefone' | 'email' | 'nif' | 'nascimento' | 'ignorar';
+export type CampoImport = 'nome' | 'telefone' | 'email' | 'nif' | 'nascimento' | 'saldo' | 'ignorar';
 export const CAMPOS_IMPORT: { id: CampoImport; rotulo: string }[] = [
   { id: 'nome', rotulo: 'Nome' }, { id: 'telefone', rotulo: 'Telemóvel' }, { id: 'email', rotulo: 'Email' },
-  { id: 'nif', rotulo: 'NIF' }, { id: 'nascimento', rotulo: 'Data de nascimento' }, { id: 'ignorar', rotulo: 'Não importar' },
+  { id: 'nif', rotulo: 'NIF' }, { id: 'nascimento', rotulo: 'Data de nascimento' },
+  { id: 'saldo', rotulo: 'Sessões por usar (saldo)' }, { id: 'ignorar', rotulo: 'Não importar' },
 ];
 
 /** Lê CSV (vírgula ou ponto e vírgula, com aspas). Devolve cabeçalho e linhas. */
@@ -190,6 +191,7 @@ export function reconhecerColuna(cabecalho: string): CampoImport {
   if (/(email|mail)/.test(h)) return 'email';
   if (/^(nif|contribuinte|nifcliente|vat|taxid)$/.test(h)) return 'nif';
   if (/(nascimento|datanasc|datanascimento|birth|dob)/.test(h)) return 'nascimento';
+  if (/(saldo|sessoesporusar|sessoesrestantes|creditos|aulasrestantes)/.test(h)) return 'saldo';
   return 'ignorar';
 }
 
@@ -208,7 +210,7 @@ export function lerData(v: string): string | null {
   return `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-export interface LinhaImport { linha: number; nome: string; telefone: string; email: string; nif: string; nascimento: string | null; erros: string[]; avisos: string[] }
+export interface LinhaImport { linha: number; nome: string; telefone: string; email: string; nif: string; nascimento: string | null; saldo: number | null; erros: string[]; avisos: string[] }
 
 /** Valida no aparelho: nada vai para o servidor antes do último passo. */
 export function validarImport(linhas: string[][], mapa: CampoImport[]): LinhaImport[] {
@@ -225,7 +227,10 @@ export function validarImport(linhas: string[][], mapa: CampoImport[]): LinhaImp
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) avisos.push('Email com formato estranho');
     if (tel && tel.replace(/\D/g, '').length < 9) avisos.push('Telemóvel incompleto');
     if (!email && !tel) avisos.push('Sem email nem telemóvel: não dá para convidar');
-    return { linha: i + 2, nome: v(l, 'nome'), telefone: tel, email, nif: v(l, 'nif'), nascimento, erros, avisos };
+    const saldoBruto = v(l, 'saldo');
+    const saldo = saldoBruto ? Number(saldoBruto.replace(/\s/g, '')) : null;
+    if (saldoBruto && (!Number.isInteger(saldo) || (saldo ?? 0) < 0)) erros.push('Saldo tem de ser um número inteiro de sessões');
+    return { linha: i + 2, nome: v(l, 'nome'), telefone: tel, email, nif: v(l, 'nif'), nascimento, saldo: Number.isInteger(saldo) ? saldo : null, erros, avisos };
   });
 }
 
@@ -242,7 +247,7 @@ export interface ResultadoImport { id: string; total: number; ok: number; falhas
 export async function importarClientes(client: LunaClient, scope: OrgScope, ficheiro: string, linhas: LinhaImport[]): Promise<ResultadoImport> {
   const { data, error } = await client.rpc('import_clients', {
     _org: scope.orgId, _file: ficheiro,
-    _rows: linhas.map((l) => ({ linha: l.linha, nome: l.nome, telefone: l.telefone, email: l.email, nif: l.nif, nascimento: l.nascimento })) as unknown as Json,
+    _rows: linhas.map((l) => ({ linha: l.linha, nome: l.nome, telefone: l.telefone, email: l.email, nif: l.nif, nascimento: l.nascimento, saldo: l.saldo })) as unknown as Json,
   });
   if (error) throw error;
   const { data: run, error: e2 } = await client.from('import_runs').select('id,total,ok,report').eq('id', data as string).single();

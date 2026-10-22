@@ -8,6 +8,7 @@ import {
 import { AvisoSecao, Botao, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
 import { Play } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { PartilharResumo } from '../app/PartilharResumo';
 import { VoltarA } from '../app/Estados';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -68,11 +69,13 @@ export function ResumoSessaoPagina() {
   const { id = '' } = useParams<{ id: string }>();
   const [r, setR] = useState<ResumoSessao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => {
+  const [partilhar, setPartilhar] = useState(false);
+  const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
     void resumoSessao(client, id).then(setR).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
   }, [id]);
+  useEffect(() => carregar(), [carregar]);
   return (
     <CoachShell headStrong="Resumo da sessão" headSub={r ? `${r.cliente ?? '—'} · ${dia(r.inicio)} · ${r.minutos} min${r.rpeMedio ? ` · RPE médio ${r.rpeMedio}` : ''}` : 'Treino'} legado={false}
       topActions={<VoltarA omissao={{ rotulo: 'às sessões', href: '/training/sessoes' }} />}>
@@ -88,6 +91,12 @@ export function ResumoSessaoPagina() {
                   <dt>Marcação</dt><dd>{quando(r.origem.marcacao)}</dd>
                   <dt>Comprovativo</dt><dd>{r.id.slice(0, 8).toUpperCase()}</dd>
                 </dl>
+              </section>
+              <section className="lv-lista" aria-label="Partilhado com o cliente">
+                <span className="lv-sobretitulo">Partilhado com o cliente</span>
+                {r.partilhado ? <p style={{ margin: 0 }}>{r.partilhado.texto}<span className="lv-legenda" style={{ display: 'block' }}>{quando(r.partilhado.em)}</span></p>
+                  : <p className="lv-legenda" style={{ margin: 0 }}>Ainda nada. O cliente só vê o que partilhares.</p>}
+                {r.cliente && <Botao variante="secundario" onClick={() => setPartilhar(true)}>{r.partilhado ? 'Mudar a mensagem' : 'Partilhar resumo'}</Botao>}
               </section>
               <section className="lv-lista" aria-label="Correções">
                 <span className="lv-sobretitulo">Correções durante a sessão</span>
@@ -119,6 +128,7 @@ export function ResumoSessaoPagina() {
           </div>
         )}
       </div>
+      <PartilharResumo aberta={partilhar} sessaoId={r?.id ?? null} cliente={r?.cliente ?? null} textoInicial={r?.partilhado?.texto ?? ''} onFechar={() => { setPartilhar(false); carregar(); }} />
     </CoachShell>
   );
 }

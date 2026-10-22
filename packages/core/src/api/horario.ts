@@ -44,6 +44,8 @@ export async function conflitosAntes(client: LunaClient, scope: OrgScope, member
 export interface MarcacaoEditavel {
   id?: string; membershipId: string; clienteId: string | null; salaId: string | null; tipo: EnumOf<'booking_type'>; titulo: string;
   dia: string; hora: string; minutos: number; notas: string; repetirAte?: string | null;
+  /** Onde (locais do PT, T29A); undefined deixa como está. */
+  local?: { tipo: 'estudio' | 'casa_cliente' | 'parque' | 'online'; texto: string | null } | null;
 }
 
 /** Hora local da organização → instante. */
@@ -68,6 +70,7 @@ export async function guardarMarcacao(client: LunaClient, scope: OrgScope, e: Ma
   const linha = {
     org_id: scope.orgId, membership_id: e.membershipId, link_id: e.clienteId, room_id: e.salaId, type: e.tipo, title: e.titulo || null,
     starts_at: ini.toISOString(), ends_at: fim.toISOString(), notes: e.notas || null,
+    ...(e.local !== undefined ? { location_kind: e.local?.tipo ?? null, location: e.local?.texto ?? null } : {}),
   };
   const { error } = e.id ? await client.from('bookings').update(linha).eq('id', e.id)
     : await client.from('bookings').insert({ ...linha, status: 'confirmed', source: 'manual' });
@@ -130,10 +133,13 @@ export async function salasAgora(client: LunaClient, scope: OrgScope): Promise<S
   });
 }
 
-export type RegrasMarcacao = Pick<BookingRulesRow, 'slot_minutes' | 'min_notice_hours' | 'cancel_hours' | 'auto_confirm' | 'horizon_days'>;
-export const REGRAS_PADRAO: RegrasMarcacao = { slot_minutes: 60, min_notice_hours: 2, cancel_hours: 12, auto_confirm: false, horizon_days: 21 };
+export type RegrasMarcacao = Omit<BookingRulesRow, 'org_id' | 'updated_at'>;
+export const REGRAS_PADRAO: RegrasMarcacao = {
+  slot_minutes: 60, min_notice_hours: 12, cancel_hours: 24, auto_confirm: false, horizon_days: 21,
+  no_show_counts: true, max_per_week: null, client_can_book: true, remind_24h: true, remind_2h: true, remind_sms: false, notify_pt: true,
+};
 export async function fetchRegras(client: LunaClient, scope: OrgScope): Promise<RegrasMarcacao> {
-  const { data } = await client.from('booking_rules').select('slot_minutes,min_notice_hours,cancel_hours,auto_confirm,horizon_days').eq('org_id', scope.orgId).maybeSingle();
+  const { data } = await client.from('booking_rules').select('slot_minutes,min_notice_hours,cancel_hours,auto_confirm,horizon_days,no_show_counts,max_per_week,client_can_book,remind_24h,remind_2h,remind_sms,notify_pt').eq('org_id', scope.orgId).maybeSingle();
   return data ?? REGRAS_PADRAO;
 }
 export async function guardarRegras(client: LunaClient, scope: OrgScope, r: RegrasMarcacao): Promise<void> {
@@ -157,9 +163,21 @@ export async function desmarcar(client: LunaClient, bookingId: string): Promise<
   if (error) throw error;
   return data as 'dentro_prazo' | 'conta';
 }
-export interface MinhaMarcacao { id: string; inicio: string; fim: string; titulo: string; estado: string; com: string | null; semContar: boolean }
+export interface MinhaMarcacao { id: string; inicio: string; fim: string; titulo: string; estado: string; com: string | null; semContar: boolean; desmarcarAte: string; local: string | null }
 export async function minhasMarcacoes(client: LunaClient): Promise<MinhaMarcacao[]> {
   const { data, error } = await client.rpc('my_bookings', {});
   if (error) throw error;
-  return (data ?? []).map((b) => ({ id: b.id, inicio: b.inicio, fim: b.fim, titulo: b.titulo, estado: b.estado, com: b.com, semContar: b.pode_desmarcar_sem_contar }));
+  return (data ?? []).map((b) => ({ id: b.id, inicio: b.inicio, fim: b.fim, titulo: b.titulo, estado: b.estado, com: b.com, semContar: b.pode_desmarcar_sem_contar, desmarcarAte: b.desmarcar_ate, local: b.local }));
+}
+
+/* ── App: avisos do cliente (lembretes e horas de silêncio) ─────────────── */
+export interface MeusAvisos { lembretes: boolean; silencioDe: string; silencioAte: string }
+export async function fetchMeusAvisos(client: LunaClient, userId: string): Promise<MeusAvisos> {
+  const { data, error } = await client.from('user_settings').select('reminders_on,quiet_hours_start,quiet_hours_end').eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+  return { lembretes: data?.reminders_on ?? true, silencioDe: (data?.quiet_hours_start ?? '22:00').slice(0, 5), silencioAte: (data?.quiet_hours_end ?? '08:00').slice(0, 5) };
+}
+export async function guardarMeusAvisos(client: LunaClient, userId: string, a: MeusAvisos): Promise<void> {
+  const { error } = await client.from('user_settings').update({ reminders_on: a.lembretes, quiet_hours_start: a.silencioDe, quiet_hours_end: a.silencioAte }).eq('user_id', userId);
+  if (error) throw error;
 }

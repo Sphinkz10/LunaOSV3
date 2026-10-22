@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
 import { Avatar, BarraSemRede, Botao, MenuItem, NavegacaoInferior, iniciais } from '@luna/ui/v3';
-import { CaretRight, DotsThree, List, ListChecks, MagnifyingGlass, Plus, SignOut, UserCircle, UsersThree } from '@luna/icons';
+import { CaretRight, DotsThree, List, ListChecks, MagnifyingGlass, Plus, Question, SignOut, UserCircle, UsersThree } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
 import { signOutEverywhere } from './session';
@@ -197,6 +197,7 @@ export function CoachShell({
               {scope?.permissions.includes('team.manage') && (
                 <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { contaPop.setAberto(false); navigate('/settings/equipa'); }}><UsersThree size={18} aria-hidden />Equipa e acessos</button>
               )}
+              <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { contaPop.setAberto(false); navigate('/ajuda'); }}><Question size={18} aria-hidden />Ajuda</button>
               <button type="button" role="menuitem" className="lg-pop__item" onClick={sair}><SignOut size={18} aria-hidden />Sair</button>
             </div>
           )}
@@ -255,6 +256,7 @@ export function CoachShell({
             )}
             <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); setProcura(true); }}>Procurar</button>
             <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate('/conta'); }}>A minha conta</button>
+            <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); navigate('/ajuda'); }}>Ajuda</button>
             {orgs.length > 1 && orgs.filter((o) => o.org_id !== scope?.orgId).map((o) => (
               <button key={o.org_id} type="button" role="menuitem" className="lg-pop__item" onClick={() => { maisPop.setAberto(false); trocarOrg(o.org_id); }}>Mudar para {o.name}</button>
             ))}

@@ -3,9 +3,10 @@ import {
   AREAS_PERMISSAO, cancelarConvite, confirmarDestrutivo, convidarMembro, desativarMembro, fetchEquipa, fetchPapeis, fetchTitulos,
   gerarCodigoRecuperacao, guardarTitulo, LugaresEsgotadosError, mudarPapeis, reativarMembro, sincronizarTitulos, toast,
   type ConviteEquipa, type EventoEquipa, type MembroEquipa, type PapelCatalogo, type TituloMembro,
+  contarClientesDe, passarClientes,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, SemPermissao } from '@luna/ui/v3';
-import { CheckCircle, Copy, IdentificationCard, Key, Lock, XCircle } from '@luna/icons';
+import { CheckCircle, Copy, IdentificationCard, Key, Lock, UsersThree, XCircle } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -37,6 +38,7 @@ export function Equipa() {
   const [convidar, setConvidar] = useState(false);
   const [desativar, setDesativar] = useState<MembroEquipa | null>(null);
   const [reativar, setReativar] = useState<MembroEquipa | null>(null);
+  const [passar, setPassar] = useState<MembroEquipa | null>(null);
   const [codigo, setCodigo] = useState<{ nome: string; codigo: string } | null>(null);
   const [titulos, setTitulos] = useState<Map<string, TituloMembro>>(new Map());
   const [catalogo, setCatalogo] = useState<PapelCatalogo[]>([]);
@@ -108,6 +110,7 @@ export function Equipa() {
                         <MenuAcoes rotulo={`Ações para ${m.nome}`} acoes={[
                           { rotulo: 'Papéis e título', icone: IdentificationCard, onClick: () => setEditar(m) },
                           { rotulo: 'Gerar código de recuperação', icone: Key, onClick: () => void gerarCodigo(m) },
+                          { rotulo: 'Passar os clientes', icone: UsersThree, onClick: () => setPassar(m) },
                           { rotulo: 'Desativar acesso', icone: Lock, perigo: true, onClick: () => setDesativar(m) },
                         ]} />
                       )}
@@ -214,6 +217,8 @@ export function Equipa() {
           const client = getSupabaseClient();
           if (client) { await desativarMembro(client, m.id, motivo); toast({ variant: 'success', title: `${m.nome} já não tem acesso` }); carregar(); }
         }} />
+      <PassarClientes membro={passar} equipa={(dados?.membros ?? []).filter((x) => x.estado === 'active' && x.id !== passar?.id)}
+        onFechar={() => setPassar(null)} onFeito={() => { setPassar(null); carregar(); }} />
       <PedirMotivo membro={reativar} titulo={(n) => `Reativar o acesso de ${n}?`} verbo="Reativar"
         texto="Volta com o mesmo papel e ocupa um lugar." motivos={['Voltou à equipa', 'Fim da pausa', 'Outro']}
         onFechar={() => setReativar(null)} onConfirmar={async (m, motivo) => {
@@ -366,6 +371,51 @@ function EditarMembro({ membro, catalogo, titulo, onFechar, onFeito }: {
         <Campo rotulo="Válido até" type="date" value={ate} onChange={(e) => setAte(e.target.value)} ajuda="Avisamos a gerência 30 dias antes" />
         <Botao type="submit" aCarregar={aGravar}>Guardar</Botao>
       </form>
+    </Janela>
+  );
+}
+
+/** G-46: passar os clientes de quem sai (ou muda de funções) para outra pessoa, com registo na ficha. */
+function PassarClientes({ membro, equipa, onFechar, onFeito }: {
+  membro: MembroEquipa | null; equipa: MembroEquipa[]; onFechar: () => void; onFeito: () => void;
+}) {
+  const scope = useScope();
+  const [n, setN] = useState<number | null>(null);
+  const [para, setPara] = useState('');
+  const [aGravar, setAGravar] = useState(false);
+  useEffect(() => {
+    setPara(''); setN(null);
+    const client = getSupabaseClient();
+    if (!client || !membro) return;
+    void contarClientesDe(client, scope, membro.id).then(setN).catch(() => setN(null));
+  }, [membro, scope]);
+  if (!membro) return null;
+  const destino = equipa.find((x) => x.id === para);
+  const passarJa = async () => {
+    const client = getSupabaseClient();
+    if (!client || !para) return;
+    setAGravar(true);
+    try {
+      const feitos = await passarClientes(client, scope, membro.id, para);
+      toast({ variant: 'success', title: `${feitos} ${feitos === 1 ? 'cliente passou' : 'clientes passaram'} para ${destino?.nome ?? 'a nova pessoa'}` });
+      onFeito();
+    } catch (e) { toast({ variant: 'danger', title: 'Não foi possível passar', description: e instanceof Error ? e.message : undefined }); }
+    finally { setAGravar(false); }
+  };
+  return (
+    <Janela aberta onFechar={onFechar} titulo={`Passar os clientes de ${membro.nome}`}
+      sub={n == null ? undefined : n === 0 ? 'Não tem clientes a seu cargo.' : `${n} ${n === 1 ? 'cliente' : 'clientes'} a seu cargo.`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <label className="lv-campo"><span className="lv-campo-rotulo">Para quem</span>
+          <select className="lv-campo-input" value={para} onChange={(e) => setPara(e.target.value)}>
+            <option value="">Escolher</option>{equipa.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+          </select></label>
+        <Nota>Planos, packs e histórico ficam como estão. Cada ficha regista a mudança e a nova pessoa passa a ver as marcações.</Nota>
+        <div className="lg-import__acoes" style={{ padding: 0 }}>
+          <Botao variante="secundario" onClick={onFechar}>Cancelar</Botao>
+          <Botao aCarregar={aGravar} disabled={!para || n === 0} onClick={() => void passarJa()}>Passar {n ? `os ${n}` : ''}</Botao>
+        </div>
+      </div>
     </Janela>
   );
 }

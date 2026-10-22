@@ -133,10 +133,11 @@ export interface ResumoSessao {
   id: string; cliente: string | null; inicio: string | null; minutos: number; rpeMedio: number | null; linhas: LinhaResumo[];
   correcoes: { em: string; texto: string }[]; origem: { treino: string | null; versao: number | null; marcacao: string | null; plano: string | null };
   comoPrevisto: number; total: number; volume: number;
+  partilhado: { texto: string; em: string } | null;
 }
 export async function resumoSessao(client: LunaClient, sessionId: string): Promise<ResumoSessao> {
   const [s, ex, sets, ed] = await Promise.all([
-    client.from('sessions').select('id,link_id,workout_id,booking_id,started_at,elapsed_seconds').eq('id', sessionId).single(),
+    client.from('sessions').select('id,link_id,workout_id,booking_id,started_at,elapsed_seconds,shared_note,shared_at').eq('id', sessionId).single(),
     client.from('session_exercises').select('id,exercise_id,position,target_sets').eq('session_id', sessionId).order('position'),
     client.from('session_sets').select('id,session_exercise_id,set_index,reps,load_kg,rpe,completed').eq('session_id', sessionId).order('set_index'),
     client.from('session_set_edits').select('set_id,before,after,created_at').eq('session_id', sessionId).order('created_at'),
@@ -169,6 +170,7 @@ export async function resumoSessao(client: LunaClient, sessionId: string): Promi
     return `${nome(e?.exercise_id ?? null)} · série ${st?.set_index ?? '?'}`;
   };
   return {
+    partilhado: s.data.shared_note && s.data.shared_at ? { texto: s.data.shared_note, em: s.data.shared_at } : null,
     id: s.data.id, cliente: (cli.data as { full_name: string } | null)?.full_name ?? null, inicio: s.data.started_at, minutos: Math.round(s.data.elapsed_seconds / 60),
     rpeMedio: rpes.length ? Math.round((rpes.reduce((a, b) => a + b, 0) / rpes.length) * 10) / 10 : null,
     linhas,

@@ -134,25 +134,37 @@ alter table public.booking_reminders enable row level security;
 revoke all on public.booking_reminders from anon, authenticated;
 
 -- Corre de 5 em 5 minutos (cron da Edge Function, só com a chave de serviço)
+-- Preferências de avisos do cliente na app: lembretes ligados ou não; as horas
+-- de silêncio já existem (user_settings.quiet_hours_start/end)
+alter table public.user_settings add column reminders_on boolean not null default true;
+
 create or replace function public._enviar_lembretes(_now timestamptz default now())
 returns int language plpgsql security definer set search_path = '' as $$
 declare b record; n int := 0; tz text; hora int;
 begin
   for b in
     select x.id, x.org_id, x.starts_at, x.link_id, k.kind, p.user_id, p.phone,
-           coalesce(o.timezone, 'Europe/Lisbon') as tz, public._regras(x.org_id) as r
+           coalesce(o.timezone, 'Europe/Lisbon') as tz, public._regras(x.org_id) as r,
+           coalesce(us.reminders_on, true) as quer, extract(hour from coalesce(us.quiet_hours_start, '22:00'))::int as qde, extract(hour from coalesce(us.quiet_hours_end, '08:00'))::int as qate
     from public.bookings x
     join public.links l on l.id = x.link_id join public.persons p on p.id = l.person_id
     join public.organizations o on o.id = x.org_id
+    left join public.user_settings us on us.user_id = p.user_id
     cross join (values ('24h', interval '24 hours'), ('2h', interval '2 hours')) k(kind, antes)
     where x.status in ('pending','confirmed') and x.starts_at > _now
       and x.starts_at - k.antes <= _now and x.starts_at - k.antes > _now - interval '12 hours'
       and not exists (select 1 from public.booking_reminders br where br.booking_id = x.id and br.kind = k.kind)
   loop
     if (b.kind = '24h' and not (b.r).remind_24h) or (b.kind = '2h' and not (b.r).remind_2h) then continue; end if;
+    if not b.quer then
+      insert into public.booking_reminders (booking_id, kind) values (b.id, b.kind);
+      continue;
+    end if;
     hora := extract(hour from _now at time zone b.tz)::int;
-    -- Horas de silêncio: o de 24 h espera pelas 08:00; o de 2 h só sai se a sessão for antes das 10:00
-    if (hora >= 22 or hora < 8) and not (b.kind = '2h' and extract(hour from b.starts_at at time zone b.tz) < 10) then continue; end if;
+    -- Horas de silêncio (por omissão 22h–8h, cada cliente muda na app): o de 24 h espera;
+    -- o de 2 h sai na mesma se a sessão for cedo (antes das 10:00)
+    if (case when b.qde > b.qate then hora >= b.qde or hora < b.qate else hora >= b.qde and hora < b.qate end)
+       and not (b.kind = '2h' and extract(hour from b.starts_at at time zone b.tz) < 10) then continue; end if;
     insert into public.booking_reminders (booking_id, kind) values (b.id, b.kind);
     if b.user_id is not null then
       insert into public.notifications (user_id, org_id, type, title, body, action_url)
@@ -309,3 +321,23 @@ end $$;
 
 revoke execute on function public.new_calendar_feed(uuid, boolean), public.share_session_summary(uuid, text), public.transfer_clients(uuid, uuid, uuid, uuid[]) from public, anon;
 grant execute on function public.new_calendar_feed(uuid, boolean), public.share_session_summary(uuid, text), public.transfer_clients(uuid, uuid, uuid, uuid[]) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- App: "Sessão marcada" mostra até quando desmarca sem contar e onde é
+-- ---------------------------------------------------------------------------
+drop function public.my_bookings();
+create function public.my_bookings()
+returns table (id uuid, inicio timestamptz, fim timestamptz, titulo text, estado text, com text, pode_desmarcar_sem_contar boolean,
+               desmarcar_ate timestamptz, local text)
+language sql stable security definer set search_path = '' as $$
+  select b.id, b.starts_at, b.ends_at, coalesce(nullif(b.title, ''), 'Sessão'), b.status::text, mp.full_name,
+    b.starts_at >= now() + make_interval(hours => (public._regras(b.org_id)).cancel_hours),
+    b.starts_at - make_interval(hours => (public._regras(b.org_id)).cancel_hours),
+    b.location
+  from public.bookings b join public.links l on l.id = b.link_id
+  left join public.memberships m on m.id = b.membership_id left join public.persons mp on mp.id = m.person_id
+  where l.person_id = public.my_person_id() and b.starts_at >= now() - interval '1 hour' and b.status in ('pending','confirmed')
+  order by b.starts_at;
+$$;
+revoke execute on function public.my_bookings() from public, anon;
+grant execute on function public.my_bookings() to authenticated;

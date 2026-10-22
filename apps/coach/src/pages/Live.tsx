@@ -9,6 +9,7 @@ import {
   type LiveWorkout, type LiveWorkoutExercise,
 } from '@luna/core';
 import { CoachShell } from '../app/CoachShell';
+import { PartilharResumo } from '../app/PartilharResumo';
 import { useScope } from '../app/ModuleLayout';
 import { vocab } from '../lib/vocab';
 
@@ -82,6 +83,7 @@ export function Live() {
   const [clock, setClock] = useState<spikeTimer.TimerState | null>(null);
   const [rest, setRest] = useState<spikeTimer.TimerState | null>(null);
   const [note, setNote] = useState('');
+  const [partilhar, setPartilhar] = useState<string | null>(null);
   const [tags, setTags] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -329,6 +331,7 @@ export function Live() {
       setSession({ ...session, phase: 'done' });
       setActiveId(null);
       setTab('summary');
+      if (session.clientId) setPartilhar(session.id);
       toast({ variant: 'success', title: 'Sessão guardada', description: session.bookingId ? 'Marcação passou a concluída.' : undefined });
     } catch (e) {
       toast({ variant: 'danger', title: 'Falha ao finalizar', description: errMsg(e) });
@@ -713,6 +716,7 @@ export function Live() {
       </div>
       <AddExerciseModal open={addOpen} onClose={() => setAddOpen(false)} exercises={exercises} onPick={(e) => void addExercise(e)} />
       <ExerciseNoteModal ex={noteFor} onClose={() => setNoteFor(null)} onSave={(t) => void saveNote(t)} />
+      <PartilharResumo aberta={!!partilhar} sessaoId={partilhar} cliente={session?.clientId ? athleteName(session.clientId) : null} onFechar={() => setPartilhar(null)} />
     </CoachShell>
   );
 }

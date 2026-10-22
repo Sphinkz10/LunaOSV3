@@ -55,6 +55,26 @@ begin
   if has_function_privilege('authenticated', 'public._enviar_lembretes(timestamptz)', 'execute') then raise exception 'PROVA R2 FALHOU: cliente dispara lembretes'; end if;
 end $$;
 
+-- ---------- PROVA R7: quem desliga os lembretes na app não os recebe ----------
+insert into public.bookings (id, org_id, membership_id, link_id, status, starts_at, ends_at) values
+  ('00000000-0000-0000-0000-0000000e1002', current_setting('c.org')::uuid, current_setting('c.m_pt')::uuid, current_setting('c.link')::uuid, 'confirmed',
+   date_trunc('day', now() + interval '4 days') + interval '17 hours', date_trunc('day', now() + interval '4 days') + interval '18 hours');
+update public.user_settings set reminders_on = false where user_id = '00000000-0000-0000-0000-0000000e0003';
+do $$ declare antes int := (select count(*) from public.notifications where type = 'lembrete');
+begin
+  perform public._enviar_lembretes(((date_trunc('day', now() + interval '4 days') + interval '17 hours') - interval '23 hours'));
+  if (select count(*) from public.notifications where type = 'lembrete') <> antes then raise exception 'PROVA R7 FALHOU: lembrete com os avisos desligados'; end if;
+end $$;
+update public.user_settings set reminders_on = true where user_id = '00000000-0000-0000-0000-0000000e0003';
+set role authenticated;
+select set_config('app.uid', '00000000-0000-0000-0000-0000000e0003', false);
+do $$ begin
+  if not exists (select 1 from public.my_bookings() where id = '00000000-0000-0000-0000-0000000e1002' and desmarcar_ate < inicio) then
+    raise exception 'PROVA R7 FALHOU: sem prazo para desmarcar';
+  end if;
+end $$;
+reset role;
+
 -- ---------- PROVA R3: iCal sem o nome do cliente; gerar nova invalida a antiga ----------
 set role authenticated;
 select set_config('app.uid', '00000000-0000-0000-0000-0000000e0002', false);   -- PT

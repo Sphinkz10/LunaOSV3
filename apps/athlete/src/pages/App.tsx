@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  cancelarApagarConta, definirPartilhas, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
+  cancelarApagarConta, definirPartilhas, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
   assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
   type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
@@ -491,6 +491,7 @@ export function DefinicoesCliente() {
           </button>
         ))}
       </div>
+      <AvisosPrefs />
       <nav className="lc-lista" aria-label="Mais">
         <button type="button" className="lc-lista__linha" onClick={() => navigate('/conta/consentimentos')}>
           <span className="lc-lista__icone"><ShieldCheck size={18} aria-hidden /></span>
@@ -499,5 +500,46 @@ export function DefinicoesCliente() {
         </button>
       </nav>
     </main>
+  );
+}
+
+/** Avisos (T29A): lembretes das sessões e horas de silêncio. Guardam logo ao mudar. */
+function AvisosPrefs() {
+  const { sessao } = useSessao();
+  const uid = sessao?.user.id ?? null;
+  const [a, setA] = useState<MeusAvisos | null>(null);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !uid) return;
+    void fetchMeusAvisos(client, uid).then(setA).catch(() => setA(null));
+  }, [uid]);
+  if (!a || !uid) return null;
+  const mudar = (n: MeusAvisos) => {
+    const antes = a;
+    setA(n);
+    const client = getSupabaseClient();
+    if (!client) return;
+    void guardarMeusAvisos(client, uid, n).catch(() => { setA(antes); toast({ variant: 'danger', title: 'Não foi possível guardar' }); });
+  };
+  return (
+    <>
+      <h2 className="lv-sobretitulo">Avisos</h2>
+      <div className="lc-lista">
+        <div className="lc-lista__linha" style={{ cursor: 'default' }}>
+          <span className="lc-lista__icone"><Bell size={18} aria-hidden /></span>
+          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Lembretes das {t('sessao', { plural: true })}</span>
+            <span className="lv-legenda">Na véspera e 2 horas antes</span></span>
+          <Interruptor rotulo="Lembretes" ligado={a.lembretes} onMudar={(v) => mudar({ ...a, lembretes: v })} />
+        </div>
+        <div className="lc-lista__linha" style={{ cursor: 'default', flexWrap: 'wrap' }}>
+          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Horas de silêncio</span>
+            <span className="lv-legenda">Nestas horas não te mandamos nada</span></span>
+          <label className="lv-campo" style={{ width: 96 }}><span className="lv-campo-rotulo">Das</span>
+            <input className="lv-campo-input" type="time" step={3600} value={a.silencioDe} onChange={(e) => e.target.value && mudar({ ...a, silencioDe: e.target.value })} /></label>
+          <label className="lv-campo" style={{ width: 96 }}><span className="lv-campo-rotulo">Às</span>
+            <input className="lv-campo-input" type="time" step={3600} value={a.silencioAte} onChange={(e) => e.target.value && mudar({ ...a, silencioAte: e.target.value })} /></label>
+        </div>
+      </div>
+    </>
   );
 }

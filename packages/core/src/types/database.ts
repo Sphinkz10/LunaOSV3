@@ -92,7 +92,7 @@ export type UserSettingsRow = {
   user_id: Uuid; theme_mode: string; density: string; text_size: number; reduced_motion: boolean;
   date_format: string; time_format: string; live_timer_enabled: boolean; live_sound_enabled: boolean;
   notif_push: boolean; notif_email: boolean; notif_sms: boolean; quiet_hours_start: string; quiet_hours_end: string;
-  last_org_id: Uuid | null; tema: 'oceano' | 'ouro' | 'limao' | null; week_start: number; language: string;
+  last_org_id: Uuid | null; tema: 'oceano' | 'ouro' | 'limao' | null; week_start: number; language: string; reminders_on: boolean;
   created_at: Ts; updated_at: Ts;
 };
 export type InviteRow = {
@@ -172,7 +172,12 @@ export type ClientPackRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; product_id: Uuid | null; name: string; sessions_total: number; sessions_used: number;
   starts_on: string; valid_until: string; price_cents: number; sold_by: Uuid | null; created_at: Ts;
 };
-export type BookingRulesRow = { org_id: Uuid; slot_minutes: number; min_notice_hours: number; cancel_hours: number; auto_confirm: boolean; horizon_days: number; updated_at: Ts };
+export type BookingRulesRow = {
+  org_id: Uuid; slot_minutes: number; min_notice_hours: number; cancel_hours: number; auto_confirm: boolean; horizon_days: number; updated_at: Ts;
+  no_show_counts: boolean; max_per_week: number | null; client_can_book: boolean; remind_24h: boolean; remind_2h: boolean; remind_sms: boolean; notify_pt: boolean;
+};
+export type PtLocationRow = { id: Uuid; org_id: Uuid; membership_id: Uuid; kind: 'estudio' | 'casa_cliente' | 'parque' | 'online'; label: string; address: string | null; archived_at: Ts | null; created_at: Ts };
+export type CalendarFeedRow = { membership_id: Uuid; token_hash: string; show_names: boolean; created_at: Ts };
 export type ExerciseFieldRow = {
   id: Uuid; org_id: Uuid; exercise_id: Uuid; position: number; label: string; kind: 'numero' | 'sim_nao' | 'texto' | 'pct';
   unit: string | null; min_value: number | null; max_value: number | null; required: boolean;
@@ -213,7 +218,7 @@ export type BookingRow = {
   class_id: Uuid | null; assignment_id: Uuid | null; type: Enums['booking_type']; session_type: string | null;
   status: Enums['booking_status']; title: string | null; starts_at: Ts; ends_at: Ts; location: string | null;
   notes: string | null; capacity: number | null; source: string; cancel_reason: string | null; created_at: Ts; updated_at: Ts;
-  series_id: Uuid | null; late_cancel: boolean;
+  series_id: Uuid | null; late_cancel: boolean; location_kind: 'estudio' | 'casa_cliente' | 'parque' | 'online' | null;
 };
 export type WaitlistRow = {
   id: Uuid; org_id: Uuid; link_id: Uuid; class_id: Uuid | null; membership_id: Uuid | null;
@@ -242,6 +247,7 @@ export type SessionRow = {
   booking_id: Uuid | null; workout_id: Uuid | null; phase: Enums['session_phase']; started_at: Ts | null;
   ended_at: Ts | null; elapsed_seconds: number; paused_seconds: number; summary: Json; notes: string | null;
   created_at: Ts; updated_at: Ts;
+  shared_note: string | null; shared_at: Ts | null;
 };
 export type SessionExerciseRow = {
   id: Uuid; session_id: Uuid; person_id: Uuid; org_id: Uuid | null; exercise_id: Uuid | null; position: number;
@@ -336,6 +342,8 @@ export interface Database {
       workout_blocks: Table<WorkoutBlockRow, 'org_id' | 'workout_id'>;
       exercise_fields: Table<ExerciseFieldRow, 'org_id' | 'exercise_id' | 'label' | 'kind'>;
       booking_rules: Table<BookingRulesRow, 'org_id'>;
+      pt_locations: Table<PtLocationRow, 'org_id' | 'membership_id' | 'kind' | 'label'>;
+      calendar_feeds: Table<CalendarFeedRow, 'membership_id' | 'token_hash'>;
       pack_products: Table<PackProductRow, 'org_id' | 'name' | 'sessions' | 'validity_days'>;
       client_packs: Table<ClientPackRow, 'org_id' | 'link_id' | 'name' | 'sessions_total' | 'valid_until'>;
       session_set_edits: Table<SessionSetEditRow, 'set_id' | 'session_id' | 'person_id' | 'before' | 'after'>;
@@ -374,6 +382,9 @@ export interface Database {
       sync_title_alerts: { Args: { _org: string }; Returns: number };
       import_clients: { Args: { _org: string; _file: string; _rows: Json }; Returns: string };
       publish_workout: { Args: { _workout: string }; Returns: string };
+      new_calendar_feed: { Args: { _org: string; _show_names?: boolean }; Returns: string };
+      share_session_summary: { Args: { _session: string; _note: string }; Returns: undefined };
+      transfer_clients: { Args: { _org: string; _from: string; _to: string; _links?: string[] | null }; Returns: number };
       sell_pack: { Args: { _link: string; _product: string; _starts_on?: string }; Returns: string };
       pack_balance: { Args: { _link: string }; Returns: { pack_id: string; nome: string; restam: number; total: number; valido_ate: string; estado: string }[] };
       my_packs: { Args: Record<string, never>; Returns: { org: string; nome: string; restam: number; total: number; valido_ate: string }[] };
@@ -388,7 +399,7 @@ export interface Database {
       my_pt_slots: { Args: { _link: string; _from?: string; _days?: number }; Returns: { inicio: string; fim: string }[] };
       book_my_pt: { Args: { _link: string; _starts: string }; Returns: string };
       cancel_my_booking: { Args: { _booking: string }; Returns: string };
-      my_bookings: { Args: Record<string, never>; Returns: { id: string; inicio: string; fim: string; titulo: string; estado: string; com: string | null; pode_desmarcar_sem_contar: boolean }[] };
+      my_bookings: { Args: Record<string, never>; Returns: { id: string; inicio: string; fim: string; titulo: string; estado: string; com: string | null; pode_desmarcar_sem_contar: boolean; desmarcar_ate: string; local: string | null }[] };
       workout_problems: { Args: { _workout: string }; Returns: { problema: string }[] };
       workout_library_changes: { Args: { _workout: string }; Returns: { exercise_id: string; nome: string; versao_no_treino: number; versao_atual: number }[] };
       accept_exercise_update: { Args: { _workout: string; _exercise: string }; Returns: undefined };

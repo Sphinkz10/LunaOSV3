@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  fetchDisponibilidade, fetchRegras, guardarRegras, juntarJanela, marcarAusencia, REGRAS_PADRAO, salasAgora, tirarJanela, toast,
+  fetchDisponibilidade, fetchRegras, juntarJanela, marcarAusencia, REGRAS_PADRAO, salasAgora, tirarJanela, toast,
   type DisponibilidadeMembro, type RegrasMarcacao, type SalaAgora,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
@@ -22,6 +23,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
  */
 export function Disponibilidade() {
   const scope = useScope();
+  const navigate = useNavigate();
   const gere = scope.permissions.includes('schedule.read_all');
   const [semana] = useState(() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d; });
   const dias = Array.from({ length: 7 }, (_, i) => { const d = new Date(semana); d.setUTCDate(d.getUTCDate() + i); return d; });
@@ -36,7 +38,7 @@ export function Disponibilidade() {
     void fetchDisponibilidade(client, scope, iso(dias[0]), iso(dias[6]))
       .then((l) => setEquipa(gere ? l : l.filter((m) => m.membershipId === scope.membershipId))).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
     void salasAgora(client, scope).then(setSalas).catch(() => setSalas([]));
-    void fetchRegras(client, scope).then(setRegras).catch(() => undefined);
+    void fetchRegras(client, scope).then((r) => setRegras({ ...REGRAS_PADRAO, ...r })).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, gere]);
   useEffect(() => carregar(), [carregar]);
@@ -80,37 +82,16 @@ export function Disponibilidade() {
               </div>
             ))}
           </section>
-          {scope.permissions.includes('org.manage') && <RegrasForm regras={regras} onGuardado={setRegras} />}
+          <section className="lv-lista" aria-label="Regras de marcação">
+            <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Regras de marcação</h3>
+            <p className="lv-legenda" style={{ margin: 0 }}>{regras.client_can_book ? 'O cliente marca na app' : 'Só tu marcas'} · desmarcar sem contar até {regras.cancel_hours} h antes · lembretes {[regras.remind_24h && '24 h', regras.remind_2h && '2 h'].filter(Boolean).join(' e ') || 'desligados'}</p>
+            <Botao variante="secundario" onClick={() => navigate('/schedule/regras')}>Regras, lembretes e locais</Botao>
+          </section>
           <Nota>A disponibilidade de PT é o que o cliente vê para marcar na app.</Nota>
         </aside>
       </div>
       <EditarDisponibilidade membro={editar} onFechar={() => setEditar(null)} onFeito={() => { setEditar(null); carregar(); }} />
     </CoachShell>
-  );
-}
-
-function RegrasForm({ regras, onGuardado }: { regras: RegrasMarcacao; onGuardado: (r: RegrasMarcacao) => void }) {
-  const scope = useScope();
-  const [r, setR] = useState(regras);
-  useEffect(() => setR(regras), [regras]);
-  const guardar = async () => {
-    const client = getSupabaseClient();
-    if (!client) return;
-    try { await guardarRegras(client, scope, r); onGuardado(r); toast({ variant: 'success', title: 'Regras guardadas' }); }
-    catch (e) { toast({ variant: 'danger', title: 'Não foi possível guardar', description: e instanceof Error ? e.message : undefined }); }
-  };
-  return (
-    <section className="lv-lista" aria-label="Regras de marcação">
-      <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Regras de marcação</h3>
-      <div className="lg-conta__prefs">
-        <Campo rotulo={`Duração da ${t('sessao')} (min)`} type="number" min={15} max={240} step={15} value={r.slot_minutes} onChange={(e) => setR({ ...r, slot_minutes: Number(e.target.value) || 60 })} />
-        <Campo rotulo="Antecedência mínima (h)" type="number" min={0} max={168} value={r.min_notice_hours} onChange={(e) => setR({ ...r, min_notice_hours: Number(e.target.value) })} />
-        <Campo rotulo="Desmarcar sem contar até (h antes)" type="number" min={0} max={168} value={r.cancel_hours} onChange={(e) => setR({ ...r, cancel_hours: Number(e.target.value) })} />
-        <Campo rotulo="Marcar até (dias)" type="number" min={1} max={90} value={r.horizon_days} onChange={(e) => setR({ ...r, horizon_days: Number(e.target.value) || 21 })} />
-      </div>
-      <label className="lv-legenda" style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" checked={r.auto_confirm} onChange={() => setR({ ...r, auto_confirm: !r.auto_confirm })} />Confirmar logo as marcações feitas na app</label>
-      <Botao variante="secundario" onClick={() => void guardar()}>Guardar regras</Botao>
-    </section>
   );
 }
 

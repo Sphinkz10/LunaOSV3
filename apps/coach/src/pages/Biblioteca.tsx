@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CATEGORIA_EXERCICIO, duplicarExercicioBase, fetchBibliotecaBase, fetchExerciciosOrg, fetchPlanos, fetchTreinos, filtrarExercicios, NIVEL, toast,
   type ExercicioBase, type ExercicioOrg, type PlanoResumo, type TreinoResumo,
@@ -43,7 +43,8 @@ export function Biblioteca() {
   const [tipo, setTipo] = useState<'exercicios' | 'treinos' | 'planos'>(() => (new URLSearchParams(window.location.search).get('tipo') as 'treinos' | 'planos' | null) ?? 'exercicios');
   const [treinos, setTreinos] = useState<TreinoResumo[] | null>(null);
   const [planos, setPlanos] = useState<PlanoResumo[] | null>(null);
-  const [criar, setCriar] = useState<'treino' | 'plano' | null>(null);
+  const [params] = useSearchParams();
+  const [criar, setCriar] = useState<'treino' | 'plano' | null>(() => (params.get('novo') === 'treino' || params.get('novo') === 'plano' ? params.get('novo') as 'treino' | 'plano' : null));
   const pode = scope.permissions.includes('training.write');
   const [base, setBase] = useState<ExercicioBase[] | null>(null);
   const [meus, setMeus] = useState<ExercicioOrg[] | null>(null);

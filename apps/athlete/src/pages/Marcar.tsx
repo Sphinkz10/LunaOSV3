@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  desmarcar, fetchMeusPacks, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
+  desmarcar, fetchMeusPacks, icsDeMarcacao, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
   type MeuPack, type MinhaLigacao, type MinhaMarcacao,
 } from '@luna/core';
-import { BotaoFixo, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
+import { Botao, BotaoFixo, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
 import { CalendarBlank, CaretRight } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { t } from '../vocab';
@@ -29,6 +29,7 @@ export function MarcarPT() {
   const [desm, setDesm] = useState<MinhaMarcacao | null>(null);
   const [aGravar, setAGravar] = useState(false);
   const [packs, setPacks] = useState<MeuPack[]>([]);
+  const [feita, setFeita] = useState<MinhaMarcacao | null>(null);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -50,7 +51,13 @@ export function MarcarPT() {
     const client = getSupabaseClient();
     if (!client || !link || !escolha) return;
     setAGravar(true);
-    try { await marcarComPT(client, link.linkId, escolha); toast({ variant: 'success', title: 'Marcado', description: `O teu ${t('responsavel')} recebeu o pedido.` }); carregar(); }
+    try {
+      const id = await marcarComPT(client, link.linkId, escolha);
+      const lista = await minhasMarcacoes(client).catch(() => [] as MinhaMarcacao[]);
+      setFeita(lista.find((m) => m.id === id) ?? null);
+      if (!lista.some((m) => m.id === id)) toast({ variant: 'success', title: 'Marcado', description: `O teu ${t('responsavel')} recebeu o pedido.` });
+      carregar();
+    }
     catch (e) { toast({ variant: 'danger', title: 'Não foi possível marcar', description: e instanceof Error ? e.message : undefined }); carregar(); }
     finally { setAGravar(false); }
   };
@@ -106,9 +113,35 @@ export function MarcarPT() {
       )}
       <Nota>Desmarcar até ao prazo do ginásio não conta; depois disso, a sessão conta.</Nota>
       {escolha && <BotaoFixo aCarregar={aGravar} onClick={() => void marcar()}>Marcar {DIAS_LONGO[d.getDay()]} às {hora(escolha)}</BotaoFixo>}
+      <SessaoMarcada m={feita} onFechar={() => setFeita(null)} />
       <ConfirmarDestrutivo aberta={!!desm} titulo="Desmarcar esta sessão?" verbo="Desmarcar" manter="Manter"
         texto={desm ? (desm.semContar ? 'Ainda estás dentro do prazo: não conta.' : 'Já passou o prazo do ginásio: esta sessão conta.') : undefined}
         onConfirmar={() => void fazerDesmarcar()} onFechar={() => setDesm(null)} />
     </main>
+  );
+}
+
+/** Depois de marcar: quando, onde, até quando desmarca sem contar e juntar ao calendário do telemóvel. */
+function SessaoMarcada({ m, onFechar }: { m: MinhaMarcacao | null; onFechar: () => void }) {
+  if (!m) return null;
+  const quando = new Date(m.inicio);
+  const ate = new Date(m.desmarcarAte);
+  const juntar = () => {
+    const blob = new Blob([icsDeMarcacao({ id: m.id, inicio: m.inicio, fim: m.fim, titulo: m.com ? `${m.titulo} com ${m.com}` : m.titulo, local: m.local })], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'sessao.ics'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  return (
+    <Janela aberta onFechar={onFechar} titulo={m.estado === 'pending' ? 'Pedido enviado' : `${t('sessao', { maiuscula: true })} marcada`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
+        <p style={{ margin: 0 }}><b>{DIAS_LONGO[quando.getDay()]}, {quando.getDate()}</b> às {hora(m.inicio)}{m.com ? ` com ${m.com}` : ''}{m.local ? ` · ${m.local}` : ''}</p>
+        {m.estado === 'pending' && <p className="lv-legenda" style={{ margin: 0 }}>Fica confirmada quando o teu {t('responsavel')} aceitar.</p>}
+        <Nota>Podes desmarcar sem contar até {DIAS_LONGO[ate.getDay()]}, {ate.getDate()} às {hora(m.desmarcarAte)}.</Nota>
+        <Botao variante="secundario" icone={CalendarBlank} onClick={juntar}>Adicionar ao calendário</Botao>
+        <Botao onClick={onFechar}>Feito</Botao>
+      </div>
+    </Janela>
   );
 }
