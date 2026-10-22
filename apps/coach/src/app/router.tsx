@@ -26,8 +26,7 @@ import { RegrasPT } from '../pages/RegrasPT';
 import { Ajuda } from '../pages/Ajuda';
 import { MetricasInternas } from '../pages/MetricasInternas';
 import { AplicarAvaliacao, AvaliacaoInicio, ConstrutorProtocolo, ConstrutorQuestionario, EnviarPedido, RespostaPagina, ResultadoAvaliacao } from '../pages/Avaliacao';
-import { Groups } from '../pages/Groups';
-import { Group360 } from '../pages/Group360';
+import { Grupos } from '../pages/Grupos';
 import { AoVivo, IniciarSessao } from '../pages/AoVivo';
 import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
@@ -62,8 +61,8 @@ const routes: RouteObject[] = [
     ] },
   { path: '/groups', element: <Protected module="clients"><ModuleLayout module="groups" /></Protected>,
     children: [
-      { index: true, element: <Groups /> },
-      { path: ':id', element: <Group360 /> },
+      { index: true, element: <Grupos /> },
+      { path: ':id', element: <Grupos /> },
     ] },
   { path: '/conta', element: <Protected><Conta /></Protected> },
   { path: '/inbox', element: <Protected><Inbox /></Protected> },

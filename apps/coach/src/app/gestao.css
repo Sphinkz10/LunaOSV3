@@ -634,3 +634,8 @@ button.lg-protocolo__linha { cursor: pointer; }
   .lg-protocolo__linha { grid-template-columns: minmax(0, 1fr) 60px 60px; }
   .lg-protocolo__linha > :nth-child(4) { display: none; }
 }
+
+/* ── Grupos (G-08) ── */
+.lg-grupos { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.6fr); gap: var(--espaco-16); align-items: start; }
+.lg-grupos .lv-linha-lista[aria-current="true"] { background: var(--cor-selecao); }
+@media (max-width: 900px) { .lg-grupos { grid-template-columns: minmax(0, 1fr); } }

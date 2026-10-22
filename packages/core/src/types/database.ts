@@ -144,8 +144,10 @@ export type NotificationRow = {
 export type GroupRowDb = {
   id: Uuid; org_id: Uuid; type: Enums['group_type']; sport_id: string | null; name: string; color: string | null;
   description: string | null; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
+  responsible_membership_id: Uuid | null; archived_reason: string | null;
 };
-export type GroupMemberRowDb = { org_id: Uuid; group_id: Uuid; link_id: Uuid; added_at: Ts }
+export type GroupMemberRowDb = { org_id: Uuid; group_id: Uuid; link_id: Uuid; added_at: Ts; since: string; left_at: Ts | null; left_reason: string | null }
+export type GroupEventRow = { id: number; org_id: Uuid; group_id: Uuid; what: string; detail: string | null; actor_user: Uuid | null; created_at: Ts };
 export type ExerciseRow = {
   id: Uuid; org_id: Uuid; name: string; category: string; description: string | null; video_url: string | null;
   muscles: string[]; equipment: string[]; archived_at: Ts | null; created_at: Ts; updated_at: Ts;
@@ -342,6 +344,7 @@ export interface Database {
       notifications: Table<NotificationRow, 'user_id' | 'title'>;
       groups: Table<GroupRowDb, 'org_id' | 'name'>;
       group_members: Table<GroupMemberRowDb, 'org_id' | 'group_id' | 'link_id'>;
+      group_events: Table<GroupEventRow, 'org_id' | 'group_id' | 'what'>;
       exercises: Table<ExerciseRow, 'org_id' | 'name'>;
       workouts: Table<WorkoutRow, 'org_id' | 'name'>;
       workout_exercises: Table<WorkoutExerciseRow, 'org_id' | 'workout_id' | 'exercise_id'>;
