@@ -30,5 +30,6 @@ done
 "${PSQL[@]}" -f supabase/tests/metricas_asserts.sql
 "${PSQL[@]}" -f supabase/tests/avaliacao_asserts.sql
 "${PSQL[@]}" -f supabase/tests/grupos_asserts.sql
+"${PSQL[@]}" -f supabase/tests/mensagens_asserts.sql
 "${PSQL[@]}" -f supabase/seed.sql
 echo "✅ db-setup concluído com sucesso"
