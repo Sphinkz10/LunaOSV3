@@ -5,7 +5,7 @@ import {
   type ExercicioBase, type ExercicioOrg, type PlanoResumo, type TreinoResumo,
 } from '@luna/core';
 import { Botao, Chip, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota } from '@luna/ui/v3';
-import { Barbell, CalendarBlank, ClipboardText, Play } from '@luna/icons';
+import { Barbell, CalendarBlank, ClipboardText, Play, SlidersHorizontal } from '@luna/icons';
 import { NovoTreinoOuPlano } from './Treino';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
@@ -37,6 +37,18 @@ const deOrg = (e: ExercicioOrg): Cartao => ({
  * (só de leitura; duplicam-se para mudar) e os do ginásio. Treinos, planos e
  * programas entram com a tarefa 12.
  */
+/** Foto provisória do Figma (DS-03) enquanto o exercício não tem imagem própria; escolhida pelo material ou pela categoria. */
+function fotoDe(c: { image_url?: string | null; equipment: string[]; category: string }): string {
+  if (c.image_url) return c.image_url;
+  const m = c.equipment.join(' ').toLocaleLowerCase('pt-PT');
+  if (/kettlebell/.test(m)) return '/media/ex-kettlebell.jpg';
+  if (/el[aá]stic/.test(m)) return '/media/ex-elastico.jpg';
+  if (/halter/.test(m)) return '/media/ex-halteres.jpg';
+  if (c.category === 'mobilidade' || c.category === 'reabilitacao') return '/media/ex-mobilidade.jpg';
+  if (c.category === 'cardio') return '/media/ex-cardio.jpg';
+  return '/media/ex-forca.jpg';
+}
+
 export function Biblioteca() {
   const navigate = useNavigate();
   const scope = useScope();
@@ -54,6 +66,7 @@ export function Biblioteca() {
   const [categoria, setCategoria] = useState<string | null>(null);
   const [estado, setEstado] = useState<'todos' | 'inativos' | 'incompletos' | 'sem_publicacao'>('todos');
   const [aberto, setAberto] = useState<Cartao | null>(null);
+  const [filtros, setFiltros] = useState(false);
   const [aGravar, setAGravar] = useState(false);
 
   const carregar = useCallback(() => {
@@ -100,10 +113,17 @@ export function Biblioteca() {
             {tipo !== 'exercicios' && <Chip ativo={estado === 'sem_publicacao'} onClick={() => setEstado(estado === 'sem_publicacao' ? 'todos' : 'sem_publicacao')}>Sem publicação</Chip>}
             <button type="button" className="lg-link" onClick={() => navigate('/training/sessoes')}>Sessões da equipa</button>
           </div>
-          <input className="lv-campo-input lg-clientes__procura" type="search" placeholder="Procurar exercício ou músculo" aria-label="Procurar exercício"
-            value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="lg-clientes__chips">
+            <input className="lv-campo-input lg-clientes__procura" type="search" placeholder="Procurar exercício ou músculo" aria-label="Procurar exercício"
+              value={q} onChange={(e) => setQ(e.target.value)} />
+            {tipo === 'exercicios' && (
+              <button type="button" className="lv-chip" aria-expanded={filtros} onClick={() => setFiltros((f) => !f)}>
+                <SlidersHorizontal size={16} aria-hidden />{categoria ? (CATEGORIA_EXERCICIO[categoria] ?? categoria) : 'Filtros'}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="lg-clientes__chips">
+        {filtros && <div className="lg-clientes__chips">
           <Chip ativo={origem === 'tudo'} onClick={() => setOrigem('tudo')}>Todos</Chip>
           <Chip ativo={origem === 'meus'} onClick={() => setOrigem('meus')} contagem={meus?.length}>Do ginásio</Chip>
           <Chip ativo={origem === 'lunaos'} onClick={() => setOrigem('lunaos')} contagem={base?.length}>Do LunaOS</Chip>
@@ -113,7 +133,7 @@ export function Biblioteca() {
           {modalidade.categorias_biblioteca.map((c) => (
             <Chip key={c} ativo={categoria === c} onClick={() => setCategoria(categoria === c ? null : c)}>{CATEGORIA_EXERCICIO[c] ?? c}</Chip>
           ))}
-        </div>
+        </div>}
 
         {tipo !== 'exercicios' ? (
           <section className="lv-lista" aria-label={tipo === 'treinos' ? 'Treinos' : 'Planos'}>
@@ -138,8 +158,7 @@ export function Biblioteca() {
               <div className="lg-bib__grelha">
                 {lista.map((c) => (
                   <button key={c.id} type="button" className={`lg-bib__cartao${aberto?.id === c.id ? ' lg-bib__cartao--aberto' : ''}`} onClick={() => setAberto(c)}>
-                    {c.image_url ? <img src={c.image_url} alt="" className="lg-bib__foto" />
-                      : <span className="lg-bib__foto lg-bib__foto--vazia" aria-hidden><Barbell size={28} /></span>}
+                    <img src={fotoDe(c)} alt="" className="lg-bib__foto" />
                     <span className="lg-bib__corpo">
                       <span className="lv-linha-lista__titulo">{c.name}</span>
                       <span className="lv-legenda">{c.equipment.join(', ') || 'Peso do corpo'}{c.origem === 'meus' ? ' · do ginásio' : ''}</span>
@@ -155,9 +174,8 @@ export function Biblioteca() {
                 <aside className="lv-lista lg-ficha__lado lg-bib__detalhe" aria-label={aberto.name}>
                   {aberto.video_url
                     ? <a className="lg-bib__foto lg-bib__foto--vazia" href={aberto.video_url} target="_blank" rel="noreferrer" aria-label="Ver vídeo"><Play size={28} /></a>
-                    : aberto.image_url ? <img src={aberto.image_url} alt="" className="lg-bib__foto" />
-                    : <span className="lg-bib__foto lg-bib__foto--vazia" aria-hidden><Barbell size={28} /></span>}
-                  <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>{aberto.name}</h2>
+                    : <img src={fotoDe(aberto)} alt="" className="lg-bib__foto" />}
+                  <h2 className="lg-bib__titulo">{aberto.name}</h2>
                   <span className="lv-legenda">{aberto.versao}{aberto.level ? ` · ${NIVEL[aberto.level] ?? aberto.level}` : ''}</span>
                   {aberto.record_fields.length > 0 && (
                     <>
@@ -176,11 +194,12 @@ export function Biblioteca() {
                       ))}
                     </>
                   )}
-                  {aberto.origem === 'lunaos'
-                    ? <Nota>Os modelos do LunaOS não se editam: duplica para fazer a tua versão.</Nota>
-                    : pode ? <Botao onClick={() => navigate(`/training/exercicio/${aberto.id}`)}>Editar</Botao> : null}
-                  {pode && aberto.origem === 'lunaos' && (
-                    <Botao variante="secundario" aCarregar={aGravar} onClick={() => void duplicar(aberto)}>Duplicar</Botao>
+                  {aberto.origem === 'lunaos' && <Nota>Os modelos do LunaOS não se editam: duplica para fazer a tua versão.</Nota>}
+                  {pode && (
+                    <div className="lg-bib__acoes">
+                      {aberto.origem === 'lunaos' && <Botao variante="secundario" aCarregar={aGravar} onClick={() => void duplicar(aberto)}>Duplicar</Botao>}
+                      {aberto.origem !== 'lunaos' && <Botao onClick={() => navigate(`/training/exercicio/${aberto.id}`)}>Editar</Botao>}
+                    </div>
                   )}
                 </aside>
               )}
