@@ -38,11 +38,18 @@ export function DoisFatores({ children }: { children: ReactNode }) {
     if (estado !== 'por-ativar' || qr) return;
     const client = getSupabaseClient();
     if (!client) return;
-    void client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'LunaOS' }).then(({ data, error }) => {
+    // Uma tentativa anterior deixa um fator por confirmar com o mesmo nome e o
+    // enroll seguinte falha sem QR; apaga-se esse fator antes de pedir outro.
+    void (async () => {
+      const { data: fatores } = await client.auth.mfa.listFactors();
+      for (const f of fatores?.all ?? []) {
+        if (f.factor_type === 'totp' && f.status === 'unverified') await client.auth.mfa.unenroll({ factorId: f.id });
+      }
+      const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: `LunaOS ${new Date().toISOString().slice(0, 16)}` });
       if (error || !data) { setErro(error?.message ?? 'Não foi possível preparar os dois fatores.'); return; }
       setQr(data.totp.qr_code);
       setFactorId(data.id);
-    });
+    })();
   }, [estado, qr]);
 
   if (estado === 'ok') return <>{children}</>;
