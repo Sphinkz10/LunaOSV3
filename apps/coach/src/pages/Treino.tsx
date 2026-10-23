@@ -190,10 +190,9 @@ export function ConstrutorTreino() {
   return (
     <CoachShell headStrong={t.nome} headSub={`Treino · Biblioteca · ${t.versao ? `versão ${t.versao} publicada${sujo ? ' · rascunho com alterações' : ''}` : 'rascunho'}`} legado={false}
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
-        <VoltarA omissao={VOLTAR_BIB} />
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Desfazer" disabled={!hist.current.podeDesfazer} onClick={desfazer}><ArrowCounterClockwise size={16} aria-hidden /></button>
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone lg-refazer" aria-label="Refazer" disabled={!hist.current.podeRefazer} onClick={refazer}><ArrowCounterClockwise size={16} aria-hidden /></button>
-        <Botao variante="secundario" icone={Eye} onClick={() => setPrevia(true)}>Como cliente</Botao>
+        <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Ver como o cliente" title="Ver como o cliente" onClick={() => setPrevia(true)}><Eye size={18} aria-hidden /></button>
         <Botao variante="secundario" aCarregar={aGravar} onClick={() => void guardar()}>Guardar</Botao>
         <Botao icone={UploadSimple} onClick={() => void publicar()}>Publicar</Botao>
       </span>}>
