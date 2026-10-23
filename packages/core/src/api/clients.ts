@@ -70,6 +70,7 @@ export interface ClientRow {
   hasPlan: boolean;
   planName: string | null;
   groupName: string | null;
+  createdAt: string;
   updatedAt: string;
   docsOk: boolean;
   docsLabel: string;
@@ -86,9 +87,9 @@ export interface NewClientInput {
   taxId?: string | null;
 }
 
-const CLIENT_COLUMNS = 'id,person_id,full_name,email,phone,client_status,status_note,avatar_url,has_account,responsible_membership_id,current_plan_id,updated_at';
+const CLIENT_COLUMNS = 'id,person_id,full_name,email,phone,client_status,status_note,avatar_url,has_account,responsible_membership_id,current_plan_id,created_at,updated_at';
 type ClientListRow = Pick<ClientViewRow, 'id' | 'person_id' | 'full_name' | 'email' | 'phone' | 'client_status' | 'status_note' |
-  'avatar_url' | 'has_account' | 'responsible_membership_id' | 'current_plan_id' | 'updated_at'>;
+  'avatar_url' | 'has_account' | 'responsible_membership_id' | 'current_plan_id' | 'created_at' | 'updated_at'>;
 
 /** Carteira visível (todas as páginas). */
 export async function fetchClients(client: LunaClient, scope: OrgScope): Promise<ClientRow[]> {
@@ -136,6 +137,7 @@ export async function fetchClients(client: LunaClient, scope: OrgScope): Promise
     hasPlan: Boolean(r.current_plan_id),
     planName: r.current_plan_id ? planNames.get(r.current_plan_id) ?? null : null,
     groupName: groupByClient.get(r.id) ?? null,
+    createdAt: r.created_at,
     updatedAt: r.updated_at,
     ...summarizeClientDocs(docsByClient.get(r.id) ?? []),
   }));
@@ -475,4 +477,18 @@ export async function fetchStaff(client: LunaClient, scope: OrgScope): Promise<S
     .eq('org_id', scope.orgId).eq('status', 'active').order('full_name', { ascending: true });
   if (error) throw error;
   return (data ?? []).map((s) => ({ id: s.id, name: s.full_name }));
+}
+
+/** A próxima marcação de um cliente (resumo da lista, G-03): "hoje · 09:00", "sexta · 18:30". */
+export async function proximaMarcacao(client: LunaClient, scope: OrgScope, linkId: string): Promise<string | null> {
+  const { data, error } = await client.from('bookings').select('starts_at').eq('org_id', scope.orgId).eq('link_id', linkId)
+    .in('status', ['pending', 'confirmed']).gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true }).limit(1);
+  if (error) throw error;
+  const b = data?.[0]?.starts_at;
+  if (!b) return null;
+  const d = new Date(b);
+  const hora = d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: scope.timezone });
+  const dia = d.toLocaleDateString('pt-PT', { timeZone: scope.timezone }) === new Date().toLocaleDateString('pt-PT', { timeZone: scope.timezone })
+    ? 'hoje' : d.toLocaleDateString('pt-PT', { weekday: 'long', timeZone: scope.timezone }).replace('-feira', '');
+  return `${dia} · ${hora}`;
 }

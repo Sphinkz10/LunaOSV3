@@ -343,7 +343,7 @@
 .lg-clientes__grelha { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--espaco-16); align-items: start; }
 .lg-clientes__grelha:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .lg-clientes__resumo { position: sticky; top: var(--espaco-16); align-items: flex-start; overflow: hidden; padding-top: 0; }
-.lg-clientes__capa { align-self: stretch; height: 96px; margin: 0 calc(-1 * var(--espaco-20, 20px)); background: var(--cor-destaque) center / cover no-repeat; }
+.lg-clientes__capa { align-self: stretch; height: 96px; margin: 0 calc(-1 * var(--espaco-20, 20px)); background: url('/media/hoje.jpg') center / cover no-repeat, var(--cor-destaque); }
 .lg-clientes__avatar { margin-top: -36px; border-radius: var(--raio-pilula); box-shadow: 0 0 0 4px var(--cor-superficie); }
 .lg-clientes__nome { margin: 0; font: 600 22px/1.2 var(--fonte-titulo); letter-spacing: -0.4px; }
 .lg-botao-escuro.lv-btn { background: var(--cor-principal); color: var(--cor-sobre-principal); }

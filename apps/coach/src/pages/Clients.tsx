@@ -3,17 +3,18 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   addClient, apagarRascunhoServidor, arquivarCliente, atribuirVersao, ultimaVersaoPlano, confirmarDestrutivo, DuplicateClientError, fetchArchivedClients,
   fetchAssiduidade, fetchClientesAtencao, fetchClients, fetchPlans, fetchStaff, guardarRascunhoServidor, lerRascunhoServidor, MOTIVO_ATENCAO,
-  convidarParaApp, procurarDuplicados, reativarCliente, toast, useAuthStore,
-  type Assiduidade, type Duplicado, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
+  abrirConversaCliente, convidarParaApp, enviarMensagem, fetchSaldo, procurarDuplicados, proximaMarcacao, reativarCliente, toast, useAuthStore,
+  type SaldoPack, type Assiduidade, type Duplicado, type ClienteArquivado, type ClientRow, type ClientStatus, type PlanLite, type StaffLite,
 } from '@luna/core';
-import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
-import { Plus } from '@luna/icons';
+import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, type EstadoTom } from '@luna/ui/v3';
+import { g } from '@luna/modalidades';
+import { Plus, SlidersHorizontal } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { useMediaQuery } from '../app/useMediaQuery';
 import { AvisoDuplicado, ConvidarApp, PreviaMassa, type ForaDeAlcance, type ParaConvidar } from '../app/ClientesP07';
 import { getSupabaseClient } from '../lib/supabase';
-import { vocab } from '../lib/vocab';
+import { t, vocab } from '../lib/vocab';
 
 // Nomes da modalidade (regra 4): nunca "atleta" escrito à mão
 const P1 = vocab.pessoa({ maiuscula: true });
@@ -25,7 +26,7 @@ const ESTADO: Record<ClientStatus, { texto: string; tom: EstadoTom }> = {
   active: { texto: 'Ativo', tom: 'ok' }, blocked: { texto: 'Bloqueado', tom: 'erro' }, return_to_play: { texto: 'Regresso', tom: 'aviso' },
   injured: { texto: 'Lesionado', tom: 'aviso' }, inactive: { texto: 'Inativo', tom: 'neutro' },
 };
-type Filtro = 'all' | 'attention' | 'noplan' | 'semconta';
+type Filtro = 'all' | 'attention' | 'noplan' | 'pack' | 'semconta';
 const VISTAS_KEY = 'luna.clientes.vistas';
 interface Vista { nome: string; filtro: Filtro; q: string }
 const lerVistas = (): Vista[] => { try { return JSON.parse(localStorage.getItem(VISTAS_KEY) ?? '[]') as Vista[]; } catch { return []; } };
@@ -71,6 +72,12 @@ export function Clients() {
   const [arquivados, setArquivados] = useState<ClienteArquivado[] | null>(null);
   const [assid, setAssid] = useState<Map<string, Assiduidade>>(new Map());
   const [atencao, setAtencao] = useState<Map<string, string[]>>(new Map());
+  const [atencaoMotivos, setAtencaoMotivos] = useState<Map<string, string[]>>(new Map());
+  const [filtros, setFiltros] = useState(!!searchParams.get('q'));
+  const [vistasAbertas, setVistasAbertas] = useState(false);
+  const [mensagem, setMensagem] = useState<string[] | null>(null);
+  const [saldo, setSaldo] = useState<SaldoPack[] | null>(null);
+  const [proxima, setProxima] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [resumo, setResumo] = useState<string | null>(null);
@@ -98,23 +105,39 @@ export function Clients() {
     // Secções que podem falhar sozinhas: a lista continua a funcionar
     void fetchAssiduidade(client, scope).then(setAssid).catch(() => setAssid(new Map()));
     void fetchClientesAtencao(client, scope)
-      .then((r) => setAtencao(new Map(r.map((x) => [x.linkId, x.motivos.map((m) => MOTIVO_ATENCAO[m])]))))
+      .then((r) => { setAtencao(new Map(r.map((x) => [x.linkId, x.motivos.map((m) => MOTIVO_ATENCAO[m])]))); setAtencaoMotivos(new Map(r.map((x) => [x.linkId, x.motivos]))); })
       .catch(() => setAtencao(new Map()));
     void fetchArchivedClients(client, scope).then(setArquivados).catch(() => setArquivados([]));
   }, [scope]);
   useEffect(() => carregar(), [carregar]);
 
+  // Pack a acabar (Figma 200:108): as mesmas regras de "em atenção" (2 sessões ou 7 dias)
+  const packAcabar = useMemo(() => new Set([...atencaoMotivos.entries()].filter(([, m]) => m.some((x) => x === 'pack_2_sessoes' || x === 'pack_validade_7d')).map(([id]) => id)), [atencaoMotivos]);
+  const passa = useCallback((r: ClientRow, f: Filtro) => (f === 'attention' ? atencao.has(r.id) : f === 'noplan' ? !r.hasPlan : f === 'pack' ? packAcabar.has(r.id) : f === 'semconta' ? !r.hasAccount : true), [atencao, packAcabar]);
   const lista = useMemo(() => {
     const termo = q.trim().toLocaleLowerCase('pt-PT');
     return (rows ?? [])
       .filter((r) => !termo || [r.name, r.email, r.planName, r.responsibleName].filter(Boolean).join(' ').toLocaleLowerCase('pt-PT').includes(termo))
-      .filter((r) => filtro === 'all' || (filtro === 'attention' ? atencao.has(r.id) : filtro === 'noplan' ? !r.hasPlan : !r.hasAccount));
-  }, [rows, q, filtro, atencao]);
-  const contar = (f: Filtro) => (rows ?? []).filter((r) => (f === 'attention' ? atencao.has(r.id) : f === 'noplan' ? !r.hasPlan : !r.hasAccount)).length;
+      .filter((r) => filtro === 'all' || passa(r, filtro));
+  }, [rows, q, filtro, passa]);
+  const contar = (f: Filtro) => (rows ?? []).filter((r) => passa(r, f)).length;
   const aberto = lista.find((r) => r.id === resumo) ?? null;
+  useEffect(() => {
+    const client = getSupabaseClient();
+    setSaldo(null); setProxima(null);
+    if (!client || !resumo) return;
+    void fetchSaldo(client, resumo).then(setSaldo).catch(() => setSaldo([]));
+    void proximaMarcacao(client, scope, resumo).then(setProxima).catch(() => setProxima(null));
+  }, [resumo, scope]);
   const abrirFicha = (id: string) => {
     const qs = params.toString();
     navigate(`/clients/${id}`, { state: { voltar: { rotulo: PP, href: `/clients${qs ? `?${qs}` : ''}` } } });
+  };
+  const exportar = (alvos: ClientRow[]) => {
+    const csv = ['Nome;Email;Telemóvel;Plano;Estado', ...alvos.map((r) => [r.name, r.email ?? '', r.phone ?? '', r.planName ?? '', ESTADO[r.status].texto].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `${pp}.csv`; a.click(); URL.revokeObjectURL(a.href);
   };
   const alternar = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const todosSel = lista.length > 0 && lista.every((r) => sel.has(r.id));
@@ -198,17 +221,29 @@ export function Clients() {
                 <Chip ativo={filtro === 'all'} onClick={() => setFiltro('all')}>Todos</Chip>
                 <Chip ativo={filtro === 'attention'} onClick={() => setFiltro('attention')} contagem={rows ? contar('attention') : undefined}>Em atenção</Chip>
                 <Chip ativo={filtro === 'noplan'} onClick={() => setFiltro('noplan')} contagem={rows ? contar('noplan') : undefined}>Sem plano</Chip>
+                <Chip ativo={filtro === 'pack'} onClick={() => setFiltro('pack')} contagem={rows ? contar('pack') : undefined}>Pack a acabar</Chip>
                 <Chip ativo={filtro === 'semconta'} onClick={() => setFiltro('semconta')} contagem={rows ? contar('semconta') : undefined}>Sem app</Chip>
-                {vistas.map((v) => (
-                  <Chip key={v.nome} ativo={filtro === v.filtro && q === v.q} onClick={() => { setFiltro(v.filtro); setQ(v.q); }}>{v.nome}</Chip>
-                ))}
               </div>
+              {/* Figma (200:108): Filtros e Vistas guardadas à direita */}
               <div className="lg-clientes__chips">
-                <input className="lv-campo-input lg-clientes__procura" type="search" placeholder={`Procurar ${p1}`} aria-label={`Procurar ${p1}`}
-                  value={q} onChange={(e) => setQ(e.target.value)} />
-                <Botao variante="secundario" onClick={() => setNomeVista(filtro === 'attention' ? 'Em atenção' : '')}>Guardar vista</Botao>
+                <button type="button" className="lv-chip" aria-expanded={filtros} onClick={() => setFiltros((f) => !f)}><SlidersHorizontal size={16} aria-hidden />Filtros</button>
+                <div className="lg-pop">
+                  <button type="button" className="lv-chip" aria-haspopup="menu" aria-expanded={vistasAbertas} onClick={() => setVistasAbertas((v) => !v)}>Vistas guardadas</button>
+                  {vistasAbertas && (
+                    <div className="lg-pop__lista" role="menu" style={{ right: 0, left: 'auto' }}>
+                      {vistas.map((v) => (
+                        <button key={v.nome} type="button" role="menuitem" className="lg-pop__item" onClick={() => { setFiltro(v.filtro); setQ(v.q); setVistasAbertas(false); }}>{v.nome}</button>
+                      ))}
+                      <button type="button" role="menuitem" className="lg-pop__item" onClick={() => { setVistasAbertas(false); setNomeVista(filtro === 'attention' ? 'Em atenção' : filtro === 'pack' ? 'Pack a acabar esta semana' : ''); }}><Plus size={16} aria-hidden />Guardar esta vista</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            {filtros && (
+              <input className="lv-campo-input lg-clientes__procura" type="search" placeholder={`Procurar ${p1} pelo nome, email ou plano`} aria-label={`Procurar ${p1}`}
+                value={q} onChange={(e) => setQ(e.target.value)} />
+            )}
 
             {erro ? <EstadoPagina tipo="erro" titulo={`Não foi possível carregar os ${pp}`} texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
               : !rows ? <div className="lv-lista"><Esqueleto /></div>
@@ -218,12 +253,16 @@ export function Clients() {
                   <section className="lv-lista lg-tabela" aria-label={PP}>
                     {sel.size > 0 && (
                       <div className="lg-tabela__massa" role="toolbar" aria-label="Ações para os selecionados">
-                        <b>{sel.size} selecionados</b>
+                        <label className="lg-tabela__todos"><input type="checkbox" checked aria-label="Limpar a seleção" onChange={() => setSel(new Set())} /><b>{sel.size} {sel.size === 1 ? 'selecionado' : 'selecionados'}</b></label>
                         <span style={{ flex: 1 }} />
-                        <button type="button" onClick={() => setMassaConvite(true)}>Convidar para a app</button>
+                        {/* Figma (200:108): enviar mensagem, atribuir plano e exportar; o resto no menu */}
+                        <button type="button" onClick={() => setMensagem([...sel])}>Enviar mensagem</button>
                         <button type="button" onClick={() => setAtribuir([...sel])}>Atribuir plano</button>
-                        <button type="button" onClick={() => void arquivar(lista.filter((r) => sel.has(r.id)))}>Arquivar</button>
-                        <button type="button" onClick={() => setSel(new Set())}>Limpar</button>
+                        <button type="button" onClick={() => exportar(lista.filter((r) => sel.has(r.id)))}>Exportar</button>
+                        <MenuAcoes rotulo="Mais ações" acoes={[
+                          { rotulo: 'Convidar para a app', onClick: () => setMassaConvite(true) },
+                          { rotulo: 'Arquivar', perigo: true, onClick: () => void arquivar(lista.filter((r) => sel.has(r.id))) },
+                        ]} />
                       </div>
                     )}
                     <div className="lg-tabela__cabeca" role="row">
@@ -262,23 +301,24 @@ export function Clients() {
                       <div className="lg-clientes__capa" style={aberto.avatarUrl ? { backgroundImage: `url(${aberto.avatarUrl})` } : undefined} aria-hidden />
                       <span className="lg-clientes__avatar"><Avatar nome={aberto.name} foto={aberto.avatarUrl} tamanho={56} /></span>
                       <h2 className="lg-clientes__nome">{aberto.name}</h2>
-                      <span className="lv-legenda">{[aberto.email, aberto.responsibleName ? `${vocab.responsavel({ maiuscula: true })}: ${aberto.responsibleName}` : null].filter(Boolean).join(' · ')}</span>
+                      <span className="lv-legenda">{[`${vocab.pessoa({ maiuscula: true })} desde ${new Date(aberto.createdAt).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}`, aberto.planName, gere && scope.orgType !== 'solo_coach' ? aberto.responsibleName : null].filter(Boolean).join(' · ')}</span>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
                         <Estado tom={ESTADO[aberto.status].tom}>{ESTADO[aberto.status].texto}</Estado>
-                        <span className="lv-legenda">{aberto.hasAccount ? 'Usa a app' : 'Sem conta na app'}</span>
+                        {saldo?.[0] && <span className="lv-pill">{vocab.responsavel()} · {saldo[0].total} {t('sessao', { plural: saldo[0].total !== 1 })}</span>}
                       </div>
                       {atencao.get(aberto.id) && <Nota>{atencao.get(aberto.id)!.join(' · ')}</Nota>}
+                      {/* Figma (200:108): próxima sessão, pack, este mês e plano */}
                       <div className="lg-clientes__numeros">
+                        <div><span className="lv-legenda">{g(t('sessao'), 'Próxima', 'Próximo')}</span><b>{proxima ?? '—'}</b></div>
+                        <div><span className="lv-legenda">{t('sessao', { plural: true, maiuscula: true })} no pack</span><b>{saldo?.[0] ? `${saldo[0].total - saldo[0].restam} de ${saldo[0].total}` : 'Sem pack'}</b></div>
+                        <div><span className="lv-legenda">Este mês</span><b>{(assid.get(aberto.id)?.semanas ?? []).slice(-4).reduce((x, y) => x + y, 0)} {t('sessao', { plural: true })}</b></div>
                         <div><span className="lv-legenda">Plano</span><b>{aberto.planName ?? 'Sem plano'}</b></div>
-                        <div><span className="lv-legenda">Última vez</span><b>{ultimaVez(assid.get(aberto.id)?.ultimaVez)}</b></div>
-                        <div><span className="lv-legenda">Últimas 4 semanas</span><b>{(assid.get(aberto.id)?.semanas ?? []).slice(-4).reduce((x, y) => x + y, 0)} {vocab.sessao({ plural: true })}</b></div>
-                        <div><span className="lv-legenda">Grupo</span><b>{aberto.groupName ?? '—'}</b></div>
                       </div>
                       <div style={{ display: 'flex', gap: 'var(--espaco-8)', marginTop: 'auto' }}>
                         {!aberto.hasAccount && (
                           <Botao variante="secundario" onClick={() => setConvidar({ id: aberto.id, nome: aberto.name, email: aberto.email, telefone: aberto.phone })}>Convidar</Botao>
                         )}
-                        <Botao variante="secundario" onClick={() => setAtribuir([aberto.id])}>Atribuir plano</Botao>
+                        <Botao variante="secundario" onClick={() => navigate(`/schedule?nova=1&cliente=${aberto.id}`)}>Marcar {vocab.sessao()}</Botao>
                         <Botao className="lg-botao-escuro" onClick={() => abrirFicha(aberto.id)}>Abrir ficha</Botao>
                       </div>
                     </aside>
@@ -291,6 +331,7 @@ export function Clients() {
 
       <NovoCliente aberta={novo} gere={gere} onFechar={() => { setNovo(false); if (searchParams.get('novo')) setSearchParams(params, { replace: true }); }}
         onCriado={(id) => { carregar(); abrirFicha(id); }} onAbrir={abrirFicha} />
+      <MensagemEmMassa alvos={mensagem ? (rows ?? []).filter((r) => mensagem.includes(r.id)) : null} onFechar={() => setMensagem(null)} />
       <Janela aberta={nomeVista !== null} onFechar={() => setNomeVista(null)} titulo="Guardar vista" sub="Fica com o filtro e a procura de agora."
         acoes={<><Botao variante="secundario" onClick={() => setNomeVista(null)}>Voltar</Botao>
           <Botao disabled={!nomeVista?.trim()} onClick={() => { guardarVista(nomeVista!.trim()); setNomeVista(null); }}>Guardar</Botao></>}>
@@ -465,6 +506,31 @@ function AtribuirPlano({ ids, alvos, onFechar, onFeito }: { ids: string[] | null
             ))}
           </div>
         )}
+    </Janela>
+  );
+}
+
+/** Enviar mensagem aos selecionados (Figma 200:108): uma conversa com cada um, como se fosse escrita a um. */
+function MensagemEmMassa({ alvos, onFechar }: { alvos: ClientRow[] | null; onFechar: () => void }) {
+  const [texto, setTexto] = useState('');
+  const [aEnviar, setAEnviar] = useState(false);
+  const enviar = async () => {
+    const client = getSupabaseClient();
+    if (!client || !alvos || !texto.trim()) return;
+    setAEnviar(true);
+    let ok = 0;
+    for (const a of alvos) {
+      try { const conv = await abrirConversaCliente(client, a.id); await enviarMensagem(client, conv, texto, 'equipa'); ok += 1; } catch { /* segue para os outros */ }
+    }
+    setAEnviar(false);
+    toast({ variant: ok === alvos.length ? 'success' : 'warning', title: `Mensagem enviada a ${ok} de ${alvos.length}` });
+    setTexto(''); onFechar();
+  };
+  return (
+    <Janela aberta={!!alvos} onFechar={onFechar} titulo="Enviar mensagem" sub={alvos ? `${alvos.length} ${alvos.length === 1 ? vocab.pessoa() : vocab.pessoa({ plural: true })}: cada um recebe na sua conversa` : undefined}
+      acoes={<><Botao variante="secundario" onClick={onFechar}>Cancelar</Botao><Botao aCarregar={aEnviar} disabled={!texto.trim()} onClick={() => void enviar()}>Enviar</Botao></>}>
+      <label className="lv-campo"><span className="lv-campo-rotulo">Mensagem</span>
+        <textarea className="lv-campo-input" rows={4} value={texto} onChange={(e) => setTexto(e.target.value)} /></label>
     </Janela>
   );
 }
