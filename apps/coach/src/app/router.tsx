@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-do
 import { LayoutProvider } from '@luna/ui';
 import { ModuleLayout, Protected } from './ModuleLayout';
 import { CoachShell } from './CoachShell';
-import { Svg } from './Svg';
+import { EstadoPagina } from '@luna/ui/v3';
 import { Hello } from '../Hello';
 import { Poc } from '../Poc';
 import { Login } from '../pages/Login';
@@ -36,8 +36,8 @@ import { DemoEstrutura } from '../dev/DemoEstrutura';
 import { ECRAS_G, EcraPorConstruir, rotaPorConstruir } from './ecras';
 
 const NotFound = () => (
-  <CoachShell headStrong="Página não encontrada" headSub="Esta ligação não existe ou mudou de sítio.">
-    <div className="dash-empty"><Svg name="alert" /><h4>Página não encontrada</h4><p>Usa o menu para voltar a um destino.</p></div>
+  <CoachShell headStrong="Página não encontrada" headSub="Esta ligação não existe ou mudou de sítio." legado={false}>
+    <div className="lv-root"><EstadoPagina tipo="vazio" titulo="Página não encontrada" texto="Usa o menu para voltar a um destino." /></div>
   </CoachShell>
 );
 
