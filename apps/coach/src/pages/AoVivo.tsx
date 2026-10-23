@@ -9,7 +9,7 @@ import {
   type ParticipantePrep, type Preparacao, type Presenca, type SessaoLocal,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, type EstadoTom } from '@luna/ui/v3';
-import { ArrowLeft, ArrowsClockwise, Check, CheckCircle, Lock, Pause, Play, Plus, Timer, Warning, WifiSlash, X } from '@luna/icons';
+import { ArrowLeft, ArrowsClockwise, ChartLineUp, Check, CheckCircle, Package, UsersThree, Lock, Pause, Play, Plus, Timer, Warning, WifiSlash, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { VoltarA } from '../app/Estados';
 import { PartilharResumo } from '../app/PartilharResumo';
@@ -438,52 +438,71 @@ function Rever({ s, aplicar, onVoltar, onFechada }: {
     if (!ok) return;
     onFechada(presentes.length === 1 ? { sessaoId: presentes[0].sessaoId, nome: presentes[0].nome } : null);
   };
+  const comResultado = s.participantes.filter((p) => p.exercicios.some((e) => e.sets.length)).length;
+  const semReserva = s.participantes.filter((p) => p.entradaSemReserva).length;
   return (
-    <div className="lg-vivo__rever">
-      <section className="lv-lista" aria-label="Presenças">
-        <div className="lv-lista__cabeca">
-          <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>Rever antes de fechar</h2>
-          <span className="lv-legenda">{relogio(segundosDecorridos(s))} de treino</span>
+    <div className="lg-vivo__resumo">
+      {/* G-14 (Figma 72:364): quatro contagens em cima, a tabela e o lado com o histórico e o botão */}
+      <div className="lg-hoje__contagens">
+        <div className="lg-contagem lg-contagem--acao">
+          <span className="lg-contagem__rotulo"><UsersThree size={16} aria-hidden />Presentes</span>
+          <span><span className="lv-numero-grande">{presentes.length}</span> <span className="lv-legenda">de {s.participantes.length}</span></span>
+          <span className="lg-contagem__legenda">{semReserva ? `+${semReserva} ${semReserva === 1 ? 'entrada' : 'entradas'} sem reserva` : `${relogio(segundosDecorridos(s))} de treino`}</span>
         </div>
-        {s.participantes.map((p) => {
-          const series = p.exercicios.reduce((n, e) => n + e.sets.length, 0);
-          const veio = contaComoPresente(p.presenca) || (!p.presenca && series > 0);
-          const conta = veio || p.presenca === 'faltou';
-          return (
-            <div key={p.linkId} className="lg-vivo__presenca">
-              <span className="lg-seg__quem"><Avatar nome={p.nome} tamanho={36} /><span><b>{p.nome}</b>
-                <span className="lv-legenda" style={{ display: 'block' }}>
-                  {p.entradaSemReserva ? 'Sem reserva · ' : ''}{p.pack ? `Pack · ${p.pack.restam} → ${p.pack.restam - (conta ? 1 : 0)}` : 'Sem pack'}
-                  {p.presenca && !['presente', 'faltou'].includes(p.presenca) ? ` · ${PRESENCA[p.presenca].texto}` : ''}</span></span></span>
-              <span className={series ? 'lv-legenda' : 'lv-legenda lg-vivo__por-registar'}>{series ? `${series} séries` : veio && p.exercicios.length ? 'Por registar' : '—'}</span>
-              <button type="button" className={`lg-vivo__toque${veio ? ' lg-vivo__toque--sim' : ''}`} aria-pressed={veio}
-                onClick={() => aplicar(mudar.presenca(p.linkId, 'presente'))}><Check size={16} aria-hidden />Presente</button>
-              <button type="button" className={`lg-vivo__toque${p.presenca === 'faltou' ? ' lg-vivo__toque--nao' : ''}`} aria-pressed={p.presenca === 'faltou'}
-                onClick={() => aplicar(mudar.presenca(p.linkId, 'faltou'))}><X size={16} aria-hidden />Faltou</button>
-              <MenuAcoes rotulo={`Mais para ${p.nome}`} acoes={PRESENCAS.filter((x) => !['presente', 'faltou'].includes(x.id)).map((x) => ({
-                rotulo: x.rotulo, onClick: () => aplicar(mudar.presenca(p.linkId, x.id)),
-              }))} />
-            </div>
-          );
-        })}
-        <div className="lg-import__acoes" style={{ padding: 0, justifyContent: 'flex-start' }}>
+        <div className="lg-contagem">
+          <span className="lg-contagem__rotulo"><X size={16} aria-hidden />Faltas</span>
+          <span className="lv-numero-grande">{faltas.length}</span>
+          <span className="lg-contagem__legenda">{faltas.length ? `${faltas.map((f) => f.nome).join(', ')} · aplica-se a regra do pack` : 'Ninguém faltou'}</span>
+        </div>
+        <div className="lg-contagem">
+          <span className="lg-contagem__rotulo"><ChartLineUp size={16} aria-hidden />Resultados</span>
+          <span><span className="lv-numero-grande">{comResultado}</span> <span className="lv-legenda">de {presentes.length}</span></span>
+          <span className="lg-contagem__legenda">{v.semResultados.length ? `Falta o resultado de ${v.semResultados.join(', ')}` : 'Todos registados'}</span>
+        </div>
+        <div className="lg-contagem lg-contagem--aviso">
+          <span className="lg-contagem__rotulo"><Package size={16} aria-hidden />Créditos a descontar</span>
+          <span className="lv-numero-grande">{v.creditos}</span>
+          <span className="lg-contagem__legenda">Packs de {t('sessao', { plural: true })}</span>
+        </div>
+      </div>
+      <div className="lg-vivo__rever">
+        <section className="lv-lista lg-tabela" aria-label="Presenças">
+          <div className="lg-resumo__linha lg-tabela__cabeca" role="row"><span>{vocab.pessoa({ maiuscula: true })}</span><span>Presença</span><span>Resultado</span><span>Crédito</span></div>
+          {s.participantes.map((p) => {
+            const series = p.exercicios.reduce((n, e) => n + e.sets.length, 0);
+            const veio = contaComoPresente(p.presenca) || (!p.presenca && series > 0);
+            const conta = veio || p.presenca === 'faltou';
+            return (
+              <div key={p.linkId} className="lg-resumo__linha" role="row">
+                <span className="lg-seg__quem"><Avatar nome={p.nome} tamanho={32} /><span><b>{p.nome}</b>
+                  <span className="lv-legenda" style={{ display: 'block' }}>{p.entradaSemReserva ? 'Sem reserva · ' : ''}{p.pack ? p.pack.nome : 'Sem pack'}</span></span></span>
+                <span className="lg-resumo__presenca">
+                  <button type="button" className={`lg-vivo__toque${veio ? ' lg-vivo__toque--sim' : ''}`} aria-pressed={veio}
+                    onClick={() => aplicar(mudar.presenca(p.linkId, 'presente'))}><Check size={16} aria-hidden />Presente</button>
+                  <button type="button" className={`lg-vivo__toque${p.presenca === 'faltou' ? ' lg-vivo__toque--nao' : ''}`} aria-pressed={p.presenca === 'faltou'}
+                    onClick={() => aplicar(mudar.presenca(p.linkId, 'faltou'))}><X size={16} aria-hidden />Faltou</button>
+                  <MenuAcoes rotulo={`Mais para ${p.nome}`} acoes={PRESENCAS.filter((x) => !['presente', 'faltou'].includes(x.id)).map((x) => ({
+                    rotulo: x.rotulo, onClick: () => aplicar(mudar.presenca(p.linkId, x.id)),
+                  }))} />
+                </span>
+                <span className={series ? '' : 'lg-vivo__por-registar'}>{series ? `${series} séries` : veio && p.exercicios.length ? 'Por registar' : p.presenca === 'nao_treina' ? (p.aptidao === 'atestado' ? 'Atestado em falta' : 'Não treinou') : '—'}</span>
+                <span>{p.pack ? (conta ? `${p.pack.restam} → ${p.pack.restam - 1}` : `${p.pack.restam}`) : p.presenca === 'nao_treina' ? 'Sem falta' : '—'}</span>
+              </div>
+            );
+          })}
+        </section>
+        <aside className="lv-lista" aria-label="Antes de fechar">
+          <span className="lv-sobretitulo">Antes de fechar</span>
+          {v.semPresenca.length > 0 && <Nota icone={Warning}>Falta marcar a presença de {v.semPresenca.join(', ')}.</Nota>}
+          {v.semResultados.length > 0 && <Nota icone={Warning}>Falta o resultado de {v.semResultados.join(', ')}. Podes fechar na mesma.</Nota>}
+          {naoTreinou.map((p) => <Nota key={p.linkId}>{p.nome} não treinou{p.aptidao === 'atestado' ? ': atestado em falta' : ''}. Não conta como falta.</Nota>)}
+          {!online && <Nota icone={WifiSlash}>Sem rede: está tudo guardado neste aparelho. Fecha quando a rede voltar.</Nota>}
+          <Nota>Depois de fechar, cada correção pede um motivo e fica no histórico. O crédito volta ao pack automaticamente.</Nota>
+          <span style={{ flex: 1 }} />
           <Botao variante="secundario" icone={ArrowLeft} onClick={onVoltar}>Voltar {g(t('sessao'), 'à', 'ao')}</Botao>
-        </div>
-      </section>
-      <aside className="lv-lista" aria-label="Antes de fechar">
-        <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Antes de fechar</h3>
-        <dl className="lg-conta__dados">
-          <dt>Presentes</dt><dd><b>{presentes.length} de {s.participantes.length}</b></dd>
-          <dt>Entradas sem reserva</dt><dd><b>{s.participantes.filter((p) => p.entradaSemReserva).length}</b></dd>
-          <dt>Créditos a descontar</dt><dd><b>{v.creditos}</b></dd>
-          <dt>Faltas</dt><dd><b>{faltas.length}</b>{faltas.length ? ' · aplica-se a regra do pack' : ''}</dd>
-        </dl>
-        {v.semPresenca.length > 0 && <Nota icone={Warning}>Falta marcar a presença de {v.semPresenca.join(', ')}.</Nota>}
-        {v.semResultados.length > 0 && <Nota icone={Warning}>Falta o resultado de {v.semResultados.join(', ')}. Podes fechar na mesma.</Nota>}
-        {naoTreinou.map((p) => <Nota key={p.linkId}>{p.nome} não treinou{p.aptidao === 'atestado' ? ': atestado em falta' : ''}. Não conta como falta.</Nota>)}
-        {!online && <Nota icone={WifiSlash}>Sem rede: está tudo guardado neste aparelho. Fecha quando a rede voltar.</Nota>}
-        <Botao icone={Check} aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar {g(t('sessao'), 'a', 'o')}</Botao>
-      </aside>
+          <Botao icone={Check} aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar {g(t('sessao'), 'a', 'o')}</Botao>
+        </aside>
+      </div>
     </div>
   );
 }

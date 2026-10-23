@@ -838,3 +838,10 @@ button.lg-protocolo__linha { cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .lg-sub__inclui { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-8); width: 100%; }
+
+/* ── G-14 Resumo antes de fechar (Figma 72:364) ───────────────────────── */
+.lg-vivo__resumo { display: flex; flex-direction: column; gap: var(--espaco-16); }
+.lg-resumo__linha { display: grid; grid-template-columns: minmax(150px, 1.6fr) minmax(180px, 1.4fr) minmax(90px, 1fr) minmax(70px, .7fr); gap: var(--espaco-12); align-items: center; padding: var(--espaco-8) var(--espaco-16); min-height: 60px; border-bottom: 1px solid var(--cor-linha); }
+.lg-resumo__linha:last-child { border-bottom: 0; }
+.lg-resumo__presenca { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+@media (max-width: 720px) { .lg-resumo__linha { grid-template-columns: minmax(0, 1fr) auto; } .lg-resumo__linha > :nth-child(3), .lg-resumo__linha > :nth-child(4) { display: none; } }
