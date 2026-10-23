@@ -136,6 +136,14 @@ begin
   insert into public.group_members (org_id, group_id, link_id)
     select o_rui, g.id, l from public.groups g cross join unnest(v_links[5:7]) l where g.org_id = o_rui and g.type = 'squad';
 
+  -- ---------- Protocolo de avaliação publicado (G-22, G-23) ----------
+  insert into public.protocols (org_id, name, blocks) values (o_rui, 'Reavaliação 8 semanas', '[
+    {"titulo":"Composição corporal","testes":[{"chave":"peso","nome":"Peso","unidade":"kg","tentativas":1},{"chave":"gordura","nome":"% gordura","unidade":"%","tentativas":1,"menor_melhor":true}]},
+    {"titulo":"Perímetros","testes":[{"chave":"cintura","nome":"Cintura","unidade":"cm","tentativas":1,"menor_melhor":true}]},
+    {"titulo":"Força","testes":[{"chave":"agachamento_5rm","nome":"Agachamento 5RM","unidade":"kg","tentativas":3,"guarda":"melhor","zonas":["joelho","lombar"]},{"chave":"prancha","nome":"Prancha","unidade":"s","tentativas":1,"zonas":["lombar"]}]}
+  ]'::jsonb) returning id into v_bloco;
+  perform public.publish_protocol(v_bloco);
+
   -- ---------- Objetivo da Joana (C-21, C-16) ----------
   insert into public.goals (org_id, link_id, title, criterion, owner_membership_id, status_note)
     values (o_rui, v_links[1], 'Força', '3 treinos por semana', m_rui, '1RM do agachamento a subir');
