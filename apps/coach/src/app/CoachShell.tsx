@@ -127,7 +127,12 @@ export function CoachShell({
   const w = wallClock(new Date(), scope?.timezone ?? 'Europe/Lisbon');
   const diaSemana = DIAS[new Date(Date.UTC(w.year, w.month - 1, w.day)).getUTCDay()];
   const data = `${diaSemana}, ${w.day} de ${MESES[w.month - 1]}`;
-  const papeis = scope?.roles.map((r) => PAPEL[r] ?? r).join(' · ') ?? '';
+  // Como no Figma: "PT · dono" no PT independente, "Receção · gerente" no ginásio
+  const papeis = (() => {
+    const l = (scope?.roles ?? []).map((r) => PAPEL[r] ?? r);
+    if (scope?.orgType === 'solo_coach' && scope.roles.includes('owner')) l.unshift(vocab.responsavel());
+    return [...new Set(l)].map((x, i) => (i === 0 ? x : x.toLocaleLowerCase('pt-PT'))).join(' · ');
+  })();
   const nome = me?.name ?? '';
 
   const botaoNovo = novo.length > 0 && (
@@ -182,10 +187,18 @@ export function CoachShell({
         )}
 
         <nav className="lg-menu" aria-label="Destinos">
-          {itens.map((i) => (
+          {itens.filter((i) => i.to !== '/settings').map((i) => (
             <MenuItem key={i.to} icone={i.icone} ativo={ativo(i.to)} rotulo={i.label}
               onClick={() => { setMenuAberto(false); navigate(i.to); }}>{i.label}</MenuItem>
           ))}
+          {/* Figma (199:108, 62:8): Definições numa secção própria, "Conta" no PT e "Ginásio" no ginásio */}
+          {itens.some((i) => i.to === '/settings') && <>
+            <span className="lg-menu__secao">{scope?.orgType === 'solo_coach' ? 'Conta' : ORG_TIPO[scope?.orgType ?? ''] ?? 'Conta'}</span>
+            {itens.filter((i) => i.to === '/settings').map((i) => (
+              <MenuItem key={i.to} icone={i.icone} ativo={ativo(i.to)} rotulo={i.label}
+                onClick={() => { setMenuAberto(false); navigate(i.to); }}>{i.label}</MenuItem>
+            ))}
+          </>}
         </nav>
 
         <div className="lg-pop lg-eu" ref={contaPop.ref}>

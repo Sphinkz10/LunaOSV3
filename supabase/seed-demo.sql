@@ -11,7 +11,8 @@ declare
   u_joana uuid := '10000000-0000-4000-8000-000000000010';
   o_rui   uuid := '20000000-0000-4000-8000-000000000001';
   m_rui uuid;
-  v_nomes text[] := array['Joana Reis','Miguel Faria','Sofia Antunes','Pedro Lopes','Rita Gomes','Hugo Matos','Beatriz Sousa','Nuno Alves'];
+  -- Os nomes do Figma do PT (199:108, 200:108, 201:108)
+  v_nomes text[] := array['Joana Reis','Rita Moura','Tiago Correia','Miguel Faria','Ana Lopes','Sofia Barros','Duarte Pinto','Pedro Faria'];
   v_links uuid[] := '{}'; v_link uuid; v_ex uuid[]; v_wk uuid; v_wk2 uuid; v_plan uuid;
   v_bloco uuid; v_pack uuid; v_mensal uuid; v_vendido uuid; v_conv uuid; i int;
 begin
@@ -22,11 +23,18 @@ begin
   -- A Joana tem conta (para a app do cliente)
   insert into auth.users (id, email, raw_user_meta_data) values (u_joana, 'joana@cliente.dev', '{"full_name":"Joana Reis"}');
 
+  -- O PT do Figma: João Sá, PT independente
+  update auth.users set raw_user_meta_data = '{"full_name":"João Sá"}' where id = u_rui;
+  update public.persons set full_name = 'João Sá' where user_id = u_rui;
+  update public.organizations set name = 'João Sá PT' where id = o_rui;
+  update public.persons set full_name = 'Leonor Faria' where full_name = 'Ana Costa' and managed_by_org = o_rui;
+  update public.persons set full_name = 'Carla Sousa' where full_name = 'Bruno Silva' and managed_by_org = o_rui;
+
   perform set_config('app.uid', u_rui::text, true);
 
   -- ---------- Clientes ----------
   for i in 1..array_length(v_nomes, 1) loop
-    v_link := public.add_client(o_rui, v_nomes[i], lower(split_part(v_nomes[i], ' ', 1)) || '@cliente.dev', '91' || lpad((2000000 + i * 1371)::text, 7, '0'),
+    v_link := public.add_client(o_rui, v_nomes[i], lower(replace(v_nomes[i], ' ', '.')) || '@cliente.dev', '91' || lpad((2000000 + i * 1371)::text, 7, '0'),
                                 date '1990-01-01' + (i * 900), m_rui);
     v_links := v_links || v_link;
   end loop;
@@ -76,13 +84,29 @@ begin
   -- ---------- Agenda de hoje e da semana ----------
   insert into public.availability (org_id, membership_id, weekday, start_time, end_time)
     select o_rui, m_rui, d, '07:00', '21:00' from generate_series(1, 6) d;
-  insert into public.bookings (org_id, membership_id, link_id, type, session_type, status, title, starts_at, ends_at)
-  select o_rui, m_rui, v_links[x.c], 'training', 'pt_individual', x.st::public.booking_status, x.t,
+  -- Hoje como no Figma (199:108) e a semana à volta (201:108): presencial no estúdio ou online
+  insert into public.bookings (org_id, membership_id, link_id, type, session_type, status, title, location_kind, starts_at, ends_at)
+  select o_rui, m_rui, v_links[x.c], x.tipo::public.booking_type, 'pt_individual', x.st::public.booking_status, x.t, x.lugar,
          (current_date + x.dia + x.h) at time zone 'Europe/Lisbon', (current_date + x.dia + x.h + interval '1 hour') at time zone 'Europe/Lisbon'
-  from (values (1, 'confirmed', 'Força · Dia A', 0, time '07:30'), (2, 'confirmed', 'Força · Dia B', 0, time '09:00'),
-               (3, 'confirmed', 'Avaliação', 0, time '12:30'), (5, 'pending', 'Treino', 0, time '18:30'),
-               (6, 'confirmed', 'Força · Dia A', 0, time '19:30'), (1, 'confirmed', 'Força · Dia B', 2, time '07:30'),
-               (2, 'confirmed', 'Treino', 1, time '09:00'), (7, 'pending', 'Primeira sessão', 1, time '18:00')) as x(c, st, t, dia, h);
+  from (values
+    (1, 'pending',   'Força · Dia A', 'training',   'estudio', 0, time '07:30'),
+    (2, 'confirmed', 'Força base',    'training',   'estudio', 0, time '09:00'),
+    (3, 'confirmed', 'Mobilidade',    'training',   'online',  0, time '12:30'),
+    (5, 'confirmed', 'Hipertrofia',   'training',   'estudio', 0, time '18:30'),
+    (6, 'confirmed', 'Condicionamento', 'training', 'online',  0, time '19:30'),
+    (3, 'confirmed', 'Mobilidade',    'training',   'online',  -2, time '07:00'),
+    (5, 'confirmed', 'Avaliação',     'assessment', 'estudio', -1, time '09:00'),
+    (7, 'confirmed', 'Avaliação',     'assessment', 'estudio', -2, time '12:30'),
+    (2, 'confirmed', 'Força base',    'training',   'estudio', -1, time '18:30'),
+    (5, 'confirmed', 'Hipertrofia',   'training',   'estudio', -2, time '18:30'),
+    (6, 'confirmed', 'Condicionamento', 'training', 'online',  -2, time '19:30'),
+    (4, 'confirmed', 'Avaliação',     'assessment', 'estudio', 1, time '09:00'),
+    (2, 'confirmed', 'Força base',    'training',   'estudio', 1, time '12:30'),
+    (5, 'confirmed', 'Hipertrofia',   'training',   'estudio', 1, time '18:30'),
+    (7, 'confirmed', 'Força base',    'training',   'online',  1, time '19:30'),
+    (6, 'confirmed', 'Condicionamento', 'training', 'online',  2, time '07:00'),
+    (1, 'confirmed', 'Força · Dia B', 'training',   'estudio', 2, time '10:00'),
+    (8, 'pending',   'Primeira sessão', 'training', 'estudio', 3, time '18:00')) as x(c, st, t, tipo, lugar, dia, h);
 
   -- Sessões feitas nas últimas semanas (histórico e recordes)
   insert into public.sessions (person_id, org_id, link_id, membership_id, workout_id, phase, started_at, ended_at, elapsed_seconds)
@@ -104,13 +128,19 @@ begin
     (o_rui, 'Pack 10 sessões', 10, 90, 35000) returning id into v_pack;
   insert into public.pack_products (org_id, name, sessions, validity_days, price_cents, kind) values
     (o_rui, 'Sessão avulsa', 1, 1, 4000, 'avulsa');
+  insert into public.pack_products (org_id, name, sessions, validity_days, price_cents) values
+    (o_rui, 'Pack 8 sessões', 8, 60, 29000) returning id into v_mensal;
+  -- Packs com sessões já usadas, para o "Sessão 6 de 8" do Figma (Rita 5 de 8, Tiago 2 de 10, Ana 9 de 10, Miguel 4 de 8 por pagar)
+  for i in 1..5 loop
+    v_vendido := public.sell_pack(v_links[i], case when i in (2, 4) then v_mensal else v_pack end, current_date - 20);
+    update public.client_packs set sessions_used = case i when 1 then 3 when 2 then 5 when 3 then 2 when 4 then 4 else 9 end where id = v_vendido;
+    if i <> 4 then
+      perform public.record_payment(v_links[i], 'pack', v_vendido, null, case when i in (2, 4) then 29000 else 35000 end,
+                                    current_date - 20 + i, case i when 1 then 'mbway' when 2 then 'dinheiro' else 'transferencia' end);
+    end if;
+  end loop;
   insert into public.monthly_products (org_id, name, price_cents, sessions_per_week, billing_day) values
     (o_rui, '2x por semana', 16000, 2, 1) returning id into v_mensal;
-  for i in 1..3 loop
-    v_vendido := public.sell_pack(v_links[i], v_pack, current_date - 20);
-    perform public.record_payment(v_links[i], 'pack', v_vendido, null, case when i = 2 then 15000 else 35000 end,
-                                  current_date - 20 + i, case i when 1 then 'mbway' when 2 then 'dinheiro' else 'transferencia' end);
-  end loop;
   v_vendido := public.sell_monthly(v_links[5], v_mensal, (date_trunc('month', current_date) - interval '1 month')::date);
   perform public.record_payment(v_links[5], 'mensalidade', v_vendido, to_char(current_date - interval '1 month', 'YYYY-MM'), 16000, current_date - 25, 'mbway');
   v_vendido := public.sell_monthly(v_links[6], v_mensal, date_trunc('month', current_date)::date);
@@ -119,13 +149,13 @@ begin
   v_conv := public.open_client_conversation(v_links[1]);
   perform public.send_message(gen_random_uuid(), v_conv, 'Olá Joana! Deixei o treino de amanhã na app. Começa pelo aquecimento de 10 minutos.');
   v_conv := public.open_client_conversation(v_links[2]);
-  perform public.send_message(gen_random_uuid(), v_conv, 'Miguel, consegues passar a sessão de quinta para as 9h?');
+  perform public.send_message(gen_random_uuid(), v_conv, 'Rita, consegues passar a sessão de quinta para as 9h?');
 
   -- ---------- Inbox (G-02): o que espera pelo Rui ----------
   insert into public.pendencias (org_id, link_id, membership_id, kind, title, created_at) values
-    (o_rui, v_links[1], m_rui, 'parq_atestado', 'Joana Reis precisa de atestado médico antes de treinar', now() - interval '1 day'),
-    (o_rui, v_links[4], m_rui, 'restricao_a_rever', 'Pedro Lopes · rever a restrição do joelho', now() - interval '3 days'),
-    (o_rui, v_links[7], m_rui, 'encarregado_em_falta', 'Beatriz Sousa · falta o consentimento do encarregado', now() - interval '40 minutes');
+    (o_rui, v_links[1], m_rui, 'restricao_a_rever', 'dor no joelho', now() - interval '1 day'),
+    (o_rui, v_links[4], m_rui, 'revisao_em_atraso', 'revisão do plano em atraso', now() - interval '3 days'),
+    (o_rui, v_links[8], m_rui, 'parq_atestado', 'atestado em falta', now() - interval '40 minutes');
 
   -- ---------- Grupos (G-08) ----------
   insert into public.groups (org_id, type, sport_id, name, description, responsible_membership_id) values

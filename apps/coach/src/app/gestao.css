@@ -34,6 +34,8 @@
 .lg-org__sub { display: block; font-size: 12px; color: var(--cor-texto-secundario); }
 .lg-org__corpo { flex: 1; min-width: 0; }
 .lg-menu { display: flex; flex-direction: column; gap: var(--espaco-4); }
+.lg-menu__secao { margin: var(--espaco-16) 0 var(--espaco-4) 12px; font: 600 11px/16px var(--fonte-texto); letter-spacing: 0.06em; text-transform: uppercase; color: var(--cor-texto-secundario); }
+@media (min-width: 961px) and (max-width: 1279px) { .lg-side:not(.lg-side--aberto) .lg-menu__secao { display: none; } }
 .lg-seccao { margin: var(--espaco-16) 0 var(--espaco-4); padding: 0 var(--espaco-12);
   font: 700 11px/1.4 var(--fonte-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--cor-texto-secundario); }
 .lg-eu { margin-top: auto; display: flex; align-items: center; gap: var(--espaco-12); padding: var(--espaco-8); }
