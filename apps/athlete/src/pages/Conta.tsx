@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  aceitarConviteCliente, criarContaCliente, enviarCodigoEmail, entrarComFornecedor, enviarParq, minhaConta,
-  pedirEncarregado, registarConsentimento, signInWithPassword, verificarCodigoEmail, type MinhaConta, type Partilha,
+  aceitarConviteCliente, criarContaCliente, enviarParq, minhaConta,
+  pedirEncarregado, registarConsentimento, signInWithPassword, type MinhaConta, type Partilha,
 } from '@luna/core';
-import { Botao, Campo, EntrarCodigo, Interruptor, Nota } from '@luna/ui/v3';
+import { Botao, Campo, Interruptor, Nota } from '@luna/ui/v3';
 import { ArrowLeft } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { guardarPendente, lerPendente, limparPendente, useSessao } from '../sessao';
@@ -114,22 +114,9 @@ const depoisDeEntrar = () => {
   return p.tutela ? `/encarregado/${p.tutela}` : p.convite ? '/conta/consentimentos' : '/hoje';
 };
 
+// Entrar (X-01, C-01): email e palavra-passe logo à primeira, como na Gestão.
+// O código por email ficou de fora: confundia e ainda não há envio de email.
 export function EntrarCliente() {
-  const navigate = useNavigate();
-  const [comPalavraPasse, setComPalavraPasse] = useState(false);
-  const client = getSupabaseClient();
-  if (!comPalavraPasse && client) {
-    // Entrar sem palavra-passe (X-01, C-01): código por email, Apple ou Google
-    return (
-      <main className="lc-passo">
-        <EntrarCodigo
-          onEnviar={(e) => enviarCodigoEmail(client, e, true, `${window.location.origin}${depoisDeEntrar()}`)}
-          onVerificar={async (e, c) => { await verificarCodigoEmail(client, e, c); navigate(depoisDeEntrar()); }}
-          onFornecedor={(f) => entrarComFornecedor(client, f, `${window.location.origin}${depoisDeEntrar()}`)}
-          onPalavraPasse={() => setComPalavraPasse(true)} />
-      </main>
-    );
-  }
   return <EntrarComPalavraPasse />;
 }
 

@@ -158,11 +158,35 @@
   border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
 }
 .lg-entrar__frase { margin: 0; max-width: 16ch; font: 600 40px/1.05 var(--fonte-titulo); letter-spacing: -0.03em; }
+/* X-01 (80:3497): foto, gradiente por cima e o texto em baixo */
+.lg-entrar__destaque--foto {
+  position: relative; overflow: hidden; gap: 0; padding: 0 36px 56px; border-radius: 32px;
+  background: var(--cor-destaque) url('/media/entrar.jpg') center / cover no-repeat;
+}
+.lg-entrar__destaque--foto::before {
+  content: ''; position: absolute; inset: 0; background: linear-gradient(to top, transparent, color-mix(in srgb, black 55%, transparent));
+}
+.lg-entrar__destaque--foto > * { position: relative; }
+.lg-entrar__marca { margin: 0 0 14px 10px; font: 600 12px/18px var(--fonte-texto); }
+.lg-entrar__destaque--foto .lg-entrar__frase { max-width: none; font-size: 40px; line-height: 42px; letter-spacing: -0.8px; }
+.lg-entrar__lead { margin: 10px 0 0; font: 400 16px/24px var(--fonte-texto); opacity: 0.9; }
+.lg-entrar__fatores {
+  display: flex; flex-direction: column; gap: var(--espaco-8); padding: 20px 21px; border: 1px solid var(--cor-linha);
+  border-radius: var(--raio-cartao); background: var(--cor-superficie);
+}
+.lg-entrar__fatores-titulo { font: 600 11px/17px var(--fonte-texto); letter-spacing: 0.06em; text-transform: uppercase; }
+.lg-otp { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--espaco-8); margin-top: var(--espaco-4); }
+.lg-otp__campo { position: absolute; inset: 0; width: 100%; opacity: 0; font-size: 16px; cursor: text; }
+.lg-otp__caixa {
+  display: grid; place-items: center; height: 56px; border: 1px solid var(--cor-linha); border-radius: var(--raio-linha);
+  font: 600 22px/1 var(--fonte-titulo); color: var(--cor-texto);
+}
+.lg-otp__campo:focus-visible ~ .lg-otp__caixa--atual { border: 2px solid var(--cor-texto); }
 .lg-entrar__form { display: flex; flex-direction: column; justify-content: center; gap: var(--espaco-24); max-width: 420px; width: 100%; justify-self: center; }
 .lg-entrar__campos { display: flex; flex-direction: column; gap: var(--espaco-16); }
 .lg-entrar__pass { position: relative; }
 .lg-entrar__ver {
-  position: absolute; right: var(--espaco-8); bottom: 0; min-height: var(--altura-botao-redondo);
+  position: absolute; right: var(--espaco-8); bottom: 0; min-height: var(--altura-botao-redondo); min-width: 40px; display: grid; place-items: center;
   background: none; border: 0; color: var(--cor-texto-secundario); font: 600 13px/1 var(--fonte-texto); cursor: pointer;
 }
 .lg-entrar__links { display: flex; justify-content: space-between; gap: var(--espaco-12); flex-wrap: wrap; }
@@ -691,6 +715,13 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-sub__historico { margin: var(--espaco-8) 0 0; padding-left: var(--espaco-16); }
 
 /* ── X-04 registo de treinador ───────────────────────────────────────── */
+/* Painel (101:3757): foto com a cor do destaque a subir por cima */
+.lg-entrar__destaque--registo {
+  position: relative; overflow: hidden; gap: 0; padding: 0 36px 56px; border-radius: 32px;
+  background: linear-gradient(to bottom, transparent 45%, color-mix(in srgb, var(--cor-destaque) 85%, transparent) 75%, var(--cor-destaque)),
+    url('/media/registo.jpg') center / cover no-repeat, var(--cor-destaque);
+}
+.lg-entrar__destaque--registo .lg-entrar__frase { max-width: none; font-size: 40px; line-height: 42px; letter-spacing: -0.8px; }
 .lg-registo__opcoes { display: flex; flex-direction: column; gap: var(--espaco-8); }
 .lg-registo__opcao {
   display: flex; align-items: center; gap: var(--espaco-12); width: 100%; min-height: 56px; padding: var(--espaco-12);
@@ -700,40 +731,59 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-registo__opcao--ativa { border: 2px solid var(--cor-principal); }
 .lg-registo__opcao:focus-visible { outline: 2px solid var(--cor-texto); outline-offset: 2px; }
 
-/* ── W-02 página para treinadores ────────────────────────────────────── */
-.lg-site { min-height: 100dvh; padding: var(--espaco-16) var(--espaco-24) var(--espaco-32); background: var(--cor-fundo); color: var(--cor-texto); }
-.lg-site__topo { display: flex; align-items: center; gap: var(--espaco-24); flex-wrap: wrap; margin-bottom: var(--espaco-16); }
-.lg-site__marca { display: flex; align-items: center; gap: var(--espaco-8); font: 700 20px/1 var(--fonte-titulo); }
-.lg-site__lua { width: 22px; height: 22px; border-radius: 50%; background: var(--cor-acao); box-shadow: inset -6px -2px 0 var(--cor-texto); }
-.lg-site__nav { display: flex; gap: var(--espaco-24); flex: 1; }
-.lg-site__nav a { color: var(--cor-texto-secundario); text-decoration: none; font-size: 14px; }
+/* ── W-02 página para treinadores (Figma 101:817, 1280 de largura) ────── */
+.lg-site { position: relative; z-index: 10; min-height: 100dvh; max-width: 1280px; margin: 0 auto; padding: 14px 32px 48px; background: var(--cor-fundo); color: var(--cor-texto); }
+.lg-site__topo { display: flex; align-items: center; gap: 28px; height: 44px; padding: 0 16px; margin-bottom: 14px; }
+.lg-site__marca { display: flex; align-items: center; gap: 10px; font: 600 26px/1 var(--fonte-titulo); letter-spacing: -0.5px; }
+.lg-site__marca .lg-logo__lua { width: 26px; height: 26px; }
+.lg-site__nav { display: flex; gap: 28px; flex: 1; margin-left: 2px; }
+.lg-site__nav a { color: var(--cor-texto-secundario); text-decoration: none; font: 500 14px/21px var(--fonte-texto); }
 .lg-site__nav a:hover { color: var(--cor-texto); }
+.lg-site__entrar {
+  min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--raio-pilula); background: var(--cor-superficie);
+  color: var(--cor-texto); font: 700 14px/21px var(--fonte-texto); cursor: pointer;
+}
 .lg-site__heroi {
-  display: flex; flex-direction: column; align-items: flex-start; gap: var(--espaco-16); padding: var(--espaco-32) var(--espaco-32) 48px;
-  border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; min-height: 380px;
+  padding: 52px 48px 48px; border-radius: 32px; color: var(--cor-sobre-destaque);
+  background:
+    linear-gradient(to right, var(--cor-destaque) 40%, color-mix(in srgb, var(--cor-destaque) 70%, transparent) 55%, transparent 80%),
+    url('/media/heroi-treinadores.jpg') right / 60% 100% no-repeat, var(--cor-destaque);
 }
-.lg-site__titulo { margin: 0; max-width: 14ch; font: 700 clamp(32px, 5vw, 52px)/1.04 var(--fonte-titulo); letter-spacing: -0.03em; }
-.lg-site__lead { margin: 0; max-width: 52ch; font-size: 16px; line-height: 1.5; }
-.lg-site__grelha { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--espaco-24); margin-top: var(--espaco-24); }
-.lg-site__cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--espaco-12); }
-.lg-site__cartoes--seis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lg-site__sobre { display: flex; align-items: center; gap: 6px; margin-left: 10px; font: 600 12px/18px var(--fonte-texto); }
+.lg-site__titulo { margin: 18px 0 0; max-width: 580px; font: 600 52px/52px var(--fonte-titulo); letter-spacing: -1.6px; }
+.lg-site__lead { margin: 14px 0 22px; max-width: 468px; font: 400 17px/25.5px var(--fonte-texto); opacity: 0.88; }
+.lg-site__ver {
+  min-height: 52px; padding: 0 22px; border: 0; border-radius: var(--raio-pilula); cursor: pointer;
+  background: color-mix(in srgb, var(--cor-sobre-destaque) 12%, transparent); color: var(--cor-sobre-destaque); font: 700 15px/22.5px var(--fonte-texto);
+}
+.lg-site__grelha { display: grid; grid-template-columns: 632.7fr 527.3fr; gap: 24px; margin-top: 28px; padding: 0 16px; }
+.lg-site__cabeca { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.lg-site__h2 { margin: 0; font: 600 18px/27px var(--fonte-titulo); }
+.lg-site__mais { display: inline-flex; align-items: center; gap: 2px; color: var(--cor-texto-secundario); font: 500 13px/20px var(--fonte-texto); text-decoration: none; }
+.lg-site__cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .lg-site__cartao {
-  display: flex; flex-direction: column; gap: var(--espaco-4); padding: var(--espaco-16); border: 1px solid var(--cor-linha);
-  border-radius: var(--raio-cartao); background: var(--cor-superficie);
+  display: flex; flex-direction: column; overflow: hidden; padding-bottom: 14px; border: 1px solid var(--cor-linha);
+  border-radius: 20px; background: var(--cor-superficie);
 }
-.lg-site__icone { display: grid; place-items: center; height: 88px; margin-bottom: var(--espaco-8); border-radius: var(--raio-nota); background: var(--cor-selecao); }
+.lg-site__foto { width: 100%; height: 132px; object-fit: cover; margin-bottom: 12px; }
+.lg-site__cartao b { padding: 0 14px; font: 600 16px/24px var(--fonte-titulo); }
+.lg-site__cartao span { padding: 0 14px; color: var(--cor-texto-secundario); font: 400 12.5px/18.8px var(--fonte-texto); }
+.lg-site__precos { display: flex; flex-direction: column; gap: 10px; }
 .lg-site__preco {
-  display: flex; align-items: center; gap: var(--espaco-12); padding: var(--espaco-12) var(--espaco-16);
-  border: 1px solid var(--cor-linha); border-radius: var(--raio-linha); background: var(--cor-superficie);
+  display: flex; align-items: center; gap: 12px; min-height: 66px; padding: 0 19px; border: 1px solid var(--cor-linha);
+  border-radius: 16px; background: var(--cor-superficie);
 }
+.lg-site__preco b { font: 600 17px/26px var(--fonte-titulo); }
+.lg-site__preco small { color: var(--cor-texto-secundario); font: 400 12.5px/16px var(--fonte-texto); }
 .lg-site__preco--destaque { background: var(--cor-selecao); border-color: transparent; }
-.lg-site__valor { font: 700 18px/1 var(--fonte-titulo); white-space: nowrap; }
-.lg-site__funcoes { margin-top: var(--espaco-24); }
+.lg-site__valor { font: 600 22px/33px var(--fonte-titulo); white-space: nowrap; }
 @media (max-width: 960px) {
-  .lg-site { padding: var(--espaco-12) var(--margem-telemovel) var(--espaco-24); }
+  .lg-site { padding: 12px var(--margem-telemovel) 24px; }
   .lg-site__nav { display: none; }
-  .lg-site__topo { justify-content: space-between; }
-  .lg-site__heroi { padding: var(--espaco-24); }
-  .lg-site__grelha { grid-template-columns: minmax(0, 1fr); }
-  .lg-site__cartoes, .lg-site__cartoes--seis { grid-template-columns: minmax(0, 1fr); }
+  .lg-site__topo { justify-content: space-between; padding: 0; }
+  .lg-site__heroi { padding: 32px 24px; background: var(--cor-destaque); }
+  .lg-site__titulo { font-size: 36px; line-height: 38px; }
+  .lg-site__grelha { grid-template-columns: minmax(0, 1fr); padding: 0; }
+  .lg-site__cartoes { grid-template-columns: minmax(0, 1fr); }
 }

@@ -4,6 +4,7 @@ import { Botao, Campo, Chip, Nota } from '@luna/ui/v3';
 import { Buildings, User, UsersThree } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { signOutEverywhere } from './session';
+import './gestao.css';
 
 export const CHAVE_CONVITE_ATLETA = 'luna.convite-atleta';
 /** Guarda o convite de um atleta (?convite_atleta=…) até a organização existir. */
@@ -54,12 +55,13 @@ export function CriarNegocio() {
 
   return (
     <main className="lv-root lg-entrar">
-      <section className="lg-entrar__destaque" aria-hidden>
-        <span className="lv-sobretitulo">Período experimental</span>
-        <p className="lg-entrar__frase">Começa hoje. Paga quando fizer sentido.</p>
-        <p style={{ margin: 0 }}>Os teus clientes usam a app de graça. Pagas por treinador quando o período experimental acabar.</p>
+      <section className="lg-entrar__destaque lg-entrar__destaque--registo" aria-hidden>
+        <span className="lg-entrar__marca">Período experimental</span>
+        <p className="lg-entrar__frase">Começa hoje.<br />Paga quando fizer sentido.</p>
+        <p className="lg-entrar__lead">Os teus clientes usam a app de graça. Pagas por treinador quando o período experimental acabar.</p>
       </section>
       <section className="lg-entrar__form">
+        <div className="lg-logo"><span className="lg-logo__lua" aria-hidden /><span className="lg-logo__texto">LunaOS</span></div>
         <span className="lv-sobretitulo">Passo {passo} de 4</span>
         {passo === 2 && (
           <div className="lg-entrar__campos">
