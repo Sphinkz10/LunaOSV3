@@ -1,9 +1,10 @@
 import { modalidadeSchema, type Modalidade, type Vocabulario } from '@luna/contracts';
 import fitnessV1 from './fitness/v1.json';
+import fitnessV2 from './fitness/v2.json';
 
-/** Catálogo de modalidades, validado pelo esquema ao carregar. */
+/** Catálogo de modalidades, validado pelo esquema ao carregar (a versão em uso de cada uma). */
 export const MODALIDADES: Record<string, Modalidade> = {
-  fitness: modalidadeSchema.parse(fitnessV1),
+  fitness: modalidadeSchema.parse(fitnessV2),
 };
 
 export const MODALIDADE_PADRAO = 'fitness';
@@ -40,7 +41,7 @@ export function unidadeDe(mod: Modalidade, metrica: string): string | null {
   return mod.metricas.find((m) => m.id === metrica)?.unidade ?? null;
 }
 
-export { fitnessV1 };
+export { fitnessV1, fitnessV2 };
 
 /** "Novo treino", "Nova sessão", "Nova aula": o adjetivo concorda com o termo do vocabulário. */
 export function novo(palavra: string, opcoes: { plural?: boolean } = {}): string {

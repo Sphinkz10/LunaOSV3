@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { modalidadeSchema } from '@luna/contracts';
-import { fitnessV1, getModalidade, termo, unidadeDe } from '../index';
+import { fitnessV1, fitnessV2, getModalidade, termo, unidadeDe } from '../index';
 
 describe('modalidades', () => {
   const fitness = getModalidade('fitness');
@@ -33,5 +33,12 @@ describe('modalidades', () => {
     const sql = readFileSync(resolve(__dirname, '../../../../supabase/migrations/0005_modalidades.sql'), 'utf8');
     const json = sql.split('$json$')[1];
     expect(JSON.parse(json)).toEqual(fitnessV1);
+  });
+
+  it('a migração 0031 tem exatamente a versão 2, que só muda o termo da sessão', () => {
+    const sql = readFileSync(resolve(__dirname, '../../../../supabase/migrations/0031_modalidade_fitness_v2.sql'), 'utf8');
+    expect(JSON.parse(sql.split('$json$')[1])).toEqual(fitnessV2);
+    expect(fitnessV2.vocabulario.sessao).toBe('sessão');
+    expect({ ...fitnessV2, versao: 1, vocabulario: { ...fitnessV2.vocabulario, sessao: 'treino' }, plurais: fitnessV1.plurais }).toEqual(fitnessV1);
   });
 });
