@@ -240,7 +240,10 @@ export function TreinoEmCurso() {
         <div style={{ flex: 1 }}><span className="lv-legenda">{tr.nome} · exercício {i + 1} de {lista.length}</span><h1 className="lc-cabeca__titulo">{ex.nome}</h1></div>
       </header>
       {!online && <Nota icone={WifiSlash}>Sem rede: as séries ficam no telemóvel.</Nota>}
-      {ex.video ? <a className="lc-video" href={ex.video} target="_blank" rel="noreferrer"><Play size={20} aria-hidden />Ver como se faz</a> : null}
+      {/* C-10 (Figma 113:170): a foto do exercício, com o vídeo por cima quando há */}
+      <div className="lc-foto-ex" style={{ backgroundImage: `url(${fotoDoExercicio(ex.nome)})` }}>
+        {ex.video && <a className="lc-video" href={ex.video} target="_blank" rel="noreferrer"><Play size={16} aria-hidden />Ver como se faz</a>}
+      </div>
       <section className="lc-escolhas" aria-label="Séries">
         <div className="lc-series lc-series--cabeca"><span /><span>Previsto</span><span>Feito</span><span>RPE</span></div>
         {Array.from({ length: Math.max(ex.series ?? 1, n) }, (_, k) => {

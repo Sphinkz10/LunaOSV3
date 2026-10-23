@@ -198,3 +198,6 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
 .lc-exercicio__foto { flex: none; width: 48px; height: 48px; object-fit: cover; border-radius: 12px; }
 
 .lc-eu__objetivo { font: 600 24px/1.15 var(--fonte-titulo); letter-spacing: -0.02em; }
+
+.lc-foto-ex { display: flex; align-items: flex-end; height: 126px; padding: 14px; border-radius: 24px; background: var(--cor-destaque) center / cover no-repeat; }
+.lc-foto-ex .lc-video { min-height: 30px; padding: 0 12px; border-radius: var(--raio-pilula); background: var(--cor-superficie); font-size: 12px; }
