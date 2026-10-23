@@ -244,7 +244,7 @@ export function Clients() {
                               <span style={{ minWidth: 0 }}>
                                 <span className="lv-linha-lista__titulo">{r.name}</span>
                                 {motivos ? <span className="lv-legenda lg-tabela__motivo">{motivos.join(' · ')}</span>
-                                  : gere && r.responsibleName ? <span className="lv-legenda">{r.responsibleName}</span> : null}
+                                  : gere && scope.orgType !== 'solo_coach' && r.responsibleName ? <span className="lv-legenda">{r.responsibleName}</span> : null}
                               </span>
                             </button>
                             <span className="lg-tabela__plano">{r.planName ?? <span className="lv-legenda">Sem plano</span>}</span>
@@ -258,8 +258,10 @@ export function Clients() {
 
                   {aberto && (
                     <aside className="lv-lista lg-clientes__resumo" aria-label={`Resumo de ${aberto.name}`}>
-                      <Avatar nome={aberto.name} foto={aberto.avatarUrl} tamanho={56} />
-                      <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>{aberto.name}</h2>
+                      {/* G-03 (63:58): faixa de cima com a foto da pessoa (ou a cor) e o avatar a sobrepor */}
+                      <div className="lg-clientes__capa" style={aberto.avatarUrl ? { backgroundImage: `url(${aberto.avatarUrl})` } : undefined} aria-hidden />
+                      <span className="lg-clientes__avatar"><Avatar nome={aberto.name} foto={aberto.avatarUrl} tamanho={56} /></span>
+                      <h2 className="lg-clientes__nome">{aberto.name}</h2>
                       <span className="lv-legenda">{[aberto.email, aberto.responsibleName ? `${vocab.responsavel({ maiuscula: true })}: ${aberto.responsibleName}` : null].filter(Boolean).join(' · ')}</span>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--espaco-8)' }}>
                         <Estado tom={ESTADO[aberto.status].tom}>{ESTADO[aberto.status].texto}</Estado>
@@ -277,7 +279,7 @@ export function Clients() {
                           <Botao variante="secundario" onClick={() => setConvidar({ id: aberto.id, nome: aberto.name, email: aberto.email, telefone: aberto.phone })}>Convidar</Botao>
                         )}
                         <Botao variante="secundario" onClick={() => setAtribuir([aberto.id])}>Atribuir plano</Botao>
-                        <Botao onClick={() => abrirFicha(aberto.id)}>Abrir ficha</Botao>
+                        <Botao className="lg-botao-escuro" onClick={() => abrirFicha(aberto.id)}>Abrir ficha</Botao>
                       </div>
                     </aside>
                   )}

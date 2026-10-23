@@ -5,7 +5,7 @@ import {
   type ClienteAtencao, type DashboardBooking, type DashboardKpis, type Pendencia, type SessoesPorPt,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, Tema, type EstadoTom } from '@luna/ui/v3';
-import { Wallet, Barbell, CalendarBlank, Clock, Heartbeat, ListChecks, Package, Play, Plus, Users, Warning } from '@luna/icons';
+import { CalendarBlank, CaretRight, Clock, Heartbeat, ListChecks, Play, Plus, Users, Warning } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { ParaComecar } from '../app/ParaComecar';
 import { useScope } from '../app/ModuleLayout';
@@ -86,12 +86,10 @@ export function Today() {
             {atencao.dados && atencao.dados.length > 0 ? ` · ${atencao.dados.length} ${vocab.pessoa({ plural: atencao.dados.length !== 1 })} em atenção` : ''}
           </p>
           <div className="lg-hoje__acoes">
-            <Botao icone={CalendarBlank} onClick={() => navigate('/schedule?nova=1')}>Marcar</Botao>
-            <Botao variante="secundario" icone={Plus} onClick={() => navigate('/clients?novo=1')}>Novo {vocab.pessoa()}</Botao>
-            <Botao variante="secundario" icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
-            <Botao variante="secundario" icone={Barbell} onClick={() => navigate('/training/biblioteca?novo=treino')}>Novo treino</Botao>
-            <Botao variante="secundario" icone={Package} onClick={() => navigate('/business/packs')}>Vender pack</Botao>
-            <Botao variante="secundario" icone={Wallet} onClick={() => navigate('/business/dinheiro')}>Registar pagamento</Botao>
+            {/* Como no Figma (62:90): uma ação principal e duas em texto; o resto está no + Novo */}
+            <button type="button" className="lg-hoje__principal" onClick={() => navigate('/schedule?nova=1')}><CalendarBlank size={16} aria-hidden />Marcar</button>
+            <button type="button" className="lg-hoje__link" onClick={() => navigate('/clients?novo=1')}><Plus size={16} aria-hidden />Novo {vocab.pessoa()}</button>
+            <button type="button" className="lg-hoje__link" onClick={() => navigate('/live')}><Play size={16} aria-hidden />Iniciar {vocab.sessao()}</button>
           </div>
         </section>
 
@@ -111,7 +109,7 @@ export function Today() {
           <section className="lv-lista" aria-label={`${SS} de hoje`}>
             <div className="lv-lista__cabeca">
               <h2 className="lv-titulo-cartao">{SS} de hoje</h2>
-              <button type="button" className="lg-link" onClick={() => navigate('/schedule')}>Ver horário</button>
+              <button type="button" className="lg-link" onClick={() => navigate('/schedule')}>Ver horário <CaretRight size={16} aria-hidden /></button>
             </div>
             {agenda.erro ? <AvisoSecao tipo="falha-parcial" texto={`Não foi possível carregar a agenda: ${agenda.erro}`} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
               : !agenda.dados ? <Esqueleto linhas={4} />
@@ -135,7 +133,7 @@ export function Today() {
             <section className="lv-lista" aria-label="Pendências">
               <div className="lv-lista__cabeca">
                 <h2 className="lv-titulo-cartao">Pendências</h2>
-                <button type="button" className="lg-link" onClick={() => navigate('/inbox')}>Abrir Inbox</button>
+                <button type="button" className="lg-link" onClick={() => navigate('/inbox')}>Abrir Inbox <CaretRight size={16} aria-hidden /></button>
               </div>
               {pendencias.erro ? <AvisoSecao tipo="falha-parcial" texto="Não foi possível carregar as pendências." acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
                 : !pendencias.dados ? <Esqueleto linhas={3} />
@@ -155,7 +153,7 @@ export function Today() {
             <section className="lv-lista" aria-label={`${PP} em atenção`}>
               <div className="lv-lista__cabeca">
                 <h2 className="lv-titulo-cartao">{PP} em atenção</h2>
-                <button type="button" className="lg-link" onClick={() => navigate('/clients?filtro=attention')}>Ver todos</button>
+                <button type="button" className="lg-link" onClick={() => navigate('/clients?filtro=attention')}>Ver todos <CaretRight size={16} aria-hidden /></button>
               </div>
               {atencao.erro ? <AvisoSecao tipo="falha-parcial" texto="Não foi possível ver quem está em atenção." acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
                 : !atencao.dados ? <Esqueleto linhas={3} />
@@ -174,12 +172,11 @@ export function Today() {
           </div>
         </div>
 
-        {dono && (
+        {dono && (equipa.dados?.length ?? 0) > 1 && (
           <Tema tema="esboco">
             <section className="lv-lista lg-hoje__equipa" aria-label="Equipa hoje">
               <div className="lv-lista__cabeca">
                 <h2 className="lv-titulo-cartao">Equipa hoje</h2>
-                <span className="lv-legenda">Provisório, ainda por desenhar</span>
               </div>
               {equipa.erro ? <AvisoSecao tipo="falha-parcial" texto="Não foi possível carregar a equipa." acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
                 : !equipa.dados ? <Esqueleto linhas={2} />

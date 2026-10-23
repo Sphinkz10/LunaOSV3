@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode demo",
     "build": "tsc --noEmit -p . && vite build",
     "preview": "vite preview",
     "lint": "eslint src --config ../../packages/config/src/eslint.config.cjs",

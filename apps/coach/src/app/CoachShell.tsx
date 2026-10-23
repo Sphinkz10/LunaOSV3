@@ -46,6 +46,9 @@ function useNovoAcoes() {
     hasModule(modules, 'schedule') && { rotulo: `Nova ${vocab.sessao()}`, to: '/schedule?nova=1' },
     hasModule(modules, 'clients') && { rotulo: `Novo ${vocab.pessoa()}`, to: '/clients?novo=1' },
     hasModule(modules, 'training') && { rotulo: `Iniciar ${vocab.sessao()}`, to: '/live' },
+    hasModule(modules, 'training') && { rotulo: 'Novo treino', to: '/training/biblioteca?novo=treino' },
+    hasModule(modules, 'clients') && { rotulo: 'Vender pack', to: '/business/packs' },
+    hasModule(modules, 'clients') && { rotulo: 'Registar pagamento', to: '/business/dinheiro' },
   ].filter(Boolean) as { rotulo: string; to: string }[];
 }
 
@@ -224,7 +227,8 @@ export function CoachShell({
               </button>
             )}
             {scope && <Notificacoes />}
-            {botaoNovo}
+            {/* Como no Figma: uma página com ação própria (Importar, Novo cliente…) não repete o + Novo */}
+            {!topActions && botaoNovo}
           </div>
         </header>
 

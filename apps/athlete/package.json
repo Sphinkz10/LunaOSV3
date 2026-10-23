@@ -6,6 +6,7 @@
   "description": "App do cliente (C-): conta, consentimentos, PAR-Q, encarregado; modo solo na F1b.",
   "scripts": {
     "dev": "vite --port 5174",
+    "dev:local": "vite --port 5174 --mode demo",
     "build": "tsc --noEmit -p . && vite build",
     "preview": "vite preview",
     "lint": "eslint src --config ../../packages/config/src/eslint.config.cjs",
