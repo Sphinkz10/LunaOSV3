@@ -863,3 +863,6 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-avisado { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px; align-items: center; min-height: 40px; border-top: 1px solid var(--cor-linha); font-size: 14px; }
 .lg-avisado > span:not(:first-child) { display: grid; place-items: center; }
 .lg-avisado.lg-tabela__cabeca { border-top: 0; padding: 0; }
+
+.lg-ex__foto { display: grid; place-items: center; height: 150px; border-radius: 16px; background: var(--cor-destaque) center / cover no-repeat; }
+.lg-ex__play { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--raio-pilula); background: var(--cor-superficie); color: var(--cor-texto); }

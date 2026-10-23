@@ -10,7 +10,7 @@ import {
   type Plano, type PreviaAtribuir, type Treino, type TreinoResumo,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
-import { ArrowCounterClockwise, ArrowLeft, Check, Eye, Plus, UploadSimple, Warning, X } from '@luna/icons';
+import { ArrowCounterClockwise, ArrowLeft, Check, Eye, Play, Plus, UploadSimple, Warning, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { SairSemGuardar, VoltarA } from '../app/Estados';
 import { useAtalhoGuardar } from '../app/Atalhos';
@@ -23,6 +23,17 @@ const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0];
 const METRICAS: Record<string, string> = { carga: 'Kg', repeticoes: 'Repetições', tempo: 'Tempo', distancia: 'Distância', esforco: 'RPE', fc: 'Frequência cardíaca' };
 const VOLTAR_BIB = { rotulo: 'à Biblioteca', href: '/training/biblioteca' };
 const erroTexto = (e: unknown) => (e instanceof Error ? e.message : undefined);
+
+/** Foto provisória do Figma (DS-03) enquanto o exercício não tem imagem própria. */
+function fotoDoExercicioGestao(nome: string, material: string[], categoria: string): string {
+  const t = `${nome} ${material.join(' ')}`.toLocaleLowerCase('pt-PT');
+  if (/kettlebell|swing/.test(t)) return '/media/ex-kettlebell.jpg';
+  if (/elástico|elastico/.test(t)) return '/media/ex-elastico.jpg';
+  if (/halter|remada|supino|press/.test(t)) return '/media/ex-halteres.jpg';
+  if (categoria === 'mobilidade' || categoria === 'reabilitacao') return '/media/ex-mobilidade.jpg';
+  if (categoria === 'cardio') return '/media/ex-cardio.jpg';
+  return '/media/ex-forca.jpg';
+}
 
 /* ── G-16 Construtor de exercício ──────────────────────────────────────── */
 export function ConstrutorExercicio() {
@@ -63,31 +74,36 @@ export function ConstrutorExercicio() {
     <CoachShell headStrong={e.nome || 'Exercício novo'} headSub="Treino · exercício do ginásio" legado={false}
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}><VoltarA omissao={VOLTAR_BIB} /><Botao aCarregar={aGravar} disabled={!e.nome.trim()} onClick={() => void guardar()}>Guardar</Botao></span>}>
       <div className="lv-root lg-ficha__grelha">
+        {/* G-16 (Figma 119:591): à esquerda o que é e o que regista; à direita o vídeo e as alternativas */}
         <section className="lv-lista" aria-label="Exercício">
-          <Campo rotulo="Nome" value={e.nome} onChange={(x) => mudar({ nome: x.target.value })} required />
+          <div className="lg-conta__prefs">
+            <Campo rotulo="Nome" value={e.nome} onChange={(x) => mudar({ nome: x.target.value })} required />
+            <Campo rotulo="Material" value={e.material.join(', ')} onChange={(x) => mudar({ material: lista(x.target.value) })} placeholder="barra, banco" />
+          </div>
+          <span className="lv-sobretitulo">Zonas e objetivo</span>
           <div role="radiogroup" aria-label="Categoria" className="lg-ficha__metricas">
             {modalidade.categorias_biblioteca.map((c) => <Chip key={c} role="radio" aria-checked={e.categoria === c} ativo={e.categoria === c} onClick={() => mudar({ categoria: c })}>{CATEGORIA_EXERCICIO[c] ?? c}</Chip>)}
           </div>
-          <label className="lv-campo"><span className="lv-campo-rotulo">Instruções</span>
-            <textarea className="lv-campo-input" rows={4} value={e.descricao} onChange={(x) => mudar({ descricao: x.target.value })} placeholder="O essencial da técnica, em duas ou três frases" /></label>
-          <Campo rotulo="Vídeo (ligação)" value={e.video} onChange={(x) => mudar({ video: x.target.value })} placeholder="https://…" ajuda="Carregar vídeos no LunaOS chega com o alojamento de vídeo (ADR-0005)" />
-          <div className="lg-conta__prefs">
-            <Campo rotulo="Músculos" value={e.musculos.join(', ')} onChange={(x) => mudar({ musculos: lista(x.target.value) })} placeholder="quadríceps, glúteos" />
-            <Campo rotulo="Material" value={e.material.join(', ')} onChange={(x) => mudar({ material: lista(x.target.value) })} placeholder="barra, banco" />
+          <div role="radiogroup" aria-label="Padrão de movimento" className="lg-ficha__metricas">
+            {['agachar', 'dobrar a anca', 'unilateral', 'empurrar horizontal', 'empurrar vertical', 'puxar horizontal', 'puxar vertical', 'saltar', 'cíclico', 'transportar', 'isolamento', 'mobilidade'].map((pd) => (
+              <Chip key={pd} role="radio" aria-checked={e.padrao === pd} ativo={e.padrao === pd} onClick={() => mudar({ padrao: e.padrao === pd ? '' : pd })}>{pd.charAt(0).toUpperCase() + pd.slice(1)}</Chip>
+            ))}
           </div>
-          <label className="lv-campo"><span className="lv-campo-rotulo">Padrão de movimento</span>
-            <select className="lv-campo-input" value={e.padrao} onChange={(x) => mudar({ padrao: x.target.value })}>
-              <option value="">Outro</option>
-              {['agachar', 'dobrar a anca', 'unilateral', 'empurrar horizontal', 'empurrar vertical', 'puxar horizontal', 'puxar vertical', 'saltar', 'cíclico', 'transportar', 'isolamento', 'mobilidade'].map((p) => <option key={p} value={p}>{p}</option>)}
-            </select></label>
-          <Nota>O padrão diz que articulações carrega; é com isso que as restrições trocam o exercício pela alternativa.</Nota>
-        </section>
-        <aside className="lv-lista" aria-label="Registo e alternativas">
-          <span className="lv-sobretitulo">Regista</span>
+          <span className="lv-sobretitulo">Regista em cada série</span>
           <div className="lg-ficha__metricas">
             {modalidade.metricas.map((m) => <Chip key={m.id} ativo={e.registar.includes(m.id)} onClick={() => mudar({ registar: e.registar.includes(m.id) ? e.registar.filter((r) => r !== m.id) : [...e.registar, m.id] })}>{METRICAS[m.id] ?? m.id}</Chip>)}
           </div>
-          <span className="lv-sobretitulo">Alternativas autorizadas</span>
+          <label className="lv-campo"><span className="lv-campo-rotulo">Instruções</span>
+            <textarea className="lv-campo-input" rows={3} value={e.descricao} onChange={(x) => mudar({ descricao: x.target.value })} placeholder="O essencial da técnica, em duas ou três frases" /></label>
+          <Campo rotulo="Músculos" value={e.musculos.join(', ')} onChange={(x) => mudar({ musculos: lista(x.target.value) })} placeholder="quadríceps, glúteos" />
+          <Nota>O padrão diz que articulações carrega; é com isso que as restrições trocam o exercício pela alternativa.</Nota>
+        </section>
+        <aside className="lv-lista" aria-label="Vídeo e alternativas">
+          <div className="lg-ex__foto" style={{ backgroundImage: `url(${fotoDoExercicioGestao(e.nome, e.material, e.categoria)})` }}>
+            {e.video && <a className="lg-ex__play" href={e.video} target="_blank" rel="noreferrer" aria-label="Ver vídeo"><Play size={20} aria-hidden /></a>}
+          </div>
+          <Campo rotulo="Vídeo (ligação)" value={e.video} onChange={(x) => mudar({ video: x.target.value })} placeholder="https://…" ajuda="Carregar vídeos no LunaOS chega com o alojamento de vídeo (ADR-0005)" />
+          <span className="lv-sobretitulo">Alternativas</span>
           {e.alternativas.map((a) => (
             <div key={a.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
               <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{a.nome}</span></span>
