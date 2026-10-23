@@ -51,15 +51,14 @@ function verificar(token) {
   const c = JSON.parse(Buffer.from(p, 'base64url').toString());
   return c.exp && c.exp * 1000 < Date.now() ? null : c;
 }
-const refreshes = new Map();
 const fatores = new Map(); // user id → [{ id, factor_type, status, friendly_name }]; dois fatores a fingir: qualquer código de 6 dígitos serve
 function sessao(u, aal = 'aal1') {
   const exp = Math.floor(Date.now() / 1000) + 3600;
   const agora = Math.floor(Date.now() / 1000);
   const amr = [{ method: 'password', timestamp: agora }, ...(aal === 'aal2' ? [{ method: 'totp', timestamp: agora }] : [])];
   const access_token = assinar({ sub: u.id, role: 'authenticated', aud: 'authenticated', email: u.email, exp, aal, amr, session_id: randomUUID() });
-  const refresh_token = randomUUID();
-  refreshes.set(refresh_token, { uid: u.id, aal });
+  // O refresh também é assinado: as sessões sobrevivem a reiniciar o servidor local
+  const refresh_token = assinar({ sub: u.id, aal, typ: 'refresh', exp: agora + 30 * 86400, n: randomUUID() });
   return { access_token, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token, user: utilizador(u) };
 }
 const utilizador = (u) => ({
@@ -83,7 +82,7 @@ function condicao(col, expr, params) {
   if (op === 'is') sql = `${id(col)} is ${val === 'null' ? 'null' : val === 'true' ? 'true' : 'false'}`;
   else if (op === 'in') { params.push(listaIn(val)); sql = `${id(col)}::text = any($${params.length}::text[])`; }
   else if (op === 'cs') { params.push(val.startsWith('{') ? val : val); sql = `${id(col)} @> $${params.length}`; }
-  else if (OPS[op]) { params.push(op.endsWith('like') ? val.replace(/\*/g, '%') : val); sql = `${id(col)} ${OPS[op]} $${params.length}`; }
+  else if (OPS[op]) { params.push(op.endsWith('like') ? val.replace(/\*/g, '%') : val === 'true' ? true : val === 'false' ? false : val); sql = `${id(col)} ${OPS[op]} $${params.length}`; }
   else throw Object.assign(new Error(`operador ${op} não suportado`), { status: 400 });
   return neg ? `not (${sql})` : sql;
 }
@@ -221,7 +220,8 @@ async function auth(req, url, corpo, claims) {
     return { status: 200, corpo: sessao(u) };
   }
   if (rota === 'token' && tipo === 'refresh_token') {
-    const r = refreshes.get(corpo.refresh_token);
+    const c = verificar(corpo.refresh_token);
+    const r = c?.typ === 'refresh' ? { uid: c.sub, aal: c.aal } : null;
     const u = r && await buscarUser('id', r.uid);
     if (!u) return { status: 400, corpo: { error: 'invalid_grant', code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' } };
     return { status: 200, corpo: sessao(u, r.aal) };
