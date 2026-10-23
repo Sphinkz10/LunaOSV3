@@ -6,16 +6,27 @@ import { Botao, Campo } from '@luna/ui/v3';
 import { getSupabaseClient } from '../lib/supabase';
 import '../app/gestao.css';
 
-function Moldura({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Moldura({ titulo, sobre, registo, children }: { titulo: string; sobre?: string; registo?: boolean; children: React.ReactNode }) {
+  // Os mesmos painéis com foto do Figma: entrar (X-01, 80:3497) e criar conta (X-04, 101:3757)
   return (
     <main className="lv-root lg-entrar">
-      <section className="lg-entrar__destaque" aria-hidden>
-        <span className="lv-sobretitulo">LunaOS Gestão</span>
-        <p className="lg-entrar__frase">O teu trabalho com cada cliente, num só sítio.</p>
-      </section>
+      {registo ? (
+        <section className="lg-entrar__destaque lg-entrar__destaque--registo" aria-hidden>
+          <span className="lg-entrar__marca">Período experimental</span>
+          <p className="lg-entrar__frase">Começa hoje.<br />Paga quando fizer sentido.</p>
+          <p className="lg-entrar__lead">Os teus clientes usam a app de graça. Pagas por treinador quando o período experimental acabar.</p>
+        </section>
+      ) : (
+        <section className="lg-entrar__destaque lg-entrar__destaque--foto" aria-hidden>
+          <span className="lg-entrar__marca">LunaOS Gestão</span>
+          <p className="lg-entrar__frase">O teu ginásio,<br />num só sítio.</p>
+          <p className="lg-entrar__lead">Clientes, aulas, entradas e treino, no computador, no tablet e no telemóvel.</p>
+        </section>
+      )}
       <section className="lg-entrar__form">
         <div className="lg-logo"><span className="lg-logo__lua" aria-hidden /><span className="lg-logo__texto">LunaOS</span></div>
         <div className="lg-entrar__campos">
+          {sobre && <span className="lv-sobretitulo">{sobre}</span>}
           <h1 className="lv-titulo-ecra">{titulo}</h1>
           {children}
         </div>
@@ -90,7 +101,7 @@ export function CriarConta() {
   };
 
   return (
-    <Moldura titulo={enviado ? 'Confirma o teu email' : 'Criar conta'}>
+    <Moldura titulo={enviado ? 'Confirma o teu email' : 'Criar conta'} sobre={convite || enviado ? undefined : 'Passo 1 de 4'} registo={!convite}>
       {enviado ? (
         <p className="lv-legenda" style={{ margin: 0 }} role="status">
           Enviámos um link para {email}. Abre-o para confirmar; depois entras{convite ? ' e o convite fica aceite' : ' e crias o teu negócio'}.
