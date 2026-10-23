@@ -5,7 +5,7 @@ import {
   useRede, type DiaDaSemana, type ExercicioDoTreino, type MeuTreino, type Recorde, type SerieFeita, type TreinoFeito,
 } from '@luna/core';
 import { Botao, BotaoFixo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
-import { ArrowLeft, Barbell, CaretRight, Check, Clock, Pause, Play, WifiSlash, X } from '@luna/icons';
+import { ArrowLeft, CaretRight, Check, Clock, Pause, Play, WifiSlash, X } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { t } from '../vocab';
 
@@ -31,9 +31,10 @@ export function TreinoSemana() {
   }, [online]);
   useEffect(() => carregar(), [carregar]);
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return d; }), []);
+  const [escolhido, setEscolhido] = useState(() => new Date().toISOString().slice(0, 10));
   return (
     <main className="lc-ecra">
-      <header className="lc-cabeca"><div style={{ flex: 1 }}><span className="lv-legenda">O que vem esta semana</span><h1 className="lc-cabeca__titulo">Treino</h1></div></header>
+      <header className="lc-cabeca"><div style={{ flex: 1 }}><span className="lv-legenda">{semana?.find((x) => x.plano)?.plano ?? 'O que vem esta semana'}</span><h1 className="lc-cabeca__titulo">Treino</h1></div></header>
       {!online && <Nota icone={WifiSlash}>Sem rede. O treino descarregado funciona na mesma; as séries enviam-se depois.</Nota>}
       {porEnviar > 0 && <Nota>{porEnviar} {porEnviar === 1 ? 'treino por enviar' : 'treinos por enviar'} ao teu {t('responsavel')}; vão quando houver rede.</Nota>}
       {emCurso && (
@@ -43,30 +44,36 @@ export function TreinoSemana() {
           <Botao icone={Play} onClick={() => navigate(`/treino/${emCurso.workout_id ?? 'hoje'}/agora`)}>Continuar</Botao>
         </section>
       )}
-      {hoje === undefined ? <Esqueleto /> : hoje ? (
-        <button type="button" className="lc-destaque lc-destaque--botao" onClick={() => navigate(`/treino/${hoje.workout_id}`)}>
-          <span className="lc-destaque__sobre"><Barbell size={16} aria-hidden />Hoje</span>
-          <span className="lc-destaque__titulo">{hoje.nome}</span>
-          <span>{hoje.blocos.reduce((s, b) => s + b.exercicios.length, 0)} exercícios{hoje.duracao_min ? ` · ${hoje.duracao_min} min` : ''}</span>
-        </button>
-      ) : <Nota>Hoje não tens treino no plano.</Nota>}
-      <section className="lc-lista" aria-label="Semana">
-        {erro ? <p className="lv-legenda">Não foi possível carregar a semana.</p> : !semana ? <Esqueleto linhas={3} /> : dias.map((d) => {
+      {/* C-12 (Figma 114:190): a semana numa faixa de dias e o treino do dia escolhido em destaque */}
+      <div className="lc-dias" role="tablist" aria-label="Dias da semana">
+        {dias.map((d) => {
           const iso = d.toISOString().slice(0, 10);
-          const ts = semana.filter((x) => x.dia === iso);
+          const tem = semana?.some((x) => x.dia === iso);
           return (
-            <div key={iso} className="lc-lista__linha" style={{ cursor: ts.length ? 'pointer' : 'default' }}>
-              <span className="lc-semana__dia"><b>{DIAS[d.getDay()]}</b><span className="lv-legenda">{d.getDate()}</span></span>
-              <span className="lv-linha-lista__corpo">
-                {ts.length ? ts.map((x) => (
-                  <button key={x.workoutId} type="button" className="lc-link" onClick={() => navigate(`/treino/${x.workoutId}?dia=${iso}${x.plano ? `&plano=${encodeURIComponent(x.plano)}` : ''}`)}>{x.nome}</button>
-                )) : <span className="lv-legenda">Descanso</span>}
-                {ts[0]?.plano && <span className="lv-legenda">{ts[0].plano}</span>}
-              </span>
-            </div>
+            <button key={iso} type="button" role="tab" aria-selected={escolhido === iso} className="lc-dias__dia" onClick={() => setEscolhido(iso)}>
+              <span>{DIAS[d.getDay()]}</span><b>{d.getDate()}</b><i className={tem ? 'lc-dias__ponto lc-dias__ponto--sim' : 'lc-dias__ponto'} aria-hidden />
+            </button>
           );
         })}
-      </section>
+      </div>
+      {erro ? <p className="lv-legenda">Não foi possível carregar a semana.</p> : !semana || hoje === undefined ? <Esqueleto /> : (() => {
+        const ts = semana.filter((x) => x.dia === escolhido);
+        const eHoje = escolhido === dias[0].toISOString().slice(0, 10);
+        if (!ts.length) return <Nota>{eHoje ? 'Hoje é dia de descanso.' : 'Dia de descanso.'}</Nota>;
+        return ts.map((x) => {
+          const detalhe = eHoje && hoje && hoje.workout_id === x.workoutId ? hoje : null;
+          const n = detalhe ? detalhe.blocos.reduce((k, bl) => k + bl.exercicios.length, 0) : null;
+          const quando = eHoje ? 'Hoje' : new Date(`${escolhido}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long' });
+          return (
+            <button key={x.workoutId} type="button" className="lc-dia-treino" onClick={() => navigate(`/treino/${x.workoutId}?dia=${escolhido}${x.plano ? `&plano=${encodeURIComponent(x.plano)}` : ''}`)}
+              style={{ backgroundImage: `linear-gradient(to top, var(--cor-destaque) 18%, transparent 70%), url(${fotoDoExercicio(detalhe?.blocos.flatMap((bl) => bl.exercicios).find((e) => !/prancha|mobilidade|alongamento/i.test(e.nome))?.nome ?? x.nome)})` }}>
+              <span className="lc-dia-treino__quando">{quando}{detalhe?.duracao_min ? ` · ${detalhe.duracao_min} min` : ''}</span>
+              <span className="lc-destaque__titulo">{x.nome}</span>
+              <span className="lv-legenda">{n != null ? `${n} exercícios` : x.plano ?? ''}</span>
+            </button>
+          );
+        });
+      })()}
     </main>
   );
 }

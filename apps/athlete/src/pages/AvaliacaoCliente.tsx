@@ -7,6 +7,7 @@ import {
 import { BotaoFixo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
 import { ArrowLeft, CaretRight, ChartLineUp, ClipboardText, Heartbeat, Lock, X } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
+import { useSessao } from '../sessao';
 import { t } from '../vocab';
 import { EscolherFoto } from './Permissoes';
 
@@ -48,6 +49,7 @@ export function PedidosHoje() {
 
 /* ── C-08 · Check-in diário em três toques ──────────────────────────────── */
 export function CheckinDiario() {
+  const primeiro = ((useSessao().sessao?.user.user_metadata?.full_name as string | undefined) ?? '').split(' ')[0];
   const navigate = useNavigate();
   const [sono, setSono] = useState<number | null>(null);
   const [energia, setEnergia] = useState<number | null>(null);
@@ -75,7 +77,7 @@ export function CheckinDiario() {
     <main className="lc-ecra">
       <header className="lc-cabeca">
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Fechar" onClick={() => navigate('/hoje')}><X size={18} aria-hidden /></button>
-        <div style={{ flex: 1 }}><span className="lv-legenda">Check-in de hoje</span><h1 className="lc-cabeca__titulo">Como estás?</h1></div>
+        <div style={{ flex: 1 }}><span className="lv-legenda">Check-in de hoje</span><h1 className="lc-cabeca__titulo">Como estás{primeiro ? `, ${primeiro}` : ''}?</h1></div>
       </header>
       <h2 className="lv-sobretitulo">Dormiste</h2>
       <Escala v={sono} set={setSono} de="Mal" ate="Bem" rotulo="Dormiste" />
