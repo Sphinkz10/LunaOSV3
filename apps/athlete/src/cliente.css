@@ -63,6 +63,11 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
   padding: var(--espaco-20); border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
 }
 .lc-destaque--calmo { background: var(--cor-selecao); color: var(--cor-texto); min-height: 160px; }
+/* C-03 (93:162): a foto à direita e a cor do destaque a cobri-la da esquerda */
+.lc-destaque:not(.lc-destaque--calmo) {
+  background: linear-gradient(to right, var(--cor-destaque) 30%, color-mix(in srgb, var(--cor-destaque) 55%, transparent) 55%, transparent 85%),
+    url('/media/hoje.jpg') right / 66% 100% no-repeat, var(--cor-destaque);
+}
 .lc-destaque__sobre { display: inline-flex; align-items: center; gap: var(--espaco-8); font: 600 13px/1.4 var(--fonte-texto); }
 .lc-destaque__titulo { margin: 0; font: 600 28px/1.1 var(--fonte-titulo); letter-spacing: -0.02em; }
 .lc-destaque__acao { align-self: flex-start; margin-top: var(--espaco-8); }

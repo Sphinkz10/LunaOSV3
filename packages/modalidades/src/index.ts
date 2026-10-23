@@ -44,6 +44,10 @@ export { fitnessV1 };
 
 /** "Novo treino", "Nova sessão", "Nova aula": o adjetivo concorda com o termo do vocabulário. */
 export function novo(palavra: string, opcoes: { plural?: boolean } = {}): string {
-  const feminino = /(a|ção|são|dade|gem)$/i.test(palavra.trim().split(' ')[0]);
-  return `${feminino ? 'Nova' : 'Novo'}${opcoes.plural ? 's' : ''} ${palavra}`;
+  return `${eFeminino(palavra) ? 'Nova' : 'Novo'}${opcoes.plural ? 's' : ''} ${palavra}`;
+}
+
+/** Género do termo, para concordar adjetivos ("Próxima sessão", "Próximo treino"). */
+export function eFeminino(palavra: string): boolean {
+  return /(a|ção|são|dade|gem)$/i.test(palavra.trim().split(' ')[0]);
 }

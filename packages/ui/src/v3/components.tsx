@@ -177,9 +177,9 @@ export function CartaoDestaque({ sobretitulo, titulo, texto, foto, acao }: {
 }
 
 /* ── Atalho redondo ─────────────────────────────────────────────────────── */
-export function Atalho({ icone: Icone, rotulo, onClick }: { icone: IconComponent; rotulo: string; onClick: () => void }) {
+export function Atalho({ icone: Icone, rotulo, onClick, principal }: { icone: IconComponent; rotulo: string; onClick: () => void; principal?: boolean }) {
   return (
-    <button type="button" className="lv-atalho" onClick={onClick}>
+    <button type="button" className={cx('lv-atalho', principal && 'lv-atalho--principal')} onClick={onClick}>
       <span className="lv-atalho__circulo"><Icone size={24} aria-hidden /></span>
       {rotulo}
     </button>
@@ -194,8 +194,8 @@ export function NavegacaoInferior({ itens, estatica }: { itens: NavItem[]; estat
       {!estatica && <div className="lv-esbate-fundo" aria-hidden />}
       <nav className={cx('lv-nav-inferior', estatica && 'lv-nav-inferior--estatica')} aria-label="Navegação principal">
         {itens.map(({ id, rotulo, icone: Icone, ativo, onClick }) => (
-          <button key={id} type="button" className="lv-nav-item" aria-current={ativo ? 'page' : undefined} onClick={onClick}>
-            <Icone size={22} weight={ativo ? 'fill' : 'regular'} aria-hidden />{rotulo}
+          <button key={id} type="button" className="lv-nav-item" aria-current={ativo ? 'page' : undefined} aria-label={rotulo} title={rotulo} onClick={onClick}>
+            <Icone size={22} aria-hidden />
           </button>
         ))}
       </nav>

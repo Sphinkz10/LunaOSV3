@@ -153,13 +153,14 @@
   display: grid; place-items: center; width: var(--altura-atalho); height: var(--altura-atalho);
   border-radius: var(--raio-pilula); background: var(--cor-cartao-suave); color: var(--cor-sobre-cartao-suave);
 }
+.lv-atalho--principal .lv-atalho__circulo { background: var(--cor-acao); color: var(--cor-sobre-acao); }
 
 /* ── Navegação inferior em pílula e botão principal fixo ───────────────── */
 .lv-nav-inferior {
   position: fixed; left: var(--margem-telemovel); right: var(--margem-telemovel); bottom: var(--espaco-16);
   display: flex; justify-content: space-around; align-items: center; height: var(--altura-navegacao);
   border-radius: var(--raio-pilula); background: var(--cor-navegacao); color: var(--cor-sobre-navegacao);
-  z-index: 20;
+  box-shadow: 0 12px 14px color-mix(in srgb, black 25%, transparent); z-index: 20;
 }
 .lv-nav-inferior--estatica { position: static; }
 .lv-nav-item {
@@ -167,7 +168,9 @@
   justify-content: center; background: none; border: 0; color: inherit; opacity: .7;
   font: 600 11px/1.2 var(--fonte-texto); cursor: pointer; text-decoration: none;
 }
-.lv-nav-item[aria-current='page'] { opacity: 1; }
+.lv-nav-item { width: 46px; height: 46px; border-radius: var(--raio-pilula); }
+/* Figma (93:226): só ícones; o destino atual num círculo da cor de ação */
+.lv-nav-item[aria-current='page'] { opacity: 1; background: var(--cor-acao); color: var(--cor-sobre-acao); }
 /* O conteúdo esbate-se por baixo da navegação e do botão: cor do fundo + máscara */
 .lv-esbate-fundo {
   position: fixed; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; z-index: 10;

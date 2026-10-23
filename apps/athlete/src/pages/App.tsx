@@ -1,3 +1,4 @@
+import { eFeminino } from '@luna/modalidades';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -166,7 +167,7 @@ export function HojeCliente() {
             <PedidosHoje />
 
             <div className="lc-atalhos">
-              <Atalho icone={CalendarBlank} rotulo="Marcar" onClick={() => navigate('/aulas')} />
+              <Atalho icone={CalendarBlank} rotulo="Marcar" principal onClick={() => navigate('/aulas')} />
               <Atalho icone={Barbell} rotulo="Treino" onClick={() => navigate('/treino')} />
               <Atalho icone={ChartLineUp} rotulo="Medidas" onClick={() => navigate('/progresso')} />
             </div>
@@ -177,8 +178,8 @@ export function HojeCliente() {
                 <span className="lv-numero-grande">{hoje.feitosSemana}</span>
                 <span className="lv-legenda">treinos feitos</span>
               </section>
-              <section className="lc-cartao lc-cartao--quente" aria-label={`Próxima ${t('sessao')}`}>
-                <span className="lc-cartao__rotulo"><CalendarBlank size={14} aria-hidden />Próxima {t('sessao')}</span>
+              <section className="lc-cartao lc-cartao--quente" aria-label={`${eFeminino(t('sessao')) ? 'Próxima' : 'Próximo'} ${t('sessao')}`}>
+                <span className="lc-cartao__rotulo"><CalendarBlank size={14} aria-hidden />{eFeminino(t('sessao')) ? 'Próxima' : 'Próximo'} {t('sessao')}</span>
                 {proxima ? (
                   <>
                     <span className="lv-numero-grande">{proxima.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
