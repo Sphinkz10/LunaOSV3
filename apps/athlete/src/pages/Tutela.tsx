@@ -26,13 +26,19 @@ export function Tutela() {
   if (aCarregarSessao) return null;
   if (!sessao) {
     return (
-      <Passo titulo="Autorizar como encarregado"
-        acao={<>
-          <Botao fixo onClick={() => navigate('/entrar')}>Entrar com a minha conta</Botao>
+      // C-25 (Figma 97:206): o pedido chega com a foto e o porquê; entrar leva a autorizar
+      <main className="lc-passo">
+        <section className="lc-boasvindas">
+          <span className="lc-boasvindas__selo">Pedido de autorização</span>
+          <h1 className="lc-boasvindas__titulo">O teu educando quer inscrever-se.</h1>
+          <p style={{ margin: 0 }}>Como é menor, precisamos de ti.</p>
+        </section>
+        <Nota>Para autorizar precisas da tua própria conta, separada da dele. Assinas como encarregado e, se quiseres, como pagador.</Nota>
+        <div className="lc-passo__acao">
+          <Botao fixo onClick={() => navigate('/entrar')}>Ver e autorizar</Botao>
           <Botao variante="secundario" fixo onClick={() => navigate('/criar-conta')}>Criar conta</Botao>
-        </>}>
-        <Nota>O teu educando pediu-te para autorizar a inscrição. Para isso precisas da tua própria conta, separada da dele.</Nota>
-      </Passo>
+        </div>
+      </main>
     );
   }
 
