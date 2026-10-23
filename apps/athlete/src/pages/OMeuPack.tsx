@@ -25,7 +25,7 @@ export function OMeuPack() {
     <main className="lc-ecra">
       <header className="lc-cabeca">
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Voltar" onClick={() => navigate('/eu')}><ArrowLeft size={18} aria-hidden /></button>
-        <div style={{ flex: 1 }}><span className="lv-legenda">Eu</span><h1 className="lc-cabeca__titulo">O meu pack</h1></div>
+        <div style={{ flex: 1 }}><h1 className="lc-cabeca__titulo">Plano e pagamentos</h1></div>
       </header>
       {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} /> : !d ? <Esqueleto /> : d.itens.length === 0 && d.pagamentos.length === 0
         ? <EstadoPagina tipo="vazio" icone={Wallet} titulo="Ainda nada" texto={`Quando o teu ${t('responsavel')} te vender um pack ou uma mensalidade, aparece aqui.`} />
