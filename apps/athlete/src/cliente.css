@@ -174,3 +174,17 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
 .lc-opcao[aria-checked="true"] { border-color: var(--cor-texto); box-shadow: 0 0 0 1px var(--cor-texto); }
 .lc-opcao:disabled { opacity: .5; cursor: default; }
 .lc-codigo { min-height: 64px; text-align: center; font: 700 28px/1 var(--fonte-titulo); letter-spacing: .12em; }
+
+/* ── C-16 Progresso (Figma 93:396) ─────────────────────────────────────── */
+.lc-segmento { display: grid; grid-template-columns: repeat(3, 1fr); padding: 5px; border-radius: var(--raio-pilula); background: var(--cor-superficie); border: 1px solid var(--cor-linha); }
+.lc-segmento button { min-height: 34px; border: 0; border-radius: var(--raio-pilula); background: none; color: var(--cor-texto); font: 600 13px/1.4 var(--fonte-texto); cursor: pointer; }
+.lc-segmento button[aria-checked='true'] { background: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lc-prog { display: flex; flex-direction: column; gap: var(--espaco-8); padding: 16px; border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque); }
+.lc-prog__rotulo { font: 600 12px/1.4 var(--fonte-texto); }
+.lc-prog__linha { display: flex; justify-content: space-between; align-items: center; }
+.lc-prog__numero { font: 600 40px/1.1 var(--fonte-titulo); letter-spacing: -0.02em; }
+.lc-prog__unidade { margin-left: 2px; font: 600 13px/1 var(--fonte-texto); }
+.lc-prog__ganho { font: 600 12px/1.4 var(--fonte-texto); }
+.lc-prog__grafico { width: 100%; height: 56px; }
+.lc-anel { display: flex; align-items: center; gap: var(--espaco-12); color: var(--cor-principal); }
+.lc-anel .lv-numero-grande { color: var(--cor-texto); }

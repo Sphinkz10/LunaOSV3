@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   cancelarApagarConta, definirConsentimentoAnalise, fetchConversas, fetchTreinoSolo, temPlanoSolo, type MeuTreino, definirPartilhas, fetchConsentimentoAnalise, fetchMeusAvisos, guardarMeusAvisos, type MeusAvisos, exportarMeusDados, fetchMeuHoje, fetchMinhasLigacoes, fetchNotificacoes, fetchPedidoApagar,
-  assiduidade, fetchHistorico, fetchMeusObjetivos, fetchRecordes, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
-  type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type Recorde, type TreinoHistorico, type MinhaLigacao, type Notificacao,
+  fetchHistorico, fetchMeusObjetivos, fetchMinhasMedidas, fetchSerie1RM, marcarLidas, sincronizarTreinos, treinosPorEnviar, useRede, minhaConta, pedirApagarConta, toast,
+  type CategoriaPartilha, type MeuHoje, type MeuObjetivo, type MinhaConta, type MinhaMedida, type Ponto1RM, type TreinoHistorico, type MinhaLigacao, type Notificacao,
 } from '@luna/core';
 import {
   Atalho, Avatar, Botao, ConfirmarDestrutivo, Esqueleto, EstadoPagina, Interruptor, NavegacaoInferior, Nota, Tema, type TemaId,
@@ -208,46 +208,101 @@ export function PorChegar({ titulo, texto }: { titulo: string; texto: string }) 
 
 /* ── Progresso (F1a: os objetivos e marcos do treinador, só para leitura) ── */
 const ESTADO_OBJ: Record<string, string> = { no_caminho: 'No caminho', em_risco: 'Em risco', atingido: 'Atingido', parado: 'Parado' };
+type Periodo = 'semana' | '8semanas' | 'ano';
+const DIAS_PERIODO: Record<Periodo, number> = { semana: 7, '8semanas': 56, ano: 365 };
+
+/** C-16 (Figma 93:396): um número grande de cada vez, com o gráfico logo por baixo. */
 export function ProgressoCliente() {
   const [lista, setLista] = useState<MeuObjetivo[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [recordes, setRecordes] = useState<Recorde[] | null>(null);
   const [historico, setHistorico] = useState<TreinoHistorico[] | null>(null);
+  const [periodo, setPeriodo] = useState<Periodo>('8semanas');
+  const [serie, setSerie] = useState<Ponto1RM[] | null>(null);
+  const [medidas, setMedidas] = useState<MinhaMedida[] | null>(null);
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
     if (!client) return;
     void fetchMeusObjetivos(client).then(setLista).catch((e) => setErro(e instanceof Error ? e.message : 'Erro'));
-    void fetchRecordes(client).then(setRecordes).catch(() => setRecordes([]));
     void fetchHistorico(client).then(setHistorico).catch(() => setHistorico([]));
+    void fetchMinhasMedidas(client).then(setMedidas).catch(() => setMedidas([]));
   }, []);
-  const semanas = historico ? assiduidade(historico) : null;
-  const ordenados = recordes ? [...recordes].sort((a, b) => b.carga - a.carga) : [];
   useEffect(() => carregar(), [carregar]);
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (client) void fetchSerie1RM(client, DIAS_PERIODO[periodo]).then(setSerie).catch(() => setSerie([]));
+  }, [periodo]);
+
+  // O exercício com mais registos no período é o que aparece em destaque
+  const porEx = new Map<string, Ponto1RM[]>();
+  for (const p of serie ?? []) porEx.set(p.exercicio, [...(porEx.get(p.exercicio) ?? []), p]);
+  const destaque = [...porEx.entries()].sort((x, y) => y[1].length - x[1].length || Math.max(...y[1].map((p) => p.rm)) - Math.max(...x[1].map((p) => p.rm)))[0];
+  const exercicio = destaque?.[0] ?? null;
+  const pontos = destaque?.[1] ?? [];
+  const ultimo = pontos.at(-1)?.rm ?? null;
+  const ganho = pontos.length > 1 ? Math.round((pontos[pontos.length - 1].rm - pontos[0].rm) * 10) / 10 : null;
+
+  const desde = Date.now() - DIAS_PERIODO[periodo] * 86_400_000;
+  const feitos = historico ? historico.filter((h) => Date.parse(h.em) >= desde).length : null;
+  const semanas = Math.max(1, Math.round(DIAS_PERIODO[periodo] / 7));
+  const porSemana = historico && historico.length ? Math.max(1, Math.round(historico.filter((h) => Date.parse(h.em) >= Date.now() - 56 * 86_400_000).length / 8)) : 1;
+  const previstos = feitos != null ? Math.max(feitos, semanas * porSemana) : null;
+  const pct = feitos != null && previstos ? Math.round((feitos / previstos) * 100) : null;
+
+  const chaveMedida = medidas?.some((m) => m.chave === 'massa_muscular') ? 'massa_muscular' : 'peso';
+  const daMedida = (medidas ?? []).filter((m) => m.chave === chaveMedida);
+  const medida = daMedida.at(-1);
+  const mudou = daMedida.length > 1 ? Math.round((daMedida[daMedida.length - 1].valor - daMedida[0].valor) * 10) / 10 : null;
+  const num = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
   return (
     <main className="lc-ecra">
       <Cabeca sobre="A tua evolução" titulo="Progresso" />
+      <div className="lc-segmento" role="radiogroup" aria-label="Período">
+        {([['semana', 'Semana'], ['8semanas', '8 semanas'], ['ano', 'Ano']] as const).map(([v, r]) => (
+          <button key={v} type="button" role="radio" aria-checked={periodo === v} onClick={() => setPeriodo(v)}>{r}</button>
+        ))}
+      </div>
+      <section className="lc-prog" aria-label="Evolução da força">
+        {exercicio && ultimo != null ? (
+          <>
+            <span className="lc-prog__rotulo">{exercicio} · 1RM estimado</span>
+            <span className="lc-prog__linha">
+              <span><span className="lc-prog__numero">{num(ultimo)}</span><span className="lc-prog__unidade">kg</span></span>
+              {ganho != null && ganho !== 0 && <span className="lc-prog__ganho">{ganho > 0 ? '+' : ''}{num(ganho)} kg</span>}
+            </span>
+            <Linha valores={pontos.map((p) => p.rm)} />
+          </>
+        ) : (
+          <>
+            <span className="lc-prog__rotulo">Força · 1RM estimado</span>
+            <span className="lv-legenda">Regista a carga e as repetições nos treinos para veres a tua força a subir.</span>
+          </>
+        )}
+      </section>
       <div className="lc-par">
         <section className="lc-cartao lc-cartao--claro" aria-label="Assiduidade">
           <span className="lc-cartao__rotulo">Assiduidade</span>
-          <span className="lv-numero-grande">{semanas ? semanas.slice(-4).reduce((x, y) => x + y, 0) : '…'}</span>
-          <span className="lv-legenda">treinos nas últimas 4 semanas</span>
-          {semanas && <span className="lc-barras" aria-hidden>{semanas.map((v, k) => <i key={k} style={{ height: 4 + v * 8 }} />)}</span>}
+          <span className="lc-anel">
+            <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden>
+              <circle cx="26" cy="26" r="22" fill="none" stroke="currentColor" strokeOpacity=".15" strokeWidth="6" />
+              <circle cx="26" cy="26" r="22" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"
+                strokeDasharray={`${((pct ?? 0) / 100) * 138.2} 138.2`} transform="rotate(-90 26 26)" />
+            </svg>
+            <span><span className="lv-numero-grande">{pct ?? '…'}</span><span className="lc-prog__unidade">%</span></span>
+          </span>
+          <span className="lv-legenda">{feitos != null && previstos != null ? `${feitos} de ${previstos} ${t('sessao', { plural: true })}` : ''}</span>
         </section>
-        <section className="lc-cartao lc-cartao--quente" aria-label="Recorde">
-          <span className="lc-cartao__rotulo">Melhor recorde</span>
-          {ordenados[0] ? <><span className="lv-numero-grande">{ordenados[0].carga}</span><span className="lv-legenda">kg · {ordenados[0].exercicio}</span></> : <span className="lv-legenda">Ainda sem recordes</span>}
+        <section className="lc-cartao lc-cartao--quente" aria-label={chaveMedida === 'peso' ? 'Peso' : 'Músculo'}>
+          <span className="lc-cartao__rotulo">{chaveMedida === 'peso' ? 'Peso' : 'Músculo'}</span>
+          {medida ? (
+            <>
+              <span><span className="lv-numero-grande">{num(medida.valor)}</span><span className="lc-prog__unidade">{medida.unidade ?? 'kg'}</span></span>
+              {mudou != null && <span className="lv-legenda">{mudou > 0 ? '+' : ''}{num(mudou)} {medida.unidade ?? 'kg'} desde {new Date(daMedida[0].em).toLocaleDateString('pt-PT', { month: 'long' })}</span>}
+              <span className="lv-legenda" style={{ marginTop: 'auto' }}>Medido a {new Date(medida.em).getDate()} {new Date(medida.em).toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '')}</span>
+            </>
+          ) : <span className="lv-legenda">Ainda sem medidas. Chegam com a avaliação.</span>}
         </section>
       </div>
-      {ordenados.length > 0 && (
-        <section className="lc-lista" aria-label="Recordes">
-          {ordenados.slice(0, 8).map((r) => (
-            <div key={r.exercicio} className="lc-lista__linha">
-              <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{r.exercicio}</span><span className="lv-legenda">{new Date(r.em).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}</span></span>
-              <b>{r.carga} kg{r.reps ? ` × ${r.reps}` : ''}</b>
-            </div>
-          ))}
-        </section>
-      )}
       <AvaliacoesProgresso />
       {historico && historico.length > 0 && (
         <section className="lc-grupo" aria-label="Histórico de treinos">
@@ -276,7 +331,6 @@ export function ProgressoCliente() {
             ))}
           </section>
         ))}
-      <Nota>Medidas, fotos e avaliações chegam com a avaliação.</Nota>
     </main>
   );
 }
@@ -598,5 +652,21 @@ export function AnaliseAnonima() {
         <Interruptor rotulo="Ajudar a melhorar a LunaOS" ligado={sim} onMudar={mudar} />
       </div>
     </section>
+  );
+}
+
+/** Linha simples do gráfico (Figma 93:421): área suave e o último ponto marcado. */
+function Linha({ valores }: { valores: number[] }) {
+  if (valores.length < 2) return null;
+  const w = 230; const h = 56; const min = Math.min(...valores); const max = Math.max(...valores); const d = max - min || 1;
+  const pts = valores.map((v, i) => [(i / (valores.length - 1)) * w, h - 6 - ((v - min) / d) * (h - 12)] as const);
+  const linha = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg className="lc-prog__grafico" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
+      <polygon points={`0,${h} ${linha} ${w},${h}`} fill="currentColor" fillOpacity=".12" />
+      <polyline points={linha} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={lx} cy={ly} r="4" fill="currentColor" />
+    </svg>
   );
 }

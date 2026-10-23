@@ -112,3 +112,19 @@ export function recordesNovos(t: TreinoFeito, antes: Recorde[]): { exercicio: st
     return melhor > anterior ? [{ exercicio: e.nome, carga: melhor }] : [];
   });
 }
+
+/** C-16: o 1RM estimado por sessão de cada exercício nos últimos dias (mais antigo primeiro). */
+export interface Ponto1RM { exercicio: string; dia: string; rm: number }
+export async function fetchSerie1RM(client: LunaClient, dias = 56): Promise<Ponto1RM[]> {
+  const { data, error } = await (client.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: Ponto1RM[] | null; error: { message: string } | null }>)('my_1rm_series', { _dias: dias });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((p) => ({ ...p, rm: Number(p.rm) }));
+}
+
+/** C-16: as medidas da própria pessoa (peso, massa muscular…), mais antigas primeiro. */
+export interface MinhaMedida { chave: string; valor: number; unidade: string | null; em: string }
+export async function fetchMinhasMedidas(client: LunaClient): Promise<MinhaMedida[]> {
+  const { data, error } = await client.from('measurements').select('metric_key,value,unit,recorded_at').not('value', 'is', null).order('recorded_at', { ascending: true }).limit(200);
+  if (error) throw error;
+  return (data ?? []).map((m) => ({ chave: m.metric_key, valor: Number(m.value), unidade: m.unit, em: m.recorded_at }));
+}

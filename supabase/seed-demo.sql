@@ -75,6 +75,15 @@ begin
            now() - (k * 3 || ' days')::interval, now() - (k * 3 || ' days')::interval + interval '52 minutes', 3120
     from public.links l cross join generate_series(1, 4) k where l.id = any(v_links[1:3]);
 
+  -- Cargas registadas pela Joana (o Progresso mostra a força a subir)
+  insert into public.session_exercises (session_id, exercise_id, position, target_sets)
+    select s.id, (select id from public.exercises where org_id = o_rui and name = 'Agachamento com barra'), 0, 3
+    from public.sessions s where s.link_id = v_links[1];
+  insert into public.session_sets (session_id, session_exercise_id, set_index, reps, load_kg, rpe)
+    select se.session_id, se.id, k, 6, 70 + 2.5 * row_number() over (order by s.started_at), 7
+    from public.session_exercises se join public.sessions s on s.id = se.session_id
+    cross join generate_series(1, 3) k where s.link_id = v_links[1];
+
   -- ---------- Packs, mensalidade e pagamentos ----------
   insert into public.pack_products (org_id, name, sessions, validity_days, price_cents) values
     (o_rui, 'Pack 10 sessões', 10, 90, 35000) returning id into v_pack;
