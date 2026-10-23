@@ -7,6 +7,7 @@ import {
 import { Botao, BotaoFixo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
 import { ArrowLeft, CaretRight, Check, Clock, Pause, Play, WifiSlash, X } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
+import { useSessao } from '../sessao';
 import { t } from '../vocab';
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -142,6 +143,7 @@ export function TreinoEmCurso() {
   const [alternativa, setAlternativa] = useState(false);
   const [fim, setFim] = useState(false);
   const [recordes, setRecordes] = useState<Recorde[]>([]);
+  const primeiro = ((useSessao().sessao?.user.user_metadata?.full_name as string | undefined) ?? '').split(' ')[0];
   const lista: ExercicioDoTreino[] = useMemo(() => tr?.blocos.flatMap((b) => b.exercicios) ?? [], [tr]);
 
   useEffect(() => {
@@ -199,7 +201,7 @@ export function TreinoEmCurso() {
       <main className="lc-ecra">
         <header className="lc-cabeca">
           <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Voltar ao treino" onClick={() => setFim(false)}><X size={18} aria-hidden /></button>
-          <div><span className="lv-legenda">{tr.nome} · {Math.max(1, Math.round((Date.now() - Date.parse(feito.started_at)) / 60000))} min</span><h1 className="lc-cabeca__titulo">Muito bem!</h1></div>
+          <div><span className="lv-legenda">{tr.nome} · {Math.max(1, Math.round((Date.now() - Date.parse(feito.started_at)) / 60000))} min</span><h1 className="lc-cabeca__titulo">Muito bem{primeiro ? `, ${primeiro}` : ''}!</h1></div>
         </header>
         <div className="lc-par">
           <section className="lc-cartao lc-cartao--claro"><span className="lc-cartao__rotulo">Séries</span><span className="lv-numero-grande">{todas}/{previstas}</span></section>
