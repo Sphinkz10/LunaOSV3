@@ -13,7 +13,7 @@ declare
   m_rui uuid;
   v_nomes text[] := array['Joana Reis','Miguel Faria','Sofia Antunes','Pedro Lopes','Rita Gomes','Hugo Matos','Beatriz Sousa','Nuno Alves'];
   v_links uuid[] := '{}'; v_link uuid; v_ex uuid[]; v_wk uuid; v_wk2 uuid; v_plan uuid;
-  v_pack uuid; v_mensal uuid; v_vendido uuid; v_conv uuid; i int;
+  v_bloco uuid; v_pack uuid; v_mensal uuid; v_vendido uuid; v_conv uuid; i int;
 begin
   if current_setting('app.environment', true) = 'production' then raise exception 'só para desenvolvimento'; end if;
   if exists (select 1 from auth.users where id = u_joana) then return; end if;
@@ -44,18 +44,33 @@ begin
     (o_rui, 'Press militar', 'forca', '{ombros}'),
     (o_rui, 'Prancha', 'mobilidade', '{core}');
   select array_agg(id order by name) into v_ex from public.exercises where org_id = o_rui;
+  -- Treinos por blocos, como no Figma (C-09): aquecimento em circuito e força em superset
+  -- v_ex por nome: 1 Agachamento, 2 Peso morto, 3 Prancha, 4 Press militar, 5 Remada, 6 Supino
   insert into public.workouts (org_id, name, est_duration_min) values (o_rui, 'Força · Dia A', 55) returning id into v_wk;
-  insert into public.workout_exercises (org_id, workout_id, exercise_id, position, target_sets, target_reps, rest_seconds)
-    select o_rui, v_wk, v_ex[k], k, 4, '8-10', 90 from generate_series(1, 4) k;
+  insert into public.workout_blocks (org_id, workout_id, position, label, mode, rounds) values (o_rui, v_wk, 0, 'Aquecimento', 'circuito', 2) returning id into v_bloco;
+  insert into public.workout_exercises (org_id, workout_id, block_id, exercise_id, position, target_sets, target_reps, rest_seconds)
+    values (o_rui, v_wk, v_bloco, v_ex[3], 0, 2, '30 s', 30);
+  insert into public.workout_blocks (org_id, workout_id, position, label, mode, rounds) values (o_rui, v_wk, 1, 'Força', 'superset', 4) returning id into v_bloco;
+  insert into public.workout_exercises (org_id, workout_id, block_id, exercise_id, position, target_sets, target_reps, target_load, rest_seconds)
+    values (o_rui, v_wk, v_bloco, v_ex[1], 1, 4, '6', '75% 1RM', 90), (o_rui, v_wk, v_bloco, v_ex[5], 2, 4, '8', 'RPE 8', 90),
+           (o_rui, v_wk, v_bloco, v_ex[4], 3, 3, '10', '', 60);
   insert into public.workouts (org_id, name, est_duration_min) values (o_rui, 'Força · Dia B', 50) returning id into v_wk2;
-  insert into public.workout_exercises (org_id, workout_id, exercise_id, position, target_sets, target_reps, rest_seconds)
-    select o_rui, v_wk2, v_ex[k], k - 2, 3, '10-12', 75 from generate_series(3, 6) k;
+  insert into public.workout_blocks (org_id, workout_id, position, label, mode, rounds) values (o_rui, v_wk2, 0, 'Aquecimento', 'circuito', 2) returning id into v_bloco;
+  insert into public.workout_exercises (org_id, workout_id, block_id, exercise_id, position, target_sets, target_reps, rest_seconds)
+    values (o_rui, v_wk2, v_bloco, v_ex[3], 0, 2, '30 s', 30);
+  insert into public.workout_blocks (org_id, workout_id, position, label, mode) values (o_rui, v_wk2, 1, 'Força', 'normal') returning id into v_bloco;
+  insert into public.workout_exercises (org_id, workout_id, block_id, exercise_id, position, target_sets, target_reps, target_load, rest_seconds)
+    values (o_rui, v_wk2, v_bloco, v_ex[2], 1, 4, '8', '70% 1RM', 90), (o_rui, v_wk2, v_bloco, v_ex[6], 2, 4, '8', 'RPE 8', 90);
   insert into public.plans (org_id, name, duration_weeks, goals) values (o_rui, 'Força base · 8 semanas', 8, 'Ganhar força e técnica')
     returning id into v_plan;
-  insert into public.plan_workouts (org_id, plan_id, workout_id, week, weekday) values
-    (o_rui, v_plan, v_wk, 1, 1), (o_rui, v_plan, v_wk2, 1, 3), (o_rui, v_plan, v_wk, 1, 5);
-  insert into public.assignments (org_id, target, link_id, plan_id, status, starts_on, assigned_by)
-    select o_rui, 'client', l, v_plan, 'active', current_date - 14, m_rui from unnest(v_links[1:5]) l;
+  -- As 8 semanas do plano, com treino 3 vezes por semana (seg, qua, sex)
+  insert into public.plan_workouts (org_id, plan_id, workout_id, week, weekday)
+    select o_rui, v_plan, case when d = 3 then v_wk2 else v_wk end, w, d
+    from generate_series(1, 8) w cross join unnest(array[1, 3, 5]) d;
+  -- Publicar e atribuir como na Gestão (G-19): o cliente vê a versão publicada
+  perform public.publish_workout(v_wk);
+  perform public.publish_workout(v_wk2);
+  perform public.assign_version(o_rui, v_links[1:5], null, public.publish_plan(v_plan), current_date - 14);
   update public.links set current_plan_id = v_plan where id = any(v_links[1:5]);
 
   -- ---------- Agenda de hoje e da semana ----------

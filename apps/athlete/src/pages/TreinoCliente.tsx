@@ -5,7 +5,7 @@ import {
   useRede, type DiaDaSemana, type ExercicioDoTreino, type MeuTreino, type Recorde, type SerieFeita, type TreinoFeito,
 } from '@luna/core';
 import { Botao, BotaoFixo, Esqueleto, EstadoPagina, Nota } from '@luna/ui/v3';
-import { ArrowLeft, Barbell, Check, Clock, Pause, Play, WifiSlash, X } from '@luna/icons';
+import { ArrowLeft, Barbell, CaretRight, Check, Clock, Pause, Play, WifiSlash, X } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { t } from '../vocab';
 
@@ -59,7 +59,7 @@ export function TreinoSemana() {
               <span className="lc-semana__dia"><b>{DIAS[d.getDay()]}</b><span className="lv-legenda">{d.getDate()}</span></span>
               <span className="lv-linha-lista__corpo">
                 {ts.length ? ts.map((x) => (
-                  <button key={x.workoutId} type="button" className="lc-link" onClick={() => navigate(`/treino/${x.workoutId}?dia=${iso}`)}>{x.nome}</button>
+                  <button key={x.workoutId} type="button" className="lc-link" onClick={() => navigate(`/treino/${x.workoutId}?dia=${iso}${x.plano ? `&plano=${encodeURIComponent(x.plano)}` : ''}`)}>{x.nome}</button>
                 )) : <span className="lv-legenda">Descanso</span>}
                 {ts[0]?.plano && <span className="lv-legenda">{ts[0].plano}</span>}
               </span>
@@ -73,6 +73,7 @@ export function TreinoSemana() {
 
 export function TreinoAntevisao() {
   const { id = '' } = useParams<{ id: string }>();
+  const plano = new URLSearchParams(window.location.search).get('plano');
   const navigate = useNavigate();
   const [tr, setTr] = useState<MeuTreino | null | undefined>(undefined);
   useEffect(() => {
@@ -85,18 +86,21 @@ export function TreinoAntevisao() {
   if (tr === undefined) return <main className="lc-ecra"><Esqueleto /></main>;
   if (!tr) return <main className="lc-ecra"><EstadoPagina tipo="vazio" titulo="Treino não encontrado" texto={`Fala com o teu ${t('responsavel')}.`} acao={{ rotulo: 'Voltar', onClick: () => navigate('/treino') }} /></main>;
   const n = tr.blocos.reduce((s, b) => s + b.exercicios.length, 0);
-  const material = [...new Set(tr.blocos.flatMap((b) => b.exercicios.map((e) => e.carga).filter(Boolean)))];
   const trocas = tr.blocos.flatMap((b) => b.exercicios.filter((e) => e.trocado_de));
   return (
-    <main className="lc-ecra">
-      <header className="lc-cabeca">
+    <main className="lc-ecra lc-ecra--capa">
+      {/* C-09 (Figma 93:250): foto em cima com voltar por cima */}
+      <div className="lc-capa" style={{ backgroundImage: `url(${fotoDoExercicio(tr.blocos.flatMap((b) => b.exercicios).find((e) => !/prancha|mobilidade|alongamento/i.test(e.nome))?.nome ?? tr.nome)})` }}>
         <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label="Voltar" onClick={() => navigate('/treino')}><ArrowLeft size={18} aria-hidden /></button>
-        <div style={{ flex: 1 }}><span className="lv-legenda">Versão {tr.versao}</span><h1 className="lc-cabeca__titulo">{tr.nome}</h1></div>
+      </div>
+      <header>
+        <h1 className="lc-cabeca__titulo">{tr.nome}</h1>
+        <span className="lv-legenda">{plano ? `${plano} · ` : ''}versão {tr.versao}</span>
       </header>
       <div className="lc-par lc-tres">
-        <section className="lc-cartao"><span className="lv-numero-grande">{tr.duracao_min ?? '—'}</span><span className="lv-legenda">min</span></section>
-        <section className="lc-cartao"><span className="lv-numero-grande">{n}</span><span className="lv-legenda">exercícios</span></section>
-        <section className="lc-cartao"><span className="lv-numero-grande">{tr.blocos.length}</span><span className="lv-legenda">blocos</span></section>
+        <section className="lc-resumo"><b>{tr.duracao_min ? `${tr.duracao_min} min` : '—'}</b><span className="lv-legenda">duração</span></section>
+        <section className="lc-resumo"><b>{n}</b><span className="lv-legenda">exercícios</span></section>
+        <section className="lc-resumo"><b>{tr.blocos.length}</b><span className="lv-legenda">blocos</span></section>
       </div>
       {trocas.length > 0 && <Nota>O teu {t('responsavel')} adaptou {trocas.length === 1 ? 'um exercício' : `${trocas.length} exercícios`} para ti.</Nota>}
       {tr.blocos.map((b, i) => (
@@ -104,16 +108,16 @@ export function TreinoAntevisao() {
           <h2 className="lv-sobretitulo"><span className="lc-letra">{String.fromCharCode(65 + i)}</span>{b.rotulo}{MODO[b.modo] ? ` · ${MODO[b.modo]}` : ''}{b.voltas ? ` · ${b.voltas} voltas` : ''}</h2>
           {b.exercicios.map((e, k) => (
             <div key={k} className="lc-lista__linha lc-exercicio">
-              <span className="lc-lista__icone"><Barbell size={18} aria-hidden /></span>
+              <img className="lc-exercicio__foto" src={fotoDoExercicio(e.nome)} alt="" />
               <span className="lv-linha-lista__corpo">
                 <span className="lv-linha-lista__titulo">{e.nome}</span>
-                <span className="lv-legenda">{[e.series && `${e.series} ×`, e.reps, e.carga].filter(Boolean).join(' ')}{e.rpe ? ` · RPE ${e.rpe}` : ''}</span>
+                <span className="lv-legenda">{[[e.series, e.reps].filter(Boolean).join(' × '), e.carga, e.rpe ? `RPE ${e.rpe}` : null].filter(Boolean).join(' · ')}</span>
               </span>
+              <CaretRight size={18} aria-hidden />
             </div>
           ))}
         </section>
       ))}
-      {material.length > 0 && <p className="lv-legenda">Carga prevista: {material.join(', ')}</p>}
       <BotaoFixo icone={Play} onClick={() => navigate(`/treino/${tr.workout_id}/agora`)}>Começar treino</BotaoFixo>
     </main>
   );
@@ -268,4 +272,15 @@ export function TreinoEmCurso() {
       <BotaoFixo icone={Check} onClick={registar}>Registar série {n + 1}</BotaoFixo>
     </main>
   );
+}
+
+/** Foto provisória do Figma (DS-03) pelo nome do exercício, enquanto não há imagem própria. */
+export function fotoDoExercicio(nome: string): string {
+  const n = nome.toLocaleLowerCase('pt-PT');
+  if (/kettlebell|swing|balanço/.test(n)) return '/media/ex-kettlebell.jpg';
+  if (/elástico|elastico|concha/.test(n)) return '/media/ex-elastico.jpg';
+  if (/remada|supino|press|curl|haltere|tríceps/.test(n)) return '/media/ex-halteres.jpg';
+  if (/prancha|mobilidade|alongamento|abertura|dead bug|equilíbrio/.test(n)) return '/media/ex-mobilidade.jpg';
+  if (/bicicleta|corrida|remo erg|burpee|passadeira/.test(n)) return '/media/ex-cardio.jpg';
+  return '/media/ex-forca.jpg';
 }
