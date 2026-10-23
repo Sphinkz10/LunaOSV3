@@ -121,6 +121,10 @@ begin
   v_conv := public.open_client_conversation(v_links[2]);
   perform public.send_message(gen_random_uuid(), v_conv, 'Miguel, consegues passar a sessão de quinta para as 9h?');
 
+  -- ---------- Objetivo da Joana (C-21, C-16) ----------
+  insert into public.goals (org_id, link_id, title, criterion, owner_membership_id, status_note)
+    values (o_rui, v_links[1], 'Força', '3 treinos por semana', m_rui, '1RM do agachamento a subir');
+
   -- ---------- Medidas para o progresso ----------
   insert into public.measurements (person_id, org_id, metric_key, value, unit, recorded_at)
     select l.person_id, o_rui, 'peso', 72 - k * 0.6, 'kg', now() - ((6 - k) * 7 || ' days')::interval

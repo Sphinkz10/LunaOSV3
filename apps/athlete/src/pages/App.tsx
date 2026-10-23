@@ -384,24 +384,31 @@ export function AvisosCliente() {
 }
 
 /* ── C-21 Eu ───────────────────────────────────────────────────────────── */
+/** C-21 (Figma 85:100): a conta em 4 linhas, com o objetivo e o mês em cima. */
 export function EuCliente() {
   const navigate = useNavigate();
   const conta = useConta();
   const [ligacoes, setLigacoes] = useState<MinhaLigacao[] | null>(null);
-  const [hoje, setHoje] = useState<MeuHoje | null>(null);
+  const [objetivos, setObjetivos] = useState<MeuObjetivo[] | null>(null);
+  const [historico, setHistorico] = useState<TreinoHistorico[] | null>(null);
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
     void fetchMinhasLigacoes(client).then(setLigacoes).catch(() => setLigacoes([]));
-    void fetchMeuHoje(client).then(setHoje).catch(() => setHoje(null));
+    void fetchMeusObjetivos(client).then(setObjetivos).catch(() => setObjetivos([]));
+    void fetchHistorico(client).then(setHistorico).catch(() => setHistorico([]));
   }, []);
   const sair = async () => { await getSupabaseClient()?.auth.signOut(); navigate('/entrar'); };
   const veem = ligacoes?.length ?? 0;
+  const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
+  const doMes = historico?.filter((h) => Date.parse(h.em) >= inicioMes.getTime()).length;
+  const objetivo = objetivos?.find((o) => o.estado !== 'atingido') ?? objetivos?.[0];
+  const desde = ligacoes?.length ? ligacoes.map((l) => l.desde).sort()[0] : null;
   const linhas: { icone: typeof Gear; titulo: string; sub: string; to: string }[] = [
+    { icone: Wallet, titulo: 'Plano e pagamentos', sub: 'Pack, sessões que faltam e pagamentos', to: '/eu/pack' },
     { icone: ShieldCheck, titulo: 'Privacidade e partilha', sub: ligacoes ? `${veem} ${veem === 1 ? 'organização vê' : 'organizações veem'} dados teus` : '…', to: '/eu/privacidade' },
-    { icone: Wallet, titulo: 'O meu pack', sub: 'Sessões que faltam e pagamentos', to: '/eu/pack' },
     { icone: UserCircle, titulo: `Ligar a um ${t('responsavel')}`, sub: 'Código, QR ou convite', to: '/eu/treinador' },
-    { icone: Gear, titulo: 'Definições', sub: 'Tema e consentimentos', to: '/eu/definicoes' },
+    { icone: Gear, titulo: 'Definições', sub: 'Notificações, tema e consentimentos', to: '/eu/definicoes' },
   ];
   return (
     <main className="lc-ecra">
@@ -409,19 +416,19 @@ export function EuCliente() {
         <Avatar nome={conta?.nome ?? '?'} tamanho={64} />
         <div style={{ minWidth: 0 }}>
           <h1 className="lc-cabeca__titulo">{conta?.nome ?? ' '}</h1>
-          {ligacoes?.[0] && <span className="lv-legenda">{ligacoes[0].responsavel ? `Com ${ligacoes[0].responsavel} · ` : ''}{ligacoes[0].org}</span>}
+          {desde && <span className="lv-legenda">{t('pessoa', { maiuscula: true })} desde {new Date(desde).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</span>}
         </div>
       </header>
       <div className="lc-par">
-        <section className="lc-cartao lc-cartao--claro" aria-label="Organizações">
-          <span className="lc-cartao__rotulo">Ligado a</span>
-          <span className="lv-numero-grande">{ligacoes?.length ?? '…'}</span>
-          <span className="lv-legenda">{ligacoes?.length === 1 ? 'organização' : 'organizações'}</span>
+        <section className="lc-cartao lc-cartao--claro" aria-label="Objetivo">
+          <span className="lc-cartao__rotulo">Objetivo</span>
+          {objetivo ? <><span className="lc-eu__objetivo">{objetivo.titulo}</span>{objetivo.criterio && <span className="lv-legenda">{objetivo.criterio}</span>}</>
+            : <span className="lv-legenda">{objetivos ? `Combina um objetivo com o teu ${t('responsavel')}.` : '…'}</span>}
         </section>
-        <section className="lc-cartao" aria-label="Esta semana">
-          <span className="lc-cartao__rotulo">Esta semana</span>
-          <span className="lv-numero-grande">{hoje?.feitosSemana ?? '…'}</span>
-          <span className="lv-legenda">treinos</span>
+        <section className="lc-cartao" aria-label="Este mês">
+          <span className="lc-cartao__rotulo">Este mês</span>
+          <span className="lv-numero-grande">{doMes ?? '…'}</span>
+          <span className="lv-legenda">{t('sessao', { plural: doMes !== 1 })}</span>
         </section>
       </div>
       <nav className="lc-lista" aria-label="A minha conta">
