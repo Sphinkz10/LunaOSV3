@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  fetchClientesAtencao, fetchDashboardKpis, fetchEquipaHoje, fetchInbox, fetchTodayBookings, MOTIVO_ATENCAO, sincronizarAtrasos, useAuthStore, wallClock,
-  type ClienteAtencao, type DashboardBooking, type DashboardKpis, type Pendencia, type SessoesPorPt,
+  fetchClientesAtencao, fetchDashboardKpis, fetchDinheiro, fetchEquipaHoje, fetchInbox, fetchResumoAvaliacao, fetchSaldo, fetchTodayBookings, sincronizarAtrasos,
+  useAuthStore, wallClock,
+  type ClienteAtencao, type DashboardBooking, type DashboardKpis, type Dinheiro, type Pendencia, type ResumoAvaliacao, type SaldoPack, type SessoesPorPt,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Esqueleto, Estado, EstadoPagina, Tema, type EstadoTom } from '@luna/ui/v3';
-import { CalendarBlank, CaretRight, Clock, Heartbeat, ListChecks, Play, Plus, Users, Warning } from '@luna/icons';
+import { eFeminino, g } from '@luna/modalidades';
+import { CalendarBlank, CaretRight, Fire, Heartbeat, ListChecks, Play, Plus, Users, Wallet } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { ParaComecar } from '../app/ParaComecar';
 import { useScope } from '../app/ModuleLayout';
@@ -22,6 +24,7 @@ const ESTADO: Record<DashboardBooking['status'], { texto: string; tom: EstadoTom
   pending: { texto: 'Por confirmar', tom: 'aviso' }, confirmed: { texto: 'Confirmada', tom: 'ok' }, cancelled: { texto: 'Cancelada', tom: 'neutro' },
   completed: { texto: 'Feita', tom: 'neutro' }, no_show: { texto: 'Faltou', tom: 'erro' }, waitlisted: { texto: 'Em espera', tom: 'aviso' },
 };
+const LOCAL: Record<string, string> = { estudio: 'Presencial', casa_cliente: 'Em casa', parque: 'Parque', online: 'Online' };
 const saudacao = (h: number) => (h < 12 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite');
 type Secao<T> = { dados: T | null; erro: string | null };
 const vazio = <T,>(): Secao<T> => ({ dados: null, erro: null });
@@ -43,6 +46,9 @@ export function Today() {
   const [atencao, setAtencao] = useState<Secao<ClienteAtencao[]>>(vazio);
   const [pendencias, setPendencias] = useState<Secao<Pendencia[]>>(vazio);
   const [equipa, setEquipa] = useState<Secao<SessoesPorPt[]>>(vazio);
+  const [avaliacao, setAvaliacao] = useState<Secao<ResumoAvaliacao>>(vazio);
+  const [dinheiro, setDinheiro] = useState<Secao<Dinheiro>>(vazio);
+  const [packs, setPacks] = useState<Map<string, SaldoPack[]>>(new Map());
 
   const carregar = useCallback(() => {
     const client = getSupabaseClient();
@@ -55,24 +61,39 @@ export function Today() {
     // Revisões e marcos em atraso passam a pendências antes de ler a Inbox
     correr(sincronizarAtrasos(client, scope).catch(() => undefined).then(() => fetchInbox(client, scope)), setPendencias);
     if (dono) correr(fetchEquipaHoje(client, scope), setEquipa);
+    correr(fetchResumoAvaliacao(client, scope), setAvaliacao);
+    correr(fetchDinheiro(client, scope), setDinheiro);
   }, [scope, dono]);
   useEffect(() => carregar(), [carregar]);
+  // O pack de cada cliente com sessão hoje: "Sessão 6 de 8" e o fim do pack (Figma 199:108)
+  useEffect(() => {
+    const client = getSupabaseClient();
+    const ids = [...new Set((agenda.dados ?? []).map((b) => b.linkId).filter((x): x is string => !!x))];
+    if (!client || !ids.length) return;
+    void Promise.all(ids.map((id) => fetchSaldo(client, id).then((sl): [string, SaldoPack[]] => [id, sl]).catch((): [string, SaldoPack[]] => [id, []])))
+      .then((pares) => setPacks(new Map(pares)));
+  }, [agenda.dados]);
 
   const w = wallClock(new Date(), scope.timezone);
   const dia = `${DIAS[new Date(Date.UTC(w.year, w.month - 1, w.day)).getUTCDay()]}, ${w.day} de ${MESES[w.month - 1]}`;
   const primeiroNome = me?.name?.split(' ')[0] ?? '';
-  const proxima = agenda.dados?.find((b) => b.status === 'confirmed' || b.status === 'pending');
+  const agora = `${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')}`;
+  const proxima = agenda.dados?.find((b) => (b.status === 'confirmed' || b.status === 'pending') && b.time >= agora);
   const n = (v: number | undefined | null, erro: string | null) => (erro ? '—' : v ?? '…');
   const PP = vocab.pessoa({ plural: true, maiuscula: true });
   const SS = t('sessao', { plural: true, maiuscula: true });
 
-  const contagens: { rotulo: string; icone: typeof Clock; valor: string | number; legenda: string; to: string; tom?: 'acao' | 'aviso' }[] = [
+  const ss = vocab.sessao();
+  const atrasados = (atencao.dados ?? []).every((c) => c.motivos.every((m) => m === 'sem_treinar_7d'));
+  const contagens: { rotulo: string; icone: typeof Fire; valor: string | number; sufixo?: string; legenda: string; to: string; tom?: 'acao' | 'aviso' }[] = [
     { rotulo: `${SS} hoje`, icone: CalendarBlank, valor: n(kpis.dados?.today, kpis.erro),
-      legenda: proxima ? `Próxima: ${proxima.client ?? proxima.title ?? TIPO[proxima.type]} às ${proxima.time}` : 'Sem mais hoje', to: '/schedule', tom: 'acao' },
-    { rotulo: 'Por confirmar', icone: Clock, valor: n(kpis.dados?.pending, kpis.erro), legenda: 'Marcações à espera de resposta', to: '/schedule?estado=pendente' },
-    { rotulo: `${PP} em atenção`, icone: Heartbeat, valor: n(atencao.dados?.length, atencao.erro),
-      legenda: 'Parados, faltas e packs a acabar', to: '/clients?filtro=attention', tom: (atencao.dados?.length ?? 0) > 0 ? 'aviso' : undefined },
-    { rotulo: 'Pendências', icone: ListChecks, valor: n(pendencias.dados?.length, pendencias.erro), legenda: 'Na Inbox, por resolver', to: '/inbox' },
+      legenda: kpis.dados ? `${kpis.dados.pending} por confirmar` : '…', to: '/schedule', tom: 'acao' },
+    { rotulo: 'Check-ins por rever', icone: ListChecks, valor: n(avaliacao.dados?.por_ler, avaliacao.erro),
+      legenda: avaliacao.dados ? `${avaliacao.dados.por_responder} por responder` : '…', to: '/assessment' },
+    { rotulo: 'Pagamentos por registar', icone: Wallet, valor: n(dinheiro.dados?.quem_deve.length, dinheiro.erro),
+      legenda: dinheiro.dados ? `Packs a acabar: ${dinheiro.dados.a_acabar.length}` : '…', to: '/business/dinheiro', tom: 'aviso' },
+    { rotulo: `${PP} em atenção`, icone: Fire, valor: n(atencao.dados?.length, atencao.erro),
+      legenda: atrasados ? 'Sem treinar há mais de 7 dias' : 'Parados, faltas e packs a acabar', to: '/clients?filtro=attention' },
   ];
   const daqui = { state: { voltar: { rotulo: 'Hoje', href: '/today' } } };
 
@@ -83,17 +104,15 @@ export function Today() {
           <h2 className="lv-titulo-ecra" style={{ margin: 0 }}>{saudacao(w.hour)}{primeiroNome ? `, ${primeiroNome}` : ''}</h2>
           <p style={{ margin: 0 }}>
             {agenda.dados ? `${agenda.dados.length} ${t('sessao', { plural: agenda.dados.length !== 1 })} hoje` : scope.orgName}
-            {atencao.dados && atencao.dados.length > 0 ? ` · ${atencao.dados.length} ${vocab.pessoa({ plural: atencao.dados.length !== 1 })} em atenção` : ''}
+            {proxima?.client ? ` · ${g(ss, 'a próxima', 'o próximo')} é com ${eFeminino(proxima.client.split(' ')[0]) ? 'a' : 'o'} ${proxima.client} às ${proxima.time}` : ''}
           </p>
           <div className="lg-hoje__acoes">
-            {/* Como no Figma (62:90): uma ação principal e duas em texto; o resto está no + Novo */}
-            <button type="button" className="lg-hoje__principal" onClick={() => navigate('/schedule?nova=1')}><CalendarBlank size={16} aria-hidden />Marcar</button>
+            {/* Como no Figma do PT (199:108): iniciar em destaque; novo cliente e marcar em texto */}
+            <button type="button" className="lg-hoje__principal" onClick={() => navigate('/live')}><Play size={16} aria-hidden />Iniciar {ss}</button>
             <button type="button" className="lg-hoje__link" onClick={() => navigate('/clients?novo=1')}><Plus size={16} aria-hidden />Novo {vocab.pessoa()}</button>
-            <button type="button" className="lg-hoje__link" onClick={() => navigate('/live')}><Play size={16} aria-hidden />Iniciar {vocab.sessao()}</button>
+            <button type="button" className="lg-hoje__link" onClick={() => navigate('/schedule?nova=1')}><CalendarBlank size={16} aria-hidden />Marcar</button>
           </div>
         </section>
-
-        <ParaComecar />
 
         <div className="lg-hoje__contagens">
           {contagens.map((c) => (
@@ -114,19 +133,28 @@ export function Today() {
             {agenda.erro ? <AvisoSecao tipo="falha-parcial" texto={`Não foi possível carregar a agenda: ${agenda.erro}`} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
               : !agenda.dados ? <Esqueleto linhas={4} />
               : agenda.dados.length === 0 ? <EstadoPagina tipo="vazio" titulo={`Sem ${t('sessao', { plural: true })} hoje`} texto="Usa Marcar para pôr uma no horário." />
-              : agenda.dados.map((b) => (
-                <div key={b.id} className="lg-hoje__sessao">
-                  <span className="lg-hoje__hora">{b.time}</span>
-                  <span className="lv-linha-lista__corpo">
-                    <span className="lv-linha-lista__titulo">{b.client ?? b.title ?? TIPO[b.type]}</span>
-                    <span className="lv-legenda">{TIPO[b.type] ?? b.type}</span>
-                  </span>
-                  <Estado tom={ESTADO[b.status].tom}>{ESTADO[b.status].texto}</Estado>
-                  {b.type === 'training' && b.status === 'confirmed'
-                    ? <Botao variante="secundario" icone={Play} onClick={() => navigate(`/live/${b.id}`)}>Iniciar</Botao>
-                    : <Botao variante="secundario" onClick={() => navigate('/schedule')}>Ver</Botao>}
-                </div>
-              ))}
+              : agenda.dados.map((b) => {
+                const pack = b.linkId ? (packs.get(b.linkId) ?? []).find((x) => x.estado !== 'expirado') : undefined;
+                const usadas = pack ? pack.total - pack.restam : 0;
+                const esta = pack ? Math.min(pack.total, usadas + (b.status === 'completed' ? 0 : 1)) : 0;
+                const fim = pack && esta >= pack.total;
+                return (
+                  <button key={b.id} type="button" className="lg-hoje__sessao" onClick={() => navigate(b.type === 'training' && b.status === 'confirmed' ? `/live/${b.id}` : '/schedule')}>
+                    <span className="lg-hoje__hora">{b.time}</span>
+                    <span className="lv-linha-lista__corpo">
+                      <span className="lv-linha-lista__titulo">{b.client ?? b.title ?? TIPO[b.type]}</span>
+                      <span className="lv-legenda">{[LOCAL[b.local ?? ''] ?? (b.local ? b.local : null), b.client ? b.title : TIPO[b.type]].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <span className="lg-hoje__pack">
+                      {pack ? <>
+                        <span className="lg-barra" aria-hidden><i style={{ width: `${(esta / pack.total) * 100}%` }} /></span>
+                        <span className="lv-legenda">{t('sessao', { maiuscula: true })} {esta} de {pack.total}</span>
+                      </> : <span className="lv-legenda">Sem pack</span>}
+                    </span>
+                    {fim && b.status === 'confirmed' ? <Estado tom="aviso">Fim do pack</Estado> : <Estado tom={ESTADO[b.status].tom}>{ESTADO[b.status].texto}</Estado>}
+                  </button>
+                );
+              })}
           </section>
 
           <div className="lg-hoje__lado">
@@ -140,7 +168,7 @@ export function Today() {
                 : pendencias.dados.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Nada à tua espera.</p>
                 : pendencias.dados.slice(0, 3).map((p) => (
                   <div key={p.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
-                    {p.categoria === 'saude' ? <Heartbeat size={18} aria-hidden /> : <Users size={18} aria-hidden />}
+                    <span className={`lg-hoje__pend lg-hoje__pend--${p.categoria}`} aria-hidden>{p.categoria === 'saude' ? <Heartbeat size={18} /> : <Users size={18} />}</span>
                     <span className="lv-linha-lista__corpo">
                       <span className="lv-linha-lista__titulo">{p.cliente} · {p.titulo}</span>
                       <span className="lv-legenda">{p.origem}</span>
@@ -150,27 +178,10 @@ export function Today() {
                 ))}
             </section>
 
-            <section className="lv-lista" aria-label={`${PP} em atenção`}>
-              <div className="lv-lista__cabeca">
-                <h2 className="lv-titulo-cartao">{PP} em atenção</h2>
-                <button type="button" className="lg-link" onClick={() => navigate('/clients?filtro=attention')}>Ver todos <CaretRight size={16} aria-hidden /></button>
-              </div>
-              {atencao.erro ? <AvisoSecao tipo="falha-parcial" texto="Não foi possível ver quem está em atenção." acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
-                : !atencao.dados ? <Esqueleto linhas={3} />
-                : atencao.dados.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Ninguém em atenção.</p>
-                : atencao.dados.slice(0, 5).map((c) => (
-                  <button key={c.linkId} type="button" className="lv-linha-lista" onClick={() => navigate(`/clients/${c.linkId}`, daqui)}>
-                    <Avatar nome={c.nome} tamanho={32} />
-                    <span className="lv-linha-lista__corpo">
-                      <span className="lv-linha-lista__titulo">{c.nome}</span>
-                      <span className="lv-legenda">{c.motivos.map((m) => MOTIVO_ATENCAO[m]).join(' · ')}</span>
-                    </span>
-                    <Warning size={16} aria-hidden className="lg-hoje__aviso" />
-                  </button>
-                ))}
-            </section>
           </div>
         </div>
+
+        <ParaComecar />
 
         {dono && (equipa.dados?.length ?? 0) > 1 && (
           <Tema tema="esboco">

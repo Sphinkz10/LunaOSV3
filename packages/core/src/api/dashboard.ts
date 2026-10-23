@@ -8,6 +8,9 @@ export interface DashboardKpis { today: number; pending: number; clients: number
 
 export interface DashboardBooking {
   id: string;
+  linkId: string | null;
+  /** estudio, casa_cliente, parque ou online */
+  local: string | null;
   client: string | null;
   title: string | null;
   time: string;
@@ -38,7 +41,7 @@ export async function fetchDashboardKpis(client: LunaClient, scope: OrgScope, no
 export async function fetchTodayBookings(client: LunaClient, scope: OrgScope, now = new Date()): Promise<DashboardBooking[]> {
   const { start, end } = dayBoundsInZone(todayInZone(scope.timezone, now), scope.timezone);
   const { data, error } = await client.from('bookings')
-    .select('id,link_id,title,starts_at,type,status')
+    .select('id,link_id,title,starts_at,type,status,location_kind')
     .eq('org_id', scope.orgId).eq('membership_id', scope.membershipId)
     .gte('starts_at', start).lt('starts_at', end)
     .neq('status', 'cancelled')
@@ -55,6 +58,8 @@ export async function fetchTodayBookings(client: LunaClient, scope: OrgScope, no
   }
   return rows.map((b) => ({
     id: b.id,
+    linkId: b.link_id ?? null,
+    local: (b as { location_kind?: string | null }).location_kind ?? null,
     client: b.link_id ? names.get(b.link_id) ?? null : null,
     title: b.title,
     time: timeInZone(b.starts_at, scope.timezone),

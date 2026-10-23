@@ -870,3 +870,13 @@ button.lg-protocolo__linha { cursor: pointer; }
 
 .lg-ex__foto { display: grid; place-items: center; height: 150px; border-radius: 16px; background: var(--cor-destaque) center / cover no-repeat; }
 .lg-ex__play { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--raio-pilula); background: var(--cor-superficie); color: var(--cor-texto); }
+
+/* ── G-01 Hoje do PT (Figma 199:108) ──────────────────────────────────── */
+.lg-hoje__sessao { width: 100%; border: 0; border-bottom: 1px solid var(--cor-linha); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lg-hoje__sessao:last-child { border-bottom: 0; }
+.lg-hoje__pack { display: flex; flex-direction: column; gap: 6px; width: 150px; flex: none; }
+.lg-barra { display: block; height: 6px; border-radius: var(--raio-pilula); background: var(--cor-linha); overflow: hidden; }
+.lg-barra i { display: block; height: 100%; border-radius: inherit; background: var(--cor-principal); }
+.lg-hoje__pend { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--estado-aviso); }
+.lg-hoje__pend--clientes { background: var(--cor-superficie-2); color: var(--cor-texto); }
+@media (max-width: 720px) { .lg-hoje__pack { display: none; } }
