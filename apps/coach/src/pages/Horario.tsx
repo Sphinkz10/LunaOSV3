@@ -1,4 +1,4 @@
-import { novo } from '@luna/modalidades';
+import { novo, g } from '@luna/modalidades';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -327,7 +327,7 @@ function VistaMes({ inicio, lista, hoje, tz, onDia }: { inicio: Date; lista: Mar
           );
         })}
       </div>
-      <Nota icone={Clock}>Hora de {tz.split('/').pop()?.replace('_', ' ')}.{muda ? ` A ${Number(muda.slice(8))} ${MESES[Number(muda.slice(5, 7)) - 1]} a hora muda; as ${t('sessao', { plural: true })} ficam à mesma hora local.` : ''}</Nota>
+      <Nota icone={Clock}>Hora de {tz.split('/').pop()?.replace('_', ' ')}.{muda ? ` A ${Number(muda.slice(8))} ${MESES[Number(muda.slice(5, 7)) - 1]} a hora muda; ${g(t('sessao', { plural: true }), 'as', 'os')} ficam à mesma hora local.` : ''}</Nota>
     </section>
   );
 }

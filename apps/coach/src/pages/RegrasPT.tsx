@@ -1,3 +1,4 @@
+import { g, eFeminino } from '@luna/modalidades';
 import { useCallback, useEffect, useState } from 'react';
 import {
   arquivarLocal, fetchCalendario, fetchLocais, fetchRegras, guardarLocal, guardarRegras, novaLigacaoCalendario, REGRAS_PADRAO,
@@ -59,7 +60,7 @@ function RegrasForm() {
         <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Marcações</h3>
         <div className="lv-linha-lista" style={{ cursor: 'default' }}>
           <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">O cliente marca na app</span>
-            <span className="lv-legenda">Desligado, só tu marcas; o cliente vê as {t('sessao', { plural: true })} marcadas.</span></span>
+            <span className="lv-legenda">Desligado, só tu marcas; o cliente vê {g(t('sessao', { plural: true }), 'as', 'os')} {eFeminino(t('sessao')) ? 'marcadas' : 'marcados'}.</span></span>
           <Interruptor rotulo="O cliente marca na app" ligado={r.client_can_book} onMudar={(v) => setR({ ...r, client_can_book: v })} />
         </div>
         <div className="lg-conta__prefs">
@@ -190,7 +191,7 @@ function Calendario({ membershipId }: { membershipId: string }) {
   return (
     <section className="lv-lista" aria-label="Ligar ao calendário">
       <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Ligar ao teu calendário</h3>
-      <p className="lv-legenda" style={{ margin: 0 }}>As tuas {t('sessao', { plural: true })} aparecem no Google Calendar, no iPhone ou no Outlook. Só de leitura.</p>
+      <p className="lv-legenda" style={{ margin: 0 }}>{g(t('sessao', { plural: true }), 'As tuas', 'Os teus')} aparecem no Google Calendar, no iPhone ou no Outlook. Só de leitura.</p>
       {!estado ? <Esqueleto linhas={2} /> : (
         <>
           <div className="lv-linha-lista" style={{ cursor: 'default' }}>

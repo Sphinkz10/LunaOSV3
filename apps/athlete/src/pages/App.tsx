@@ -1,4 +1,4 @@
-import { eFeminino } from '@luna/modalidades';
+import { eFeminino, g } from '@luna/modalidades';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -615,7 +615,7 @@ function AvisosPrefs() {
       <div className="lc-lista">
         <div className="lc-lista__linha" style={{ cursor: 'default' }}>
           <span className="lc-lista__icone"><Bell size={18} aria-hidden /></span>
-          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Lembretes das {t('sessao', { plural: true })}</span>
+          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Lembretes {g(t('sessao', { plural: true }), 'das', 'dos')}</span>
             <span className="lv-legenda">Na véspera e 2 horas antes</span></span>
           <Interruptor rotulo="Lembretes" ligado={a.lembretes} onMudar={(v) => mudar({ ...a, lembretes: v })} />
         </div>

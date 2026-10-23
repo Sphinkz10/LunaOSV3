@@ -1,3 +1,4 @@
+import { g, eFeminino } from '@luna/modalidades';
 import { useRef, useState } from 'react';
 import { estadoCamara, marcarPedidoAvisos, pedirAvisos } from '@luna/core';
 import { Botao, Janela } from '@luna/ui/v3';
@@ -15,8 +16,8 @@ export function PedirAvisos({ aberta, onFechar }: { aberta: boolean; onFechar: (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
         <span className="lc-permissao__icone" aria-hidden><Bell size={28} /></span>
         <ul className="lc-permissao__lista">
-          <li><CalendarBlank size={18} aria-hidden />Lembrete antes da tua {t('sessao')}</li>
-          <li><CalendarBlank size={18} aria-hidden />A tua {t('sessao')} mudou ou foi cancelada</li>
+          <li><CalendarBlank size={18} aria-hidden />Lembrete antes {g(t('sessao'), 'da tua', 'do teu')}</li>
+          <li><CalendarBlank size={18} aria-hidden />{g(t('sessao'), 'A tua', 'O teu')} {eFeminino(t('sessao')) ? 'mudou ou foi cancelada' : 'mudou ou foi cancelado'}</li>
           <li><ChatCircle size={18} aria-hidden />O teu {t('responsavel')} respondeu</li>
         </ul>
         <p className="lv-legenda" style={{ margin: 0 }}>Publicidade, só se pedires. Mudas em Eu › Definições › Avisos.</p>

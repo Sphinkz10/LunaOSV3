@@ -1,3 +1,4 @@
+import { g } from '@luna/modalidades';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -319,7 +320,7 @@ export function Pronto() {
     <Passo titulo="A tua conta está pronta" acao={<Botao fixo onClick={() => window.location.assign('/hoje')}>Ir para a app</Botao>}>
       {conta?.aEsperaEncarregado && <Nota>A ligação ao teu {t('responsavel')} fica à espera da autorização do teu encarregado.</Nota>}
       {atestado && <Nota>Antes do primeiro treino, o teu {t('responsavel')} precisa do atestado médico. Já recebeu o aviso, sem ver as tuas respostas.</Nota>}
-      <p className="lv-legenda">O teu plano e as tuas {t('sessao', { plural: true })} aparecem no Hoje assim que o teu {t('responsavel')} os atribuir.</p>
+      <p className="lv-legenda">O teu plano e {g(t('sessao', { plural: true }), 'as tuas', 'os teus')} aparecem no Hoje assim que o teu {t('responsavel')} os atribuir.</p>
       <p className="lv-legenda">Ainda não tens {t('responsavel')}? <a className="lc-link" href="/sozinho">Começa sozinho</a>, de graça, e liga-te a um quando quiseres.</p>
     </Passo>
   );

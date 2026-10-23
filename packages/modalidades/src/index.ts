@@ -49,5 +49,12 @@ export function novo(palavra: string, opcoes: { plural?: boolean } = {}): string
 
 /** Género do termo, para concordar adjetivos ("Próxima sessão", "Próximo treino"). */
 export function eFeminino(palavra: string): boolean {
-  return /(a|ção|são|dade|gem)$/i.test(palavra.trim().split(' ')[0]);
+  // No plural, volta ao singular: sessões → sessão, aulas → aula, treinos → treino
+  const w = palavra.trim().split(' ')[0].toLocaleLowerCase('pt-PT').replace(/ões$/, 'ão').replace(/s$/, '');
+  return /(a|ção|são|dade|gem)$/.test(w);
+}
+
+/** Palavra antes do termo com o género certo: g('sessão', 'a', 'o') → "a sessão"; g('treino', 'a', 'o') → "o treino". */
+export function g(palavra: string, feminino: string, masculino: string): string {
+  return `${eFeminino(palavra) ? feminino : masculino} ${palavra}`;
 }

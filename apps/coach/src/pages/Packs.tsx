@@ -1,3 +1,4 @@
+import { g, eFeminino } from '@luna/modalidades';
 import { useCallback, useEffect, useState } from 'react';
 import {
   arquivarPackProduto, arquivarProduto, confirmarDestrutivo, corrigirPagamento, euros, fetchClients, fetchItensCliente, fetchMensalidades,
@@ -102,7 +103,7 @@ export function Packs() {
           : sep === 'avulsa' ? (
             <section className="lv-lista" aria-label="Sessão avulsa" style={{ maxWidth: 520 }}>
               <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Sessão avulsa</h3>
-              <p className="lv-legenda" style={{ margin: 0 }}>Uma {t('sessao')} paga no dia. As {t('sessao', { plural: true })} feitas sem pack nem mensalidade aparecem em "Quem me deve" com este preço.</p>
+              <p className="lv-legenda" style={{ margin: 0 }}>{g(t('sessao'), 'Uma', 'Um')} {eFeminino(t('sessao')) ? 'paga' : 'pago'} no dia. {eFeminino(t('sessao')) ? 'As' : 'Os'} {t('sessao', { plural: true })} {eFeminino(t('sessao')) ? 'feitas' : 'feitos'} sem pack nem mensalidade aparecem em "Quem me deve" com este preço.</p>
               <Campo rotulo="Preço (€)" inputMode="decimal" value={valorAvulsa} onChange={(e) => setValorAvulsa(e.target.value)} />
               <Botao disabled={lerEuros(valorAvulsa) == null} onClick={() => client && void correr(() => guardarPrecoAvulsa(client, scope, lerEuros(valorAvulsa)!, avulsa?.id), 'Preço guardado')}>Guardar</Botao>
             </section>
@@ -270,7 +271,7 @@ export function PacksCliente({ linkId, nome, soLeitura }: { linkId: string; nome
     <section className="lv-lista" aria-label="Packs e pagamentos">
       <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Packs e pagamentos</h3>
         {!soLeitura && <Botao variante="secundario" icone={Plus} onClick={() => setVender(true)}>Vender</Botao>}</div>
-      {!itens ? <Esqueleto linhas={2} /> : itens.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Nada vendido. As {t('sessao', { plural: true })} ficam por pagar.</p> : itens.map((i) => {
+      {!itens ? <Esqueleto linhas={2} /> : itens.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Nada vendido. {g(t('sessao', { plural: true }), 'As', 'Os')} ficam por pagar.</p> : itens.map((i) => {
         const pago = i.tipo === 'mensalidade' ? 0 : pagoEm(pags, (p) => p.alvo === i.nome && p.tipo === i.tipo);
         const falta = i.tipo === 'mensalidade' ? (pagoMes(i) || i.ate ? 0 : i.precoCent) : Math.max(0, i.precoCent - pago);
         const fora = i.tipo === 'pack' && !!i.validoAte && i.validoAte < hoje;

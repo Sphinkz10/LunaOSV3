@@ -1,3 +1,4 @@
+import { g } from '@luna/modalidades';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -106,7 +107,7 @@ function Preparar({ prep, doAparelho, onComecar }: { prep: Preparacao; doAparelh
         </section>
         <section className="lv-lista" aria-label="Treino de hoje">
           <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Treino de hoje</h3></div>
-          {treinos.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Sem treino atribuído para hoje. Juntas os exercícios durante a {t('sessao')}.</p>
+          {treinos.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Sem treino atribuído para hoje. Juntas os exercícios durante {g(t('sessao'), 'a', 'o')}.</p>
             : treinos.map((w) => (
               <div key={w.workout_id} className="lg-vivo__treino">
                 <span className="lv-sobretitulo">{w.nome} · v{w.versao}</span>
@@ -283,7 +284,7 @@ function Registo({ p, ultimas, aplicar, grupo, onJuntar, onEntrada, onTrocar }: 
             {ex && <Botao variante="secundario" icone={ArrowsClockwise} onClick={() => onTrocar(ex)}>Trocar</Botao>}
             {!grupo && <Botao variante="secundario" onClick={onEntrada}>Juntar {vocab.pessoa()}</Botao>}
           </div>
-          <label className="lv-campo"><span className="lv-campo-rotulo">Nota da {t('sessao')} (privada)</span>
+          <label className="lv-campo"><span className="lv-campo-rotulo">Nota {g(t('sessao'), 'da', 'do')} (privada)</span>
             <textarea className="lv-campo-input" rows={2} value={p.nota} onChange={(e) => aplicar(mudar.nota(p.linkId, e.target.value))} /></label>
         </>
       )}
@@ -423,7 +424,7 @@ function Rever({ s, aplicar, onVoltar, onFechada }: {
     const client = getSupabaseClient();
     if (!client) return;
     const ok = await confirmarDestrutivo({
-      titulo: `Fechar a ${t('sessao')}?`, verbo: 'Fechar', manter: 'Continuar a sessão',
+      titulo: `Fechar ${g(t('sessao'), 'a', 'o')}?`, verbo: 'Fechar', manter: `Continuar ${g(t('sessao'), 'a', 'o')}`,
       texto: 'Fecha-se uma vez. Depois, cada correção pede um motivo e fica no histórico.',
       efeitos: [`${presentes.length} presentes`, `${faltas.length} faltas`, `${v.creditos} ${v.creditos === 1 ? 'crédito' : 'créditos'} a descontar dos packs`],
       acao: async () => {
@@ -466,7 +467,7 @@ function Rever({ s, aplicar, onVoltar, onFechada }: {
           );
         })}
         <div className="lg-import__acoes" style={{ padding: 0, justifyContent: 'flex-start' }}>
-          <Botao variante="secundario" icone={ArrowLeft} onClick={onVoltar}>Voltar à {t('sessao')}</Botao>
+          <Botao variante="secundario" icone={ArrowLeft} onClick={onVoltar}>Voltar {g(t('sessao'), 'à', 'ao')}</Botao>
         </div>
       </section>
       <aside className="lv-lista" aria-label="Antes de fechar">
@@ -481,7 +482,7 @@ function Rever({ s, aplicar, onVoltar, onFechada }: {
         {v.semResultados.length > 0 && <Nota icone={Warning}>Falta o resultado de {v.semResultados.join(', ')}. Podes fechar na mesma.</Nota>}
         {naoTreinou.map((p) => <Nota key={p.linkId}>{p.nome} não treinou{p.aptidao === 'atestado' ? ': atestado em falta' : ''}. Não conta como falta.</Nota>)}
         {!online && <Nota icone={WifiSlash}>Sem rede: está tudo guardado neste aparelho. Fecha quando a rede voltar.</Nota>}
-        <Botao icone={Check} aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar a {t('sessao')}</Botao>
+        <Botao icone={Check} aCarregar={aFechar} disabled={!online || v.semPresenca.length > 0} onClick={() => void fechar()}>Fechar {g(t('sessao'), 'a', 'o')}</Botao>
       </aside>
     </div>
   );
@@ -523,7 +524,7 @@ function TerminarAMeio({ s, aberta, onFechar, onGuardar, onTerminar }: {
   const series = est.reduce((n, e) => n + e.series, 0);
   const total = est.reduce((n, e) => n + e.total, 0);
   return (
-    <Janela aberta={aberta} onFechar={onFechar} titulo={`Terminar a ${t('sessao')}?`} sub={total ? `Faltam ${falta} de ${total} exercícios` : undefined}>
+    <Janela aberta={aberta} onFechar={onFechar} titulo={`Terminar ${g(t('sessao'), 'a', 'o')}?`} sub={total ? `Faltam ${falta} de ${total} exercícios` : undefined}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
         <p style={{ margin: 0 }}><Check size={16} aria-hidden /> <b>{series} séries</b> registadas ficam guardadas.</p>
         <p className="lv-legenda" style={{ margin: 0 }}>Terminar assim fecha-a e desconta {presentes.filter((p) => p.pack).length === 1 ? '1 sessão' : 'uma sessão a cada um'} do pack.</p>

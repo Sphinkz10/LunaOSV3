@@ -1,3 +1,4 @@
+import { g } from '@luna/modalidades';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   desmarcar, deveMostrarPedidoAvisos, fetchMeusPacks, icsDeMarcacao, fetchMinhasLigacoes, horasLivres, marcarComPT, minhasMarcacoes, toast,
@@ -81,7 +82,7 @@ export function MarcarPT() {
       <header className="lc-cabeca"><div style={{ flex: 1 }}><span className="lv-legenda">{(() => { const pk = packs.find((x) => x.org === link.org && x.restam > 0 && x.validoAte >= iso(new Date())); return pk ? `${pk.nome} · ${pk.restam} de ${pk.total} ${t('sessao', { plural: true })}` : link.org; })()}</span>
         <h1 className="lc-cabeca__titulo">Marcar{link.responsavel ? ` com o ${link.responsavel.split(' ')[0]}` : ''}</h1></div></header>
       {(!packs.some((x) => x.org === link.org && x.restam > 0 && x.validoAte >= iso(new Date()))
-        && <Nota>Não tens pack com {t('sessao', { plural: true })} válido: a {t('sessao')} fica por pagar ao teu {t('responsavel')}.</Nota>)}
+        && <Nota>Não tens pack com {t('sessao', { plural: true })} válido: {g(t('sessao'), 'a', 'o')} fica por pagar ao teu {t('responsavel')}.</Nota>)}
       {ligacoes.length > 1 && (
         <div className="lg-ficha__metricas">{ligacoes.map((l) => <button key={l.linkId} type="button" className="lv-chip" aria-pressed={l.linkId === link.linkId} onClick={() => setLink(l)}>{l.org}</button>)}</div>
       )}

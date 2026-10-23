@@ -1,3 +1,4 @@
+import { g } from '@luna/modalidades';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -224,7 +225,7 @@ export function Client360() {
                     <h3 className="lv-titulo-cartao" style={{ margin: 0 }}>Resumo</h3>
                     <dl className="lg-conta__dados">
                       <dt>Plano</dt><dd>{p.planName ?? 'Sem plano'}</dd>
-                      <dt>Próxima {vocab.sessao()}</dt><dd>{proximas[0] ? diaHora(proximas[0].startsAt) : '—'}</dd>
+                      <dt>{g(vocab.sessao(), 'Próxima', 'Próximo')}</dt><dd>{proximas[0] ? diaHora(proximas[0].startsAt) : '—'}</dd>
                       <dt>Email</dt><dd>{p.email ?? '—'}</dd>
                       <dt>Telemóvel</dt><dd>{p.phone ?? '—'}</dd>
                     </dl>
@@ -261,7 +262,7 @@ export function Client360() {
                   </section>
                   <section className="lv-lista" aria-label="Próximas">
                     <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Próximas {vocab.sessao({ plural: true })}</h3></div>
-                    <Secao s={data.bookings} o={`as ${vocab.sessao({ plural: true })}`}>
+                    <Secao s={data.bookings} o={g(vocab.sessao({ plural: true }), 'as', 'os')}>
                       {() => proximas.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Nada marcado.</p>
                         : proximas.slice(0, 8).map((b) => (
                           <div key={b.id} className="lv-linha-lista" style={{ cursor: 'default' }}>

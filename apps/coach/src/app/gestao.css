@@ -576,7 +576,11 @@ button.lg-pack__linha { cursor: pointer; }
 
 /* ── Sessão ao vivo (T08: G-12, G-13, G-14) ── */
 .lg-vivo { display: flex; flex-direction: column; gap: var(--espaco-16); }
-.lg-vivo__topo { display: flex; flex-direction: column; gap: var(--espaco-8); padding: var(--espaco-24); border-radius: var(--raio-cartao, 24px); background: var(--cor-selecao); color: var(--cor-texto); position: relative; }
+.lg-vivo__topo { display: flex; flex-direction: column; gap: var(--espaco-8); padding: var(--espaco-24); border-radius: var(--raio-cartao, 24px); color: var(--cor-sobre-destaque); position: relative;
+  /* G-12 (70:350): a foto na metade direita e a cor do destaque a cobri-la */
+  background: linear-gradient(to right, var(--cor-destaque) 45%, color-mix(in srgb, var(--cor-destaque) 60%, transparent) 60%, transparent 90%),
+    url('/media/preparar.jpg') right / 52% 100% no-repeat, var(--cor-destaque); }
+@media (max-width: 720px) { .lg-vivo__topo { background: var(--cor-destaque); } }
 .lg-vivo__numeros { display: flex; gap: var(--espaco-32); flex-wrap: wrap; }
 .lg-vivo__numeros span { display: flex; flex-direction: column; font-size: 12.5px; color: var(--cor-texto-secundario); }
 .lg-vivo__numeros b { font: 600 22px/1.2 var(--fonte-titulo); color: var(--cor-texto); }
