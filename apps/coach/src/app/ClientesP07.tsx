@@ -4,7 +4,8 @@ import {
   type CanalConvite, type ClientRow, type Duplicado,
 } from '@luna/core';
 import { Avatar, Botao, Chip, Esqueleto, Janela, Nota } from '@luna/ui/v3';
-import { Check, Copy, QrCode, Users, X } from '@luna/icons';
+import { ChatCircle, Check, Copy, EnvelopeSimple, QrCode, Users, X } from '@luna/icons';
+import qrcode from 'qrcode-generator';
 import { useScope } from './ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
@@ -42,7 +43,7 @@ export function ConvidarApp({ cliente, onFechar }: { cliente: ParaConvidar | nul
     } catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível convidar.'); }
     finally { setAGravar(false); }
   };
-  const ligacao = codigo ? `${window.location.origin.replace(':5173', ':5174')}/convite/${codigo}` : '';
+  const ligacao = codigo ? `${enderecoAppCliente()}/convite/${codigo}` : '';
   return (
     <Janela aberta onFechar={onFechar} titulo={`Convidar ${cliente.nome}`}
       sub={`Com a app, ${primeiro} vê o treino, marca ${vocab.sessao({ plural: true })} e regista o progresso.`}
@@ -53,27 +54,62 @@ export function ConvidarApp({ cliente, onFechar }: { cliente: ParaConvidar | nul
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--espaco-12)' }}>
         {!codigo && (
           <div role="radiogroup" aria-label="Como enviar" style={{ display: 'flex', gap: 'var(--espaco-8)', flexWrap: 'wrap' }}>
-            <Chip role="radio" aria-checked={canal === 'sms'} ativo={canal === 'sms'} disabled={!cliente.telefone} onClick={() => setCanal('sms')}>SMS</Chip>
-            <Chip role="radio" aria-checked={canal === 'email'} ativo={canal === 'email'} disabled={!cliente.email} onClick={() => setCanal('email')}>Email</Chip>
-            <Chip role="radio" aria-checked={canal === 'codigo'} ativo={canal === 'codigo'} onClick={() => setCanal('codigo')}>Código</Chip>
+            <Chip role="radio" aria-checked={canal === 'sms'} ativo={canal === 'sms'} disabled={!cliente.telefone} onClick={() => setCanal('sms')}><ChatCircle size={16} aria-hidden />SMS</Chip>
+            <Chip role="radio" aria-checked={canal === 'email'} ativo={canal === 'email'} disabled={!cliente.email} onClick={() => setCanal('email')}><EnvelopeSimple size={16} aria-hidden />Email</Chip>
+            <Chip role="radio" aria-checked={canal === 'codigo'} ativo={canal === 'codigo'} onClick={() => setCanal('codigo')}><QrCode size={16} aria-hidden />Código</Chip>
           </div>
         )}
-        {codigo ? (
-          <>
-            <div className="lg-convite__codigo"><QrCode size={40} aria-hidden /><output className="lg-codigo lg-codigo--ligacao">{ligacao}</output></div>
-            <Botao variante="secundario" icone={Copy} onClick={() => void navigator.clipboard.writeText(ligacao).then(() => toast({ variant: 'success', title: 'Ligação copiada' }))}>Copiar ligação</Botao>
-          </>
-        ) : (
+        <div className="lg-convite__codigo">
+          <div className="lg-convite__qr">
+            {codigo ? <CodigoQr texto={ligacao} rotulo={`Código QR do convite de ${cliente.nome}`} /> : <QrCode size={56} aria-hidden />}
+          </div>
           <ul className="lg-convite__lista">
             <li><Check size={16} aria-hidden />Liga à conta que já tiver</li>
             <li><Check size={16} aria-hidden />Vale 7 dias</li>
             <li><Check size={16} aria-hidden />Fica no perfil quem convidou</li>
           </ul>
+        </div>
+        {codigo && (
+          <>
+            <output className="lg-codigo lg-codigo--ligacao">{ligacao}</output>
+            <Botao variante="secundario" icone={Copy} onClick={() => void navigator.clipboard.writeText(ligacao).then(() => toast({ variant: 'success', title: 'Ligação copiada' }))}>Copiar ligação</Botao>
+          </>
         )}
         {!cliente.telefone && !cliente.email && !codigo && <Nota>Sem telemóvel nem email: usa o código e mostra-o no telemóvel de {primeiro}.</Nota>}
         {erro && <p className="lv-campo-erro" role="alert" style={{ margin: 0 }}>{erro}</p>}
       </div>
     </Janela>
+  );
+}
+
+/**
+ * Onde abre o convite: a app do cliente, não a de gestão. Em produção vem de
+ * VITE_ATHLETE_URL; em desenvolvimento a app do cliente corre na porta a seguir.
+ */
+function enderecoAppCliente(local: Location = window.location): string {
+  const fixo = (import.meta.env.VITE_ATHLETE_URL as string | undefined)?.trim().replace(/\/+$/, '');
+  if (fixo) return fixo;
+  const porta = Number(local.port);
+  if (/^(localhost|127\.0\.0\.1)$/.test(local.hostname) && porta) return `${local.protocol}//${local.hostname}:${porta + 1}`;
+  return local.origin;
+}
+
+/** QR que o telemóvel do cliente lê para abrir o convite; desenhado na cor do texto, sem imagem. */
+function CodigoQr({ texto, rotulo }: { texto: string; rotulo: string }) {
+  const caminho = useMemo(() => {
+    const qr = qrcode(0, 'L');
+    qr.addData(texto);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) d += `M${x} ${y}h1v1h-1z`;
+    return { d, n };
+  }, [texto]);
+  return (
+    <svg role="img" aria-label={rotulo} viewBox={`-2 -2 ${caminho.n + 4} ${caminho.n + 4}`} width={96} height={96} shapeRendering="crispEdges">
+      <rect x={-2} y={-2} width={caminho.n + 4} height={caminho.n + 4} fill="var(--cor-superficie)" />
+      <path d={caminho.d} fill="var(--cor-texto)" />
+    </svg>
   );
 }
 
