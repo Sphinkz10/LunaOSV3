@@ -320,6 +320,7 @@ export function ConstrutorProtocolo() {
   const scope = useScope();
   const navigate = useNavigate();
   const [p, setP] = useState<{ id: string; nome: string; blocos: BlocoProtocolo[]; versao: number } | null>(null);
+  const [blocoAberto, setBlocoAberto] = useState(0);
   const [sel, setSel] = useState<{ b: number; t: number } | null>(null);
   const [aGravar, setAGravar] = useState(false);
   useEffect(() => {
@@ -355,8 +356,15 @@ export function ConstrutorProtocolo() {
       <div className="lv-root lg-construtor">
         <div className="lg-ficha__coluna">
           <Campo rotulo="Nome" value={p.nome} onChange={(e) => setP({ ...p, nome: e.target.value })} />
-          {p.blocos.map((b, bi) => (
-            <section key={bi} className="lv-lista" aria-label={b.titulo}>
+          {p.blocos.map((b, bi) => (bi !== blocoAberto ? (
+            // G-22 (Figma 118:328): os outros blocos ficam fechados, com os testes num resumo
+            <button key={bi} type="button" className="lv-lista lg-protocolo__fechado" onClick={() => { setBlocoAberto(bi); setSel(null); }}>
+              <span className="lg-seg__quem"><span className="lg-vivo__bloco">{bi + 1}</span>
+                <span><b>{b.titulo}</b><span className="lv-legenda" style={{ display: 'block' }}>{b.testes.map((x) => x.nome).join(', ') || 'Sem testes'}</span></span></span>
+              <span className="lv-legenda">{b.testes.reduce((n, x) => n + 1 + x.tentativas, 0)} min</span>
+            </button>
+          ) : (
+            <section key={bi} className="lv-lista lg-protocolo__aberto" aria-label={b.titulo}>
               <div className="lv-lista__cabeca">
                 <span className="lg-seg__quem"><span className="lg-vivo__bloco">{bi + 1}</span>
                   <input className="lv-campo-input" aria-label="Nome do bloco" value={b.titulo} onChange={(e) => setP({ ...p, blocos: p.blocos.map((x, i) => (i === bi ? { ...x, titulo: e.target.value } : x)) })} /></span>
@@ -374,8 +382,8 @@ export function ConstrutorProtocolo() {
                 setSel({ b: bi, t: b.testes.length });
               }}>Juntar teste</Botao>
             </section>
-          ))}
-          <Botao variante="secundario" icone={Plus} onClick={() => setP({ ...p, blocos: [...p.blocos, { titulo: 'Novo bloco', testes: [] }] })}>Juntar bloco</Botao>
+          )))}
+          <Botao variante="secundario" icone={Plus} onClick={() => { setP({ ...p, blocos: [...p.blocos, { titulo: 'Novo bloco', testes: [] }] }); setBlocoAberto(p.blocos.length); }}>Juntar bloco</Botao>
         </div>
         <aside className="lv-lista lg-construtor__lado" aria-label="Teste">
           {!t ? (

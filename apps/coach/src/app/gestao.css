@@ -848,3 +848,7 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-resumo__linha:last-child { border-bottom: 0; }
 .lg-resumo__presenca { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 @media (max-width: 720px) { .lg-resumo__linha { grid-template-columns: minmax(0, 1fr) auto; } .lg-resumo__linha > :nth-child(3), .lg-resumo__linha > :nth-child(4) { display: none; } }
+
+/* G-22: blocos do protocolo fechados com resumo; o aberto com contorno */
+.lg-protocolo__fechado { flex-direction: row; justify-content: space-between; align-items: center; text-align: left; font: inherit; color: var(--cor-texto); cursor: pointer; }
+.lg-protocolo__aberto { border: 2px solid var(--cor-texto); }
