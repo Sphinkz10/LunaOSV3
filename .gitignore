@@ -6,3 +6,6 @@ dist/
 .env.*.local
 .DS_Store
 storybook-static/
+
+# Ficheiros locais do supabase link
+supabase/.temp/
