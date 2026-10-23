@@ -517,6 +517,9 @@ button.lg-seg__linha { cursor: pointer; }
 .lg-semana__linha { display: grid; grid-template-columns: 110px repeat(7, minmax(72px, 1fr)); gap: var(--espaco-8); align-items: center; padding: var(--espaco-8) 0; border-bottom: 1px solid var(--cor-linha); min-width: 640px; }
 .lg-semana__dia { min-height: 40px; padding: 6px 8px; border: 1px dashed var(--cor-linha); border-radius: 10px; background: none; color: var(--cor-texto-secundario); font: 600 12px/1.3 var(--fonte-texto); cursor: pointer; text-align: left; }
 .lg-semana__dia--cheio { border-style: solid; background: var(--cor-selecao); color: var(--cor-texto); }
+.lg-semana__dia--c0 { border-color: transparent; background: var(--cor-selecao); }
+.lg-semana__dia--c1 { border-color: transparent; background: color-mix(in srgb, var(--cor-acao) 22%, var(--cor-superficie)); }
+.lg-semana__dia--c2 { background: var(--cor-superficie); }
 .lg-passo { flex-direction: row; align-items: center; gap: var(--espaco-12); color: var(--cor-texto); font: inherit; text-align: left; cursor: pointer; }
 .lg-passo:disabled { cursor: default; }
 .lg-passo--atual { border: 2px solid var(--cor-texto); }

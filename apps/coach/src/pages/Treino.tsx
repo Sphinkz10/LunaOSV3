@@ -343,7 +343,10 @@ export function ConstrutorPlano() {
   if (!p) return <CoachShell headStrong="Plano" headSub="Treino" legado={false}><div className="lv-root"><Esqueleto /></div></CoachShell>;
   // Dias sem semana valem para todas as semanas
   const noDia = (s: number, d: number) => p.dias.filter((x) => x.dia === d && (x.semana === s || x.semana == null));
-  const porSemana = new Set(p.dias.map((x) => `${x.semana ?? '*'}-${x.dia}`)).size;
+  // Média de treinos por semana: um dia sem semana conta em todas
+  const porSemana = Math.round(Array.from({ length: p.semanas }, (_, i) => p.dias.filter((x) => x.semana == null || x.semana === i + 1).length).reduce((a, b) => a + b, 0) / Math.max(1, p.semanas));
+  // Cada treino com a sua cor na grelha, como no Figma (G-18)
+  const corDe = new Map([...new Set(p.dias.map((x) => x.treinoId))].map((w, i) => [w, i % 3]));
   return (
     <CoachShell headStrong={p.nome} headSub={`Treino · Planos · ${p.versao ? `versão ${p.versao}` : 'rascunho'}`} legado={false}
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
@@ -365,7 +368,7 @@ export function ConstrutorPlano() {
                 {ORDEM_DIAS.map((d) => {
                   const ts = noDia(s, d);
                   return (
-                    <button key={d} type="button" className={`lg-semana__dia${ts.length ? ' lg-semana__dia--cheio' : ''}`} onClick={() => setCelula({ semana: s, dia: d })} aria-label={`Semana ${s}, ${DIAS[d]}: ${ts.map((x) => x.nome).join(', ') || 'sem treino'}`}>
+                    <button key={d} type="button" className={`lg-semana__dia${ts.length ? ` lg-semana__dia--cheio lg-semana__dia--c${corDe.get(ts[0].treinoId) ?? 0}` : ''}`} onClick={() => setCelula({ semana: s, dia: d })} aria-label={`Semana ${s}, ${DIAS[d]}: ${ts.map((x) => x.nome).join(', ') || 'sem treino'}`}>
                       {ts.length ? ts.map((x) => x.nome).join(' · ') : '—'}
                     </button>
                   );
