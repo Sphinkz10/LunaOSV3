@@ -5,18 +5,18 @@
 import type { LunaClient } from './client';
 import type { OrgScope } from '../authStore';
 
-export interface Grupo { id: string; nome: string; descricao: string | null; membros: number; responsavelId: string | null; arquivado: boolean; motivoArquivo: string | null }
+export interface Grupo { id: string; nome: string; descricao: string | null; tipo: string; membros: number; responsavelId: string | null; arquivado: boolean; motivoArquivo: string | null }
 export interface MembroGrupo { linkId: string; nome: string; desde: string; saiu: string | null; motivo: string | null }
 export interface EventoGrupo { em: string; oque: string; detalhe: string | null }
 
 export async function fetchGrupos(client: LunaClient, scope: OrgScope): Promise<Grupo[]> {
   const [g, m] = await Promise.all([
-    client.from('groups').select('id,name,description,responsible_membership_id,archived_at,archived_reason').eq('org_id', scope.orgId).order('name'),
+    client.from('groups').select('id,name,description,type,responsible_membership_id,archived_at,archived_reason').eq('org_id', scope.orgId).order('name'),
     client.from('group_members').select('group_id,left_at').eq('org_id', scope.orgId).is('left_at', null),
   ]);
   if (g.error) throw g.error;
   return (g.data ?? []).map((x) => ({
-    id: x.id, nome: x.name, descricao: x.description, responsavelId: x.responsible_membership_id, arquivado: !!x.archived_at, motivoArquivo: x.archived_reason,
+    id: x.id, nome: x.name, descricao: x.description, tipo: x.type, responsavelId: x.responsible_membership_id, arquivado: !!x.archived_at, motivoArquivo: x.archived_reason,
     membros: (m.data ?? []).filter((y) => y.group_id === x.id).length,
   }));
 }

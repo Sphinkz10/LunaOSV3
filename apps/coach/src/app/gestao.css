@@ -852,3 +852,10 @@ button.lg-protocolo__linha { cursor: pointer; }
 /* G-22: blocos do protocolo fechados com resumo; o aberto com contorno */
 .lg-protocolo__fechado { flex-direction: row; justify-content: space-between; align-items: center; text-align: left; font: inherit; color: var(--cor-texto); cursor: pointer; }
 .lg-protocolo__aberto { border: 2px solid var(--cor-texto); }
+
+/* ── G-08 Grupos (Figma 120:502) ──────────────────────────────────────── */
+.lg-grupos__linha { align-items: center; }
+.lg-grupos__icone { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--cor-selecao); color: var(--cor-texto); }
+.lg-grupos__icone--program { background: color-mix(in srgb, var(--cor-acao) 22%, var(--cor-superficie)); }
+.lg-grupos__icone--squad { background: var(--cor-superficie-2); }
+.lg-grupos__n { min-width: 28px; padding: 2px 8px; border-radius: var(--raio-pilula); background: var(--cor-superficie-2); font: 600 12px/1.6 var(--fonte-texto); text-align: center; }

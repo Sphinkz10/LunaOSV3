@@ -127,6 +127,15 @@ begin
     (o_rui, v_links[4], m_rui, 'restricao_a_rever', 'Pedro Lopes · rever a restrição do joelho', now() - interval '3 days'),
     (o_rui, v_links[7], m_rui, 'encarregado_em_falta', 'Beatriz Sousa · falta o consentimento do encarregado', now() - interval '40 minutes');
 
+  -- ---------- Grupos (G-08) ----------
+  insert into public.groups (org_id, type, sport_id, name, description, responsible_membership_id) values
+    (o_rui, 'program', 'fitness', 'Online · Força em 8 semanas', 'check-in ao domingo', m_rui),
+    (o_rui, 'squad', 'fitness', 'Pequeno grupo · manhã', 'seg, qua e sex 7:30', m_rui);
+  insert into public.group_members (org_id, group_id, link_id)
+    select o_rui, g.id, l from public.groups g cross join unnest(v_links[1:4]) l where g.org_id = o_rui and g.type = 'program';
+  insert into public.group_members (org_id, group_id, link_id)
+    select o_rui, g.id, l from public.groups g cross join unnest(v_links[5:7]) l where g.org_id = o_rui and g.type = 'squad';
+
   -- ---------- Objetivo da Joana (C-21, C-16) ----------
   insert into public.goals (org_id, link_id, title, criterion, owner_membership_id, status_note)
     values (o_rui, v_links[1], 'Força', '3 treinos por semana', m_rui, '1RM do agachamento a subir');

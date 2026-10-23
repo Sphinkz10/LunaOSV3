@@ -5,7 +5,7 @@ import {
   reporGrupo, sairDoGrupo, toast, type ClientRow, type EventoGrupo, type Grupo, type MembroGrupo, type StaffLite,
 } from '@luna/core';
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota } from '@luna/ui/v3';
-import { Plus, ShieldCheck, UsersThree } from '@luna/icons';
+import { Barbell, ChartLineUp, Plus, ShieldCheck, UsersThree } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -20,6 +20,9 @@ const hoje = () => new Date().toISOString().slice(0, 10);
  * repor com motivo e histórico. O responsável recebe os avisos do grupo; não
  * muda as permissões de ninguém.
  */
+const TIPO_GRUPO: Record<string, string> = { class: 'Turma', program: 'Programa', portfolio: 'Carteira', age_group: 'Escalão', squad: 'Pequeno grupo', team: 'Equipa' };
+const ICONE_GRUPO: Record<string, typeof UsersThree> = { class: UsersThree, program: ChartLineUp, squad: Barbell, team: UsersThree };
+
 export function Grupos() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
@@ -27,7 +30,8 @@ export function Grupos() {
   const [grupos, setGrupos] = useState<Grupo[] | null>(null);
   const [equipa, setEquipa] = useState<StaffLite[]>([]);
   const [q, setQ] = useState('');
-  const [arquivados, setArquivados] = useState(false);
+  const [sep, setSep] = useState('todos');
+  const arquivados = sep === 'arquivados';
   const [novo, setNovo] = useState(false);
   const [nome, setNome] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -37,7 +41,7 @@ export function Grupos() {
     void fetchGrupos(client, scope).then(setGrupos).catch((e) => setErro(erroDe(e)));
   }, [scope]);
   useEffect(() => { carregar(); const c = getSupabaseClient(); if (c) void fetchStaff(c, scope).then(setEquipa).catch(() => setEquipa([])); }, [carregar, scope]);
-  const visiveis = (grupos ?? []).filter((g) => g.arquivado === arquivados && (!q.trim() || g.nome.toLocaleLowerCase('pt-PT').includes(q.trim().toLocaleLowerCase('pt-PT'))));
+  const visiveis = (grupos ?? []).filter((g) => g.arquivado === arquivados && (sep === 'todos' || sep === 'arquivados' || g.tipo === sep) && (!q.trim() || g.nome.toLocaleLowerCase('pt-PT').includes(q.trim().toLocaleLowerCase('pt-PT'))));
   const aberto = grupos?.find((g) => g.id === id) ?? null;
   const criar = async () => {
     const client = getSupabaseClient();
@@ -49,21 +53,29 @@ export function Grupos() {
     <CoachShell headStrong="Grupos" headSub={grupos ? `${grupos.filter((g) => !g.arquivado).length} ativos` : undefined} legado={false}
       topActions={<Botao icone={Plus} onClick={() => setNovo(true)}>Novo grupo</Botao>}>
       <div className="lv-root lg-grupos">
-        <section className="lv-lista" aria-label="Grupos">
-          <Campo rotulo="Pesquisar grupo" type="search" value={q} onChange={(e) => setQ(e.target.value)} />
-          <div className="lg-ficha__metricas">
-            <Chip ativo={!arquivados} onClick={() => setArquivados(false)}>Ativos {grupos?.filter((g) => !g.arquivado).length ?? ''}</Chip>
-            <Chip ativo={arquivados} onClick={() => setArquivados(true)}>Arquivados {grupos?.filter((g) => g.arquivado).length ?? ''}</Chip>
+        <section className="lv-lista lg-grupos__lista" aria-label="Grupos">
+          {/* G-08 (Figma 120:502): separadores por tipo e uma linha por grupo com o número de pessoas */}
+          <div className="lg-separadores" role="tablist" aria-label="Tipo de grupo">
+            {[['todos', 'Todos'], ...[...new Set((grupos ?? []).filter((g) => !g.arquivado).map((g) => g.tipo))].map((t) => [t, TIPO_GRUPO[t] ?? t]), ['arquivados', 'Arquivados']].map(([v, r]) => {
+              const n = v === 'arquivados' ? grupos?.filter((g) => g.arquivado).length : grupos?.filter((g) => !g.arquivado && (v === 'todos' || g.tipo === v)).length;
+              return <button key={v} type="button" role="tab" aria-selected={sep === v} onClick={() => setSep(v)}>{r} <span className="lv-legenda">{n ?? ''}</span></button>;
+            })}
           </div>
+          <input className="lv-campo-input" type="search" placeholder="Procurar grupo" aria-label="Procurar grupo" value={q} onChange={(e) => setQ(e.target.value)} />
           {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} /> : !grupos ? <Esqueleto linhas={3} /> : visiveis.length === 0
             ? <p className="lv-legenda" style={{ margin: 0 }}>{arquivados ? 'Nenhum grupo arquivado.' : 'Ainda sem grupos. Cria um para enviar check-ins a todos de uma vez.'}</p>
-            : visiveis.map((g) => (
-              <button key={g.id} type="button" className="lv-linha-lista" aria-current={g.id === id} onClick={() => navigate(`/groups/${g.id}`)}>
-                <span className="lg-pergunta__n">{g.nome.slice(0, 2).toUpperCase()}</span>
-                <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{g.nome}</span>
-                  <span className="lv-legenda">{g.membros} {g.membros === 1 ? 'membro' : 'membros'}{g.responsavelId ? ` · ${equipa.find((m) => m.id === g.responsavelId)?.name ?? ''}` : ''}</span></span>
-              </button>
-            ))}
+            : visiveis.map((g) => {
+              const Icone = ICONE_GRUPO[g.tipo] ?? UsersThree;
+              const resp = g.responsavelId ? equipa.find((m) => m.id === g.responsavelId)?.name : null;
+              return (
+                <button key={g.id} type="button" className="lv-linha-lista lg-grupos__linha" aria-current={g.id === id} onClick={() => navigate(`/groups/${g.id}`)}>
+                  <span className={`lg-grupos__icone lg-grupos__icone--${g.tipo}`}><Icone size={18} aria-hidden /></span>
+                  <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{g.nome}</span>
+                    <span className="lv-legenda">{[TIPO_GRUPO[g.tipo] ?? 'Grupo', g.descricao, resp].filter(Boolean).join(' · ')}</span></span>
+                  <span className="lg-grupos__n">{g.membros}</span>
+                </button>
+              );
+            })}
         </section>
         {aberto ? <DetalheGrupo key={aberto.id} g={aberto} equipa={equipa} onMudou={carregar} />
           : <EstadoPagina tipo="vazio" icone={UsersThree} titulo="Escolhe um grupo" texto="Vês os membros com as datas, o responsável e o histórico." />}
