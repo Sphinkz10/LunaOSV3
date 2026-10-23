@@ -8,6 +8,7 @@ import {
 import { Avatar, Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, SemPermissao } from '@luna/ui/v3';
 import { CheckCircle, Copy, IdentificationCard, Key, Lock, UsersThree, XCircle } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { ComMenuDefinicoes } from '../app/MenuDefinicoes';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 
@@ -90,7 +91,7 @@ export function Equipa() {
   return (
     <CoachShell headStrong="Equipa e acessos" headSub="Definições" legado={false}
       topActions={<Botao onClick={() => setConvidar(true)}>Convidar</Botao>}>
-      <div className="lv-root lg-conta">
+      <ComMenuDefinicoes><div className="lv-root lg-conta">
         {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
           : !dados ? <div className="lv-lista"><Esqueleto /></div>
           : (
@@ -234,7 +235,7 @@ export function Equipa() {
             <Botao variante="secundario" icone={Copy} onClick={() => void navigator.clipboard.writeText(codigo.codigo).then(() => toast({ variant: 'success', title: 'Código copiado' }))}>Copiar código</Botao>
           </div>
         )}
-      </Janela>
+      </Janela></ComMenuDefinicoes>
     </CoachShell>
   );
 }

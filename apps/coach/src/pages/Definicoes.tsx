@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   arquivarSala, definirDiretorTecnico, descreverAcao, fetchMarca, fetchSeguranca, fetchStaff, fetchUnidades, guardarMarca, guardarSala,
   guardarUnidade, toast, useAuthStore,
@@ -7,9 +7,10 @@ import {
 } from '@luna/core';
 import { Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, Janela, Nota, SemPermissao } from '@luna/ui/v3';
 import {
-  CaretRight, ClipboardText, Fingerprint, Gear, Heartbeat, LockKey, MapPin, Palette, Plug, ShieldCheck, Sliders, UploadSimple, UserCircle, UsersThree, Wallet,
+  CaretRight, ClipboardText, Fingerprint, Gear, Heartbeat, LockKey, Plug, ShieldCheck, Sliders, UploadSimple, UserCircle, UsersThree, Wallet,
 } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { ComMenuDefinicoes } from '../app/MenuDefinicoes';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
 import { vocab } from '../lib/vocab';
@@ -71,7 +72,7 @@ export function Seguranca() {
   const faltam = dados?.doisFatores.filter((d) => d.obrigatorio && !d.ativo) ?? [];
   return (
     <CoachShell headStrong="Segurança e auditoria" headSub="Definições" legado={false}>
-      <div className="lv-root lg-ficha">
+      <ComMenuDefinicoes><div className="lv-root lg-ficha">
         <div className="lg-separadores" role="tablist" aria-label="Segurança">
           {([['acoes', 'Registo de ações', dados?.acoes.length], ['saude', 'Acessos à saúde', dados?.saude.length], ['sessoes', 'Sessões', dados?.entradas.length], ['dois', 'Dois fatores', null]] as const).map(([id, r, n]) => (
             <button key={id} type="button" role="tab" aria-selected={sep === id} onClick={() => { setSep(id); setAberto(null); }}>{r}{n != null && <span>{n}</span>}</button>
@@ -147,7 +148,7 @@ export function Seguranca() {
               </div>
             </div>
           )}
-      </div>
+      </div></ComMenuDefinicoes>
     </CoachShell>
   );
 }
@@ -162,7 +163,8 @@ export function Ginasio() {
   const scope = useScope();
   const modules = useAuthStore((s) => s.modules);
   const pode = scope.permissions.includes('org.manage');
-  const [sep, setSep] = useState<SepGin>('unidades');
+  const [params] = useSearchParams();
+  const sep = (params.get('sep') as SepGin | null) ?? 'unidades';
   const [unidades, setUnidades] = useState<Unidade[] | null>(null);
   const [equipa, setEquipa] = useState<StaffLite[]>([]);
   const [marca, setMarca] = useState<MarcaOrg | null>(null);
@@ -179,12 +181,6 @@ export function Ginasio() {
   useEffect(() => carregar(), [carregar]);
   if (!pode) return <CoachShell headStrong="Ginásio" headSub="Definições" legado={false}><div className="lv-root"><SemPermissao area="as definições do ginásio" /></div></CoachShell>;
 
-  const secoes: { id: SepGin; rotulo: string; icone: typeof Gear; nota?: string }[] = [
-    { id: 'unidades', rotulo: 'Unidades e salas', icone: MapPin }, { id: 'horarios', rotulo: 'Horários de abertura', icone: ClipboardText },
-    { id: 'regulamento', rotulo: 'Regulamento e contrato', icone: ClipboardText, nota: 'F2' }, { id: 'marca', rotulo: 'Marca da app', icone: Palette },
-    { id: 'pagamentos', rotulo: 'Pagamentos e faturação', icone: Wallet, nota: 'Por ligar' }, { id: 'modulos', rotulo: 'Módulos', icone: Sliders },
-    { id: 'integracoes', rotulo: 'Integrações', icone: Plug },
-  ];
   const mudarTema = async (tema: string) => {
     const client = getSupabaseClient();
     if (!client || !marca) return;
@@ -198,14 +194,7 @@ export function Ginasio() {
 
   return (
     <CoachShell headStrong="Ginásio" headSub="Definições" legado={false}>
-      <div className="lv-root lg-gin">
-        <nav className="lg-gin__menu" aria-label="Secções">
-          {secoes.map((s) => (
-            <button key={s.id} type="button" aria-current={sep === s.id ? 'page' : undefined} onClick={() => setSep(s.id)}>
-              <s.icone size={16} aria-hidden /><span style={{ flex: 1 }}>{s.rotulo}</span>{s.nota && <span className="lv-legenda">{s.nota}</span>}
-            </button>
-          ))}
-        </nav>
+      <ComMenuDefinicoes><div className="lv-root">
         <div className="lg-ficha__coluna">
           {erro && <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />}
           {sep === 'unidades' && (!unidades ? <Esqueleto /> : (
@@ -269,7 +258,7 @@ export function Ginasio() {
         </div>
       </div>
       <NovaUnidade aberta={novaUnidade} onFechar={() => setNovaUnidade(false)} onFeito={carregar} />
-      <NovaSala unidade={salaPara} onFechar={() => setSalaPara(null)} onFeito={carregar} />
+      <NovaSala unidade={salaPara} onFechar={() => setSalaPara(null)} onFeito={carregar} /></ComMenuDefinicoes>
     </CoachShell>
   );
 }

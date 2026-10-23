@@ -7,6 +7,7 @@ import {
 import { Avatar, Botao, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
 import { CheckCircle, CreditCard, Info, Minus, Plus, UsersThree, Warning } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
+import { ComMenuDefinicoes } from '../app/MenuDefinicoes';
 import { useScope } from '../app/ModuleLayout';
 import { esquecerSubscricao } from '../app/AvisoSubscricao';
 import { getSupabaseClient } from '../lib/supabase';
@@ -70,7 +71,7 @@ export function Subscricao() {
   return (
     <CoachShell headStrong="Subscrição" headSub="Definições" legado={false}
       topActions={s?.gere && !soLer && <Botao icone={Plus} onClick={() => setLugares((n) => n + 1)}>Acrescentar lugar</Botao>}>
-      <div className="lv-root lg-vivo">
+      <ComMenuDefinicoes><div className="lv-root lg-vivo">
         {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar" texto={erro} /> : !s ? <Esqueleto /> : (
           <>
             <div className="lg-hoje__contagens">
@@ -176,7 +177,7 @@ export function Subscricao() {
       </div>
       {s && efeito && <ConfirmarMudanca aberta={confirmar} s={s} efeito={efeito} onFechar={() => setConfirmar(false)}
         onFeito={(x) => { setConfirmar(false); esquecerSubscricao(); setS(x); setPlano(x.plano); setLugares(x.lugares); toast({ variant: 'success', title: 'Subscrição atualizada' }); }} />}
-      <CancelarSubscricao aberta={cancelar} onFechar={() => setCancelar(false)} onFeito={() => { setCancelar(false); esquecerSubscricao(); carregar(); }} />
+      <CancelarSubscricao aberta={cancelar} onFechar={() => setCancelar(false)} onFeito={() => { setCancelar(false); esquecerSubscricao(); carregar(); }} /></ComMenuDefinicoes>
     </CoachShell>
   );
 }
