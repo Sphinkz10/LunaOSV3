@@ -1,3 +1,4 @@
+import { eFeminino, g } from '@luna/modalidades';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -5,7 +6,7 @@ import {
   type Aptidao, type TipoRestricao,
 } from '@luna/core';
 import { Botao, Campo, Esqueleto, EstadoPagina, Estado, Nota, SemPermissao } from '@luna/ui/v3';
-import { CheckCircle, Warning, X } from '@luna/icons';
+import { Check, CheckCircle, Warning, X } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { SairSemGuardar, VoltarA } from '../app/Estados';
 import { useScope } from '../app/ModuleLayout';
@@ -101,7 +102,7 @@ export function Aptidao() {
                   <h2 className="lv-titulo-cartao">Estado</h2>
                   {estado && <Estado tom={estado.tom}>{estado.texto}</Estado>}
                 </div>
-                {dados.pendenteParq && <Nota>O PAR-Q pediu atestado. A primeira {vocab.sessao()} fica bloqueada até haver atestado ou restrição registada.</Nota>}
+                {dados.pendenteParq && <Nota>O PAR-Q pediu atestado. {g(vocab.sessao(), 'A primeira', 'O primeiro')} fica {eFeminino(vocab.sessao()) ? 'bloqueada' : 'bloqueado'} até haver atestado ou restrição registada.</Nota>}
                 {dados.efeitos.length === 0
                   ? <p className="lv-legenda" style={{ margin: 0 }}>Sem restrições registadas.</p>
                   : dados.efeitos.map((e) => (
@@ -147,6 +148,19 @@ export function Aptidao() {
                           <span className="lv-legenda">{r.notes ?? 'Sem causa registada'} · desde {fmt(r.created_at.slice(0, 10))}</span>
                         </span>
                         <Botao variante="secundario" onClick={() => void revogar(r.id, 'esta restrição')}>Retirar</Botao>
+                      </div>
+                    ))}
+                  </section>
+
+                  {/* G-29 (Figma 118:641): quem vê o efeito e quem vê a causa */}
+                  <section className="lv-lista" aria-label="Quem é avisado">
+                    <h2 className="lv-titulo-cartao">Quem é avisado</h2>
+                    <div className="lg-avisado lg-tabela__cabeca"><span>Pessoa</span><span>Efeito</span><span>Causa</span></div>
+                    {[[`${vocab.responsavel({ maiuscula: true })} responsável`, true, true], ['Diretor técnico', true, true], ['Instrutores das aulas', true, false], ['Receção', false, false]].map(([quem, efeito, causa]) => (
+                      <div key={quem as string} className="lg-avisado">
+                        <span>{quem as string}</span>
+                        <span aria-label={efeito ? 'vê' : 'não vê'}>{efeito ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}</span>
+                        <span aria-label={causa ? 'vê' : 'não vê'}>{causa ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}</span>
                       </div>
                     ))}
                   </section>

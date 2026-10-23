@@ -1,3 +1,4 @@
+import { g } from '@luna/modalidades';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -39,7 +40,7 @@ export function SessoesEquipa() {
             <div className="lg-ficha__grelha">
               <section className="lv-lista" aria-label="Em curso">
                 <h2 className="lv-titulo-cartao" style={{ margin: 0 }}>Em curso</h2>
-                {emCurso.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>Nenhuma {vocab.sessao()} em curso.</p> : emCurso.map((s) => (
+                {emCurso.length === 0 ? <p className="lv-legenda" style={{ margin: 0 }}>{g(vocab.sessao(), 'Nenhuma', 'Nenhum')} em curso.</p> : emCurso.map((s) => (
                   <div key={s.id} className="lv-linha-lista" style={{ cursor: 'default' }}>
                     <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{s.cliente ?? '—'}</span>
                       <span className="lv-legenda">{s.treino ?? 'Sem treino'} · {s.quem ?? '—'} · desde {quando(s.inicio)}</span></span>
