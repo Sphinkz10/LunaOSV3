@@ -1,3 +1,4 @@
+import { novo } from '@luna/modalidades';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -16,7 +17,7 @@ import { t, vocab } from '../lib/vocab';
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const H0 = 6; const H1 = 22; const PX = 48;
+const H0 = 6; const H1 = 22; const PX = 64;
 const TIPO: Record<string, string> = { training: t('sessao', { maiuscula: true }), consultation: 'Consulta', assessment: 'Avaliação', other: 'Outro', class: t('aula', { maiuscula: true }) };
 const ESTADO: Record<string, { texto: string; tom: EstadoTom }> = {
   pending: { texto: 'Por confirmar', tom: 'aviso' }, confirmed: { texto: 'Confirmada', tom: 'ok' }, completed: { texto: 'Feita', tom: 'neutro' },
@@ -106,7 +107,7 @@ export function Horario() {
       topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
         <Botao variante="secundario" onClick={() => navigate('/schedule/disponibilidade')}>Disponibilidade</Botao>
         <Botao variante="secundario" onClick={() => navigate('/schedule/regras')}>Regras e lembretes</Botao>
-        <Botao icone={Plus} onClick={() => { setAtual(null); setAberto(novaBase()); }}>Nova {t('sessao')}</Botao>
+        <Botao icone={Plus} onClick={() => { setAtual(null); setAberto(novaBase()); }}>{novo(t('sessao'))}</Botao>
       </span>}>
       <div className="lv-root lg-ficha">
         <div className="lg-clientes__barra">
@@ -119,8 +120,8 @@ export function Horario() {
             {(['dia', 'semana', 'mes', 'lista'] as Vista[]).map((v) => <Chip key={v} role="radio" aria-checked={vista === v} ativo={vista === v} onClick={() => setVista(v)}>{v === 'dia' ? 'Dia' : v === 'semana' ? 'Semana' : v === 'mes' ? 'Mês' : 'Lista'}</Chip>)}
           </div>
           <div className="lg-clientes__chips">
-            {veTodos && <Chip ativo={filtroPt === 'todos'} onClick={() => setFiltroPt('todos')}>Toda a equipa</Chip>}
-            <Chip ativo={filtroPt === scope.membershipId} onClick={() => setFiltroPt(scope.membershipId)}>Só eu</Chip>
+            {veTodos && equipa.length > 1 && <Chip ativo={filtroPt === 'todos'} onClick={() => setFiltroPt('todos')}>Toda a equipa</Chip>}
+            {equipa.length > 1 && <Chip ativo={filtroPt === scope.membershipId} onClick={() => setFiltroPt(scope.membershipId)}>Só eu</Chip>}
             {veTodos && equipa.filter((m) => m.id !== scope.membershipId).slice(0, 4).map((m) => <Chip key={m.id} ativo={filtroPt === m.id} onClick={() => setFiltroPt(m.id)}>{m.name.split(' ')[0]}</Chip>)}
             {salas.map((s) => <Chip key={s.id} ativo={filtroSala === s.id} onClick={() => setFiltroSala(filtroSala === s.id ? null : s.id)}>{s.nome}</Chip>)}
             <Chip ativo={soPendentes} onClick={() => setParams((p) => { if (soPendentes) p.delete('estado'); else p.set('estado', 'pendente'); return p; })}>Por confirmar</Chip>
@@ -238,7 +239,7 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
   return (
     <aside className="lv-lista lg-horario__editor" aria-label={atual ? 'Editar sessão' : 'Nova sessão'}>
       <div className="lv-lista__cabeca">
-        <h2 className="lv-titulo-cartao">{atual ? (atual.cliente ?? atual.titulo ?? 'Sessão') : `Nova ${t('sessao')}`}</h2>
+        <h2 className="lv-titulo-cartao">{atual ? (atual.cliente ?? atual.titulo ?? 'Sessão') : novo(t('sessao'))}</h2>
         {atual && <Estado tom={ESTADO[atual.estado]?.tom ?? 'neutro'}>{ESTADO[atual.estado]?.texto ?? atual.estado}</Estado>}
       </div>
       <div role="radiogroup" aria-label="Tipo" className="lg-ficha__metricas">

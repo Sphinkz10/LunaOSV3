@@ -6,7 +6,7 @@ import {
   useAuthStore, abrirConversaCliente,
 } from '@luna/core';
 import { AvisoSecao, Avatar, Botao, Campo, Esqueleto, Estado, EstadoPagina, MenuAcoes, Nota, SemPermissao, type EstadoTom } from '@luna/ui/v3';
-import { Archive, ArrowCounterClockwise, Barbell, ChatCircle, CalendarBlank, EnvelopeSimple, Heartbeat, Play, UsersThree } from '@luna/icons';
+import { Archive, ArrowCounterClockwise, Barbell, ChatCircle, CalendarBlank, EnvelopeSimple, Heartbeat, PencilSimple, Play, UsersThree } from '@luna/icons';
 import { ArquivarCliente, AtividadeTab, EditarDados, ObjetivosTab, ProgressoTab, ReativarCliente } from './FichaSeparadores';
 import { AtribuicoesCliente } from './Sessoes';
 import { PacksCliente } from './Packs';
@@ -15,7 +15,7 @@ import { CoachShell } from '../app/CoachShell';
 import { PedidosCliente } from './Avaliacao';
 import { DocumentosCliente, NotasPrivadas } from '../app/FichaNotasDocs';
 import { useScope } from '../app/ModuleLayout';
-import { VoltarA } from '../app/Estados';
+import { Migalhas } from '../app/Estados';
 import { getSupabaseClient } from '../lib/supabase';
 import { t, vocab } from '../lib/vocab';
 
@@ -124,14 +124,18 @@ export function Client360() {
 
   return (
     <CoachShell headStrong={p?.name ?? `Ficha do ${p1}`} headSub={PP} legado={false}
-      topActions={<VoltarA omissao={{ rotulo: PP, href: '/clients' }} />}>
+      migalhas={<Migalhas omissao={{ rotulo: PP, href: '/clients' }} atual={p?.name ?? `Ficha do ${p1}`} />}
+      topActions={p && !arquivado ? <span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
+        <Botao variante="secundario" icone={CalendarBlank} onClick={() => navigate(`/schedule?nova=1&cliente=${id}`)}>Marcar</Botao>
+        <Botao icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
+      </span> : undefined}>
       <div className="lv-root lg-ficha">
         {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar a ficha" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
           : !data || !p ? <div className="lv-lista"><Esqueleto /></div>
           : (
             <>
               <header className="lg-ficha__cabeca">
-                <Avatar nome={p.name} foto={p.avatarUrl} tamanho={72} />
+                <Avatar nome={p.name} foto={p.avatarUrl} tamanho={88} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <h2 className="lv-titulo-ecra" style={{ margin: 0 }}>{p.name}</h2>
                   <div className="lg-ficha__pills">
@@ -144,14 +148,12 @@ export function Client360() {
                 </div>
                 <div className="lg-ficha__acoes">
                   {arquivado ? <Botao icone={ArrowCounterClockwise} onClick={() => setReativar(true)}>Reativar</Botao> : <>
-                  <Botao variante="secundario" onClick={() => setEditar(true)}>Editar dados</Botao>
-                  <Botao variante="secundario" icone={CalendarBlank} onClick={() => navigate(`/schedule?nova=1&cliente=${id}`)}>Marcar</Botao>
-                  <Botao icone={Play} onClick={() => navigate('/live')}>Iniciar {vocab.sessao()}</Botao>
-                  {modulos.includes('messages') && <Botao variante="secundario" icone={ChatCircle} onClick={() => {
+                  {modulos.includes('messages') && <button type="button" className="lv-btn lv-btn--secundario lv-btn--icone" aria-label={`Mensagem a ${p.name}`} title="Mensagem" onClick={() => {
                     const c = getSupabaseClient();
                     if (c) void abrirConversaCliente(c, id).then((cid) => navigate(`/messages/${cid}`)).catch(() => navigate('/messages'));
-                  }}>Mensagem</Botao>}
+                  }}><ChatCircle size={18} aria-hidden /></button>}
                   <MenuAcoes rotulo={`Mais ações para ${p.name}`} acoes={[
+                    { rotulo: 'Editar dados', icone: PencilSimple, onClick: () => setEditar(true) },
                     ...(p.hasAccount ? [] : [{ rotulo: 'Convidar para a app', icone: EnvelopeSimple, onClick: () => setConvidar({ id, nome: p.name, email: p.email, telefone: p.phone }) }]),
                     { rotulo: `Juntar com outro ${p1}`, icone: UsersThree, onClick: () => setJuntar(true) },
                     { rotulo: 'Restrição e aptidão', icone: Heartbeat, onClick: () => navigate(`/clients/${id}/aptidao`, daqui) },
@@ -176,10 +178,13 @@ export function Client360() {
                       <section className="lv-lista" aria-label="Plano de treino">
                         <div className="lv-lista__cabeca"><h3 className="lv-titulo-cartao">Plano de treino</h3></div>
                         {ativa ? (
-                          <>
-                            <span className="lv-linha-lista__titulo" style={{ fontSize: 18 }}>{ativa.planName ?? 'Plano'}</span>
-                            <span className="lv-legenda">Desde {dia(ativa.startsOn)}{ativa.endsOn ? ` até ${dia(ativa.endsOn)}` : ''}</span>
-                          </>
+                          <div className="lg-ficha__plano">
+                            <img src="/media/entrar.jpg" alt="" />
+                            <span>
+                              <span className="lg-ficha__plano-nome">{ativa.planName ?? 'Plano'}</span>
+                              <span className="lv-legenda">Desde {dia(ativa.startsOn)}{ativa.endsOn ? ` até ${dia(ativa.endsOn)}` : ''}</span>
+                            </span>
+                          </div>
                         ) : <p className="lv-legenda" style={{ margin: 0 }}>Sem plano ativo.</p>}
                         <button type="button" className="lg-link" onClick={() => setSep('treino')}>Ver treino</button>
                       </section>

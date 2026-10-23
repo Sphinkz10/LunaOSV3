@@ -7,6 +7,6 @@ export {
   ArrowCounterClockwise, ArrowLeft, ArrowsClockwise, Barbell, Bell, CalendarBlank, CaretRight, ChatCircle, Check, CheckCircle, Circle, Timer, Package, Question,
   ClipboardText, Clock, DotsThree, ListChecks, MapPin, ShieldCheck, Sliders,
   Fire, Gear, Heartbeat, House, Info, List, Lock, MagnifyingGlass, Play, Plus, QrCode, SignOut, Sun, User, Users,
-  Archive, Buildings, ChartLineUp, CreditCard, Minus, Eye, EyeSlash, Pause, Copy, EnvelopeSimple, Fingerprint, IdentificationCard, Key, Palette, Plug, UploadSimple, XCircle, LockKey, Monitor, UserCircle, UsersThree, Wallet, Warning, WifiSlash, X,
+  Archive, Buildings, ChartLineUp, CreditCard, Minus, Eye, EyeSlash, PencilSimple, Pause, Copy, EnvelopeSimple, Fingerprint, IdentificationCard, Key, Palette, Plug, UploadSimple, XCircle, LockKey, Monitor, UserCircle, UsersThree, Wallet, Warning, WifiSlash, X,
 } from '@phosphor-icons/react';
 export type { Icon as IconComponent, IconProps, IconWeight } from '@phosphor-icons/react';

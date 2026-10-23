@@ -1,3 +1,4 @@
+import { novo } from '@luna/modalidades';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { hasModule, switchOrg, toast, useAuthStore, wallClock } from '@luna/core';
@@ -43,7 +44,7 @@ function usePop() {
 function useNovoAcoes() {
   const modules = useAuthStore((s) => s.modules);
   return [
-    hasModule(modules, 'schedule') && { rotulo: `Nova ${vocab.sessao()}`, to: '/schedule?nova=1' },
+    hasModule(modules, 'schedule') && { rotulo: novo(vocab.sessao()), to: '/schedule?nova=1' },
     hasModule(modules, 'clients') && { rotulo: `Novo ${vocab.pessoa()}`, to: '/clients?novo=1' },
     hasModule(modules, 'training') && { rotulo: `Iniciar ${vocab.sessao()}`, to: '/live' },
     hasModule(modules, 'training') && { rotulo: 'Novo treino', to: '/training/biblioteca?novo=treino' },
@@ -57,9 +58,11 @@ function useNovoAcoes() {
  * direitos, seletor de organização, procura (Ctrl/⌘K), botão + e conta.
  */
 export function CoachShell({
-  headStrong, headSub, topActions, children, board, pageActions, legado = true,
+  headStrong, headSub, topActions, children, board, pageActions, legado = true, migalhas,
 }: {
   headStrong: string;
+  /** No lugar do título: "Clientes > Rita Moura" (G-06). */
+  migalhas?: ReactNode;
   headSub?: string;
   topActions?: ReactNode;
   children: ReactNode;
@@ -211,14 +214,16 @@ export function CoachShell({
       <div className="lg-coluna">
         <BarraSemRede />
         <GravacoesPorConfirmar />
-        <header className="lg-topo">
+        <header className={`lg-topo${topActions ? ' lg-topo--acoes' : ''}`}>
+          {migalhas ? <div style={{ minWidth: 0 }}>{migalhas}<h1 className="sr-only">{headStrong}</h1></div> : (
           <div style={{ minWidth: 0 }}>
             <span className="lg-topo__data">{headSub ?? data}</span>
             <h1 className="lg-topo__titulo">{headStrong}</h1>
           </div>
+          )}
           <div className="lg-topo__acoes">
             <button type="button" className="lg-procura" onClick={() => setProcura(true)} aria-label="Procurar (Ctrl+K)">
-              <MagnifyingGlass size={16} aria-hidden />Procurar {vocab.pessoa()}<span className="lg-procura__kbd" aria-hidden>Ctrl K</span>
+              <MagnifyingGlass size={16} aria-hidden /><span className="lg-procura__texto">Procurar {vocab.pessoa()}</span><span className="lg-procura__kbd" aria-hidden>Ctrl K</span>
             </button>
             <span className="lg-desktop-only">{topActions}</span>
             {scope && (

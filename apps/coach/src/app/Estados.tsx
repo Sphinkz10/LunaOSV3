@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import { toast, useGravacoesIncertas, type ConflitoError } from '@luna/core';
 import { Botao, Janela } from '@luna/ui/v3';
-import { ArrowLeft, WifiSlash } from '@luna/icons';
+import { ArrowLeft, CaretRight, WifiSlash } from '@luna/icons';
 
 /**
  * Estados de todos os ecrãs (X-02, Figma 181:85). A sessão expirada abre por
@@ -112,5 +112,19 @@ export function VoltarA({ omissao }: { omissao: Origem }) {
     <button type="button" className="lg-voltar" onClick={() => navigate(o.href)}>
       <ArrowLeft size={16} aria-hidden />Voltar {/^(a|à|ao|aos|às) /i.test(o.rotulo) ? o.rotulo : `a ${o.rotulo}`}
     </button>
+  );
+}
+
+/** Migalhas do topo (G-06, Figma 64:90): "Clientes > Rita Moura"; o primeiro passo é de onde se veio. */
+export function Migalhas({ omissao, atual }: { omissao: Origem; atual: string }) {
+  const navigate = useNavigate();
+  const { state } = useLocation() as { state: { voltar?: Origem } | null };
+  const o = state?.voltar ?? omissao;
+  return (
+    <nav className="lg-migalhas" aria-label="Estás em">
+      <button type="button" onClick={() => navigate(o.href)}>{o.rotulo}</button>
+      <CaretRight size={16} aria-hidden />
+      <span aria-current="page">{atual}</span>
+    </nav>
   );
 }

@@ -67,7 +67,13 @@
   min-height: 72px; padding: var(--espaco-8) var(--margem-computador) var(--espaco-8) 28px;
   border-bottom: 1px solid var(--cor-linha);
 }
-.lg-topo__data { display: block; font-size: 13px; color: var(--cor-texto-secundario); }
+.lg-topo__data { display: block; font-size: 13px; color: var(--cor-texto-secundario); white-space: nowrap; }
+.lg-topo__titulo { white-space: nowrap; }
+/* Com ações da página, a procura encolhe para o ícone antes de apertar o título (Ctrl K continua) */
+@media (max-width: 1500px) {
+  .lg-topo--acoes .lg-procura { width: auto; padding: 0 var(--espaco-12); }
+  .lg-topo--acoes .lg-procura__texto, .lg-topo--acoes .lg-procura__kbd { display: none; }
+}
 .lg-topo__titulo { margin: 0; font: 600 24px/1.15 var(--fonte-titulo); }
 .lg-topo__acoes { display: flex; align-items: center; gap: var(--espaco-12); }
 .lg-procura {
@@ -525,15 +531,15 @@ button.lg-seg__linha { cursor: pointer; }
 .lg-horario { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-16); align-items: start; }
 .lg-horario--aberto { grid-template-columns: minmax(0, 1fr) 340px; }
 .lg-grade { padding: 0; gap: 0; overflow: auto; }
-.lg-grade__cabeca { display: grid; grid-template-columns: 56px repeat(7, minmax(96px, 1fr)); position: sticky; top: 0; z-index: 2; background: var(--cor-superficie); border-bottom: 1px solid var(--cor-linha); }
+.lg-grade__cabeca { display: grid; grid-template-columns: 56px repeat(7, minmax(72px, 1fr)); position: sticky; top: 0; z-index: 2; background: var(--cor-superficie); border-bottom: 1px solid var(--cor-linha); min-width: 560px; }
 .lg-grade__cabeca > span { display: flex; flex-direction: column; align-items: center; padding: var(--espaco-8) 0; }
 .lg-grade__hoje b { background: var(--cor-principal); color: var(--cor-sobre-principal); border-radius: 999px; padding: 0 8px; }
-.lg-grade__corpo { display: grid; grid-template-columns: 56px repeat(7, minmax(96px, 1fr)); position: relative; min-width: 728px; }
+.lg-grade__corpo { display: grid; grid-template-columns: 56px repeat(7, minmax(72px, 1fr)); position: relative; min-width: 560px; }
 .lg-grade__horas { position: relative; }
 .lg-grade__horas span { position: absolute; left: 8px; font-size: 11px; color: var(--cor-texto-secundario); transform: translateY(-50%); }
-.lg-grade__dia { position: relative; border-left: 1px solid var(--cor-linha); background-image: linear-gradient(var(--cor-linha) 1px, transparent 1px); background-size: 100% 48px; }
-.lg-grade__bloco { position: absolute; left: 3px; right: 3px; display: flex; flex-direction: column; gap: 1px; padding: 4px 6px; border: 0; border-radius: 8px; overflow: hidden; text-align: left; font: 500 12px/1.25 var(--fonte-texto); cursor: pointer; background: var(--cor-principal); color: var(--cor-sobre-principal); }
-.lg-grade__bloco b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-grade__dia { position: relative; border-left: 1px solid var(--cor-linha); background-image: linear-gradient(var(--cor-linha) 1px, transparent 1px); background-size: 100% 64px; }
+.lg-grade__bloco { position: absolute; left: 4px; right: 4px; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 0; border-radius: 10px; overflow: hidden; text-align: left; font: 500 12px/1.35 var(--fonte-texto); cursor: pointer; background: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lg-grade__bloco b { font: 600 13px/1.35 var(--fonte-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lg-grade__bloco span { opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lg-grade__bloco--consultation, .lg-grade__bloco--assessment { background: var(--cor-acao); color: var(--cor-sobre-acao); }
 .lg-grade__bloco--other { background: var(--cor-selecao); color: var(--cor-texto); }
@@ -805,3 +811,14 @@ button.lg-protocolo__linha { cursor: pointer; }
   .lg-site__grelha { grid-template-columns: minmax(0, 1fr); padding: 0; }
   .lg-site__cartoes { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── G-06 migalhas e plano com miniatura (Figma 64:90) ────────────────── */
+.lg-migalhas { display: flex; align-items: center; gap: 6px; min-height: 44px; font: 400 14px/20px var(--fonte-texto); color: var(--cor-texto-secundario); }
+.lg-migalhas button { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.lg-migalhas button:hover { color: var(--cor-texto); text-decoration: underline; }
+.lg-migalhas [aria-current] { color: var(--cor-texto); font-weight: 600; }
+.lg-ficha__plano { display: flex; align-items: center; gap: 16px; }
+.lg-ficha__plano img { flex: none; width: 96px; height: 96px; object-fit: cover; border-radius: 16px; }
+.lg-ficha__plano > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lg-ficha__plano-nome { font: 600 20px/1.2 var(--fonte-titulo); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
