@@ -121,6 +121,12 @@ begin
   v_conv := public.open_client_conversation(v_links[2]);
   perform public.send_message(gen_random_uuid(), v_conv, 'Miguel, consegues passar a sessão de quinta para as 9h?');
 
+  -- ---------- Inbox (G-02): o que espera pelo Rui ----------
+  insert into public.pendencias (org_id, link_id, membership_id, kind, title, created_at) values
+    (o_rui, v_links[1], m_rui, 'parq_atestado', 'Joana Reis precisa de atestado médico antes de treinar', now() - interval '1 day'),
+    (o_rui, v_links[4], m_rui, 'restricao_a_rever', 'Pedro Lopes · rever a restrição do joelho', now() - interval '3 days'),
+    (o_rui, v_links[7], m_rui, 'encarregado_em_falta', 'Beatriz Sousa · falta o consentimento do encarregado', now() - interval '40 minutes');
+
   -- ---------- Objetivo da Joana (C-21, C-16) ----------
   insert into public.goals (org_id, link_id, title, criterion, owner_membership_id, status_note)
     values (o_rui, v_links[1], 'Força', '3 treinos por semana', m_rui, '1RM do agachamento a subir');
