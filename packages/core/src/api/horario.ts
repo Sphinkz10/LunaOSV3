@@ -11,6 +11,8 @@ export interface MarcacaoSemana {
   id: string; inicio: string; fim: string; titulo: string; tipo: EnumOf<'booking_type'>; estado: EnumOf<'booking_status'>;
   clienteId: string | null; cliente: string | null; membershipId: string | null; pt: string | null; salaId: string | null; sala: string | null;
   serieId: string | null; notas: string | null;
+  /** estudio, casa_cliente, parque ou online (locais do PT) e o texto do sítio */
+  local: string | null; localTexto: string | null;
   confirmarAte: string | null; motivoCancelar: string | null; grupoId: string | null; origem: string;
 }
 
@@ -36,6 +38,7 @@ export async function fetchSemana(client: LunaClient, scope: OrgScope, inicio: D
     membershipId: r.membership_id, pt: m.data?.find((x) => x.id === r.membership_id)?.full_name ?? null,
     salaId: r.room_id, sala: s.data?.find((x) => x.id === r.room_id)?.name ?? null, serieId: r.series_id, notas: r.notes,
     confirmarAte: r.confirm_by, motivoCancelar: r.cancel_reason, grupoId: r.group_id, origem: r.source,
+    local: (r as { location_kind?: string | null }).location_kind ?? null, localTexto: (r as { location?: string | null }).location ?? null,
   }));
 }
 

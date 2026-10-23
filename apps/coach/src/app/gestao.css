@@ -880,3 +880,24 @@ button.lg-protocolo__linha { cursor: pointer; }
 .lg-hoje__pend { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--estado-aviso); }
 .lg-hoje__pend--clientes { background: var(--cor-superficie-2); color: var(--cor-texto); }
 @media (max-width: 720px) { .lg-hoje__pack { display: none; } }
+
+/* ── G-09 Semana do PT (Figma 201:108): linhas por hora marcada, blocos com o sítio e o pack ── */
+.lg-semana-pt { padding: 0; gap: 0; overflow: auto; }
+.lg-semana-pt__linha { display: grid; grid-template-columns: 64px repeat(var(--dias), minmax(96px, 1fr)); min-width: 560px; border-bottom: 1px solid var(--cor-linha); }
+.lg-semana-pt__linha:last-child { border-bottom: 0; }
+.lg-semana-pt__cabeca > span { display: flex; flex-direction: column; align-items: center; padding: var(--espaco-8) 0; }
+.lg-semana-pt__hora { padding: 10px 10px; font: 500 12px/1.4 var(--fonte-texto); color: var(--cor-texto-secundario); }
+.lg-semana-pt__celula { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-left: 1px solid var(--cor-linha); min-height: 72px; }
+.lg-semana-pt__vazio { flex: 1; border: 0; border-radius: 10px; background: none; cursor: pointer; }
+.lg-semana-pt__vazio:hover { background: var(--cor-superficie-2); }
+.lg-semana-pt__bloco { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 0; border-radius: 10px; text-align: left; cursor: pointer; font: 400 12px/1.4 var(--fonte-texto); }
+.lg-semana-pt__bloco b { font: 600 13px/1.35 var(--fonte-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-semana-pt__bloco--online { background: var(--cor-principal); color: var(--cor-sobre-principal); }
+.lg-semana-pt__bloco--avaliacao { background: var(--cor-acao); color: var(--cor-sobre-acao); }
+.lg-semana-pt__bloco--presencial { background: color-mix(in srgb, var(--cor-acao) 55%, var(--cor-superficie)); color: var(--cor-texto); }
+.lg-semana-pt__bloco--grupo { background: var(--cor-selecao); color: var(--cor-texto); }
+.lg-semana-pt__bloco--pendente { background: var(--cor-superficie); color: var(--cor-texto); border: 2px dashed var(--cor-principal); }
+.lg-semana-pt__bloco--aberto { outline: 2px solid var(--cor-texto); outline-offset: 1px; }
+.lg-editor__foto { align-self: stretch; height: 120px; margin: calc(-1 * var(--espaco-20, 20px)) calc(-1 * var(--espaco-20, 20px)) 0; border-radius: var(--raio-cartao) var(--raio-cartao) 0 0; background: url('/media/hoje.jpg') center / cover no-repeat, var(--cor-destaque); }
+.lg-editor__nome { margin: 0; font: 600 22px/1.2 var(--fonte-titulo); letter-spacing: -0.4px; }
+.lg-editor__info { display: block; padding: 10px 12px; border-radius: var(--raio-linha); background: var(--cor-superficie-2); font-size: 14px; }

@@ -2,7 +2,7 @@ import { contarPorDia, filtrarLista, mudancaDeHora, type MarcacaoSemana } from '
 
 const m = (id: string, inicio: string, estado: MarcacaoSemana['estado'], cliente: string | null, pt = 'Tomás Reis'): MarcacaoSemana => ({
   id, inicio, fim: inicio, titulo: '', tipo: 'training', estado, clienteId: cliente ? `c-${cliente}` : null, cliente, membershipId: 'm1', pt,
-  salaId: null, sala: null, serieId: null, notas: null, confirmarAte: null, motivoCancelar: null, grupoId: null, origem: 'manual',
+  salaId: null, sala: null, serieId: null, notas: null, confirmarAte: null, motivoCancelar: null, grupoId: null, origem: 'manual', local: null, localTexto: null,
 });
 
 describe('horário: mês e lista (T24)', () => {

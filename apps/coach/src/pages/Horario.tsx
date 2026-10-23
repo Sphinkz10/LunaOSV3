@@ -6,10 +6,10 @@ import {
   wallClock, type ClientRow, type MarcacaoEditavel, type MarcacaoSemana, type StaffLite, type Unidade,
   fetchLocais, type LocalPT,
   cancelarMarcacao, contarPorDia, expirarPorConfirmar, filtrarLista, historicoMarcacao, mudancaDeHora, MOTIVOS_CANCELAR,
-  type EventoMarcacao, type FiltroLista,
+  type EventoMarcacao, type FiltroLista, type SaldoPack,
 } from '@luna/core';
-import { Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, Nota, type EstadoTom } from '@luna/ui/v3';
-import { CalendarBlank, CaretRight, Clock, Plus, Warning } from '@luna/icons';
+import { Botao, Campo, Chip, Esqueleto, Estado, EstadoPagina, Janela, MenuAcoes, Nota, type EstadoTom } from '@luna/ui/v3';
+import { CaretRight, Clock, Plus, Warning } from '@luna/icons';
 import { CoachShell } from '../app/CoachShell';
 import { useScope } from '../app/ModuleLayout';
 import { getSupabaseClient } from '../lib/supabase';
@@ -24,6 +24,77 @@ const ESTADO: Record<string, { texto: string; tom: EstadoTom }> = {
   no_show: { texto: 'Faltou', tom: 'erro' }, cancelled: { texto: 'Cancelada', tom: 'neutro' }, waitlisted: { texto: 'Em espera', tom: 'aviso' },
 };
 const isoDia = (d: Date) => d.toISOString().slice(0, 10);
+const LOCAL: Record<string, string> = { estudio: 'Estúdio', casa_cliente: 'Em casa', parque: 'Parque', online: 'Online' };
+
+/**
+ * Onde vai cada sessão no pack do cliente: as já passadas desta janela são as
+ * últimas usadas; as seguintes contam a partir daí (Figma 201:108, "3/10").
+ */
+function posicoesNoPack(lista: MarcacaoSemana[], saldos: Map<string, SaldoPack[]>): Map<string, { n: number; total: number; restam: number; nome: string }> {
+  const r = new Map<string, { n: number; total: number; restam: number; nome: string }>();
+  const agora = Date.now();
+  for (const [id, sl] of saldos) {
+    const p = sl.find((x) => x.estado !== 'expirado');
+    if (!p) continue;
+    const usadas = p.total - p.restam;
+    const minhas = lista.filter((b) => b.clienteId === id && b.tipo === 'training' && b.estado !== 'cancelled').sort((a, b) => a.inicio.localeCompare(b.inicio));
+    const passadas = minhas.filter((b) => Date.parse(b.inicio) < agora);
+    const futuras = minhas.filter((b) => Date.parse(b.inicio) >= agora);
+    passadas.forEach((b, i) => r.set(b.id, { n: Math.max(1, usadas - (passadas.length - 1 - i)), total: p.total, restam: p.restam, nome: p.nome }));
+    futuras.forEach((b, i) => { const n = usadas + 1 + i; if (n <= p.total) r.set(b.id, { n, total: p.total, restam: p.restam, nome: p.nome }); });
+  }
+  return r;
+}
+
+/** Semana do PT (Figma 201:108): uma linha por hora marcada, um bloco por sessão com o sítio e o pack. */
+function VistaSemanaPT({ dias, lista, hoje, tz, posicoes, atualId, onAbrir, onNova }: {
+  dias: Date[]; lista: MarcacaoSemana[]; hoje: Date; tz: string; posicoes: Map<string, { n: number; total: number }>; atualId: string | null;
+  onAbrir: (b: MarcacaoSemana) => void; onNova: (dia: string, hora: string) => void;
+}) {
+  const w = (iso: string) => wallClock(new Date(iso), tz);
+  const hhmm = (iso: string) => { const x = w(iso); return `${String(x.hour).padStart(2, '0')}:${String(x.minute).padStart(2, '0')}`; };
+  const diaDe = (iso: string) => { const x = w(iso); return `${x.year}-${String(x.month).padStart(2, '0')}-${String(x.day).padStart(2, '0')}`; };
+  // Sábado e domingo só aparecem quando há alguma coisa marcada
+  const mostrar = dias.filter((d) => ![0, 6].includes(d.getUTCDay()) || lista.some((b) => diaDe(b.inicio) === isoDia(d)));
+  const horas = [...new Set(lista.map((b) => hhmm(b.inicio)))].sort();
+  const cor = (b: MarcacaoSemana) => (b.tipo === 'assessment' ? 'avaliacao' : b.local === 'online' ? 'online' : b.grupoId ? 'grupo' : b.estado === 'pending' ? 'pendente' : 'presencial');
+  return (
+    <section className="lv-lista lg-semana-pt" aria-label="Semana" style={{ ['--dias' as string]: mostrar.length }}>
+      <div className="lg-semana-pt__linha lg-semana-pt__cabeca">
+        <span />
+        {mostrar.map((d) => (
+          <span key={isoDia(d)} className={isoDia(d) === isoDia(hoje) ? 'lg-grade__hoje' : undefined}>
+            <span className="lv-legenda">{DIAS[d.getUTCDay()]}</span><b>{d.getUTCDate()}</b>
+          </span>
+        ))}
+      </div>
+      {horas.length === 0 && <p className="lv-legenda" style={{ padding: 'var(--espaco-12)', margin: 0 }}>Semana livre. Usa {novo(t('sessao'))} para marcar.</p>}
+      {horas.map((h) => (
+        <div key={h} className="lg-semana-pt__linha">
+          <span className="lg-semana-pt__hora">{h}</span>
+          {mostrar.map((d) => {
+            const aqui = lista.filter((b) => diaDe(b.inicio) === isoDia(d) && hhmm(b.inicio) === h);
+            return (
+              <div key={isoDia(d)} className="lg-semana-pt__celula">
+                {aqui.length === 0 ? <button type="button" className="lg-semana-pt__vazio" aria-label={`Marcar ${DIAS[d.getUTCDay()]} ${d.getUTCDate()} às ${h}`} onClick={() => onNova(isoDia(d), h)} />
+                  : aqui.map((b) => {
+                    const p = posicoes.get(b.id);
+                    return (
+                      <button key={b.id} type="button" className={`lg-semana-pt__bloco lg-semana-pt__bloco--${cor(b)}${atualId === b.id ? ' lg-semana-pt__bloco--aberto' : ''}`} onClick={() => onAbrir(b)}>
+                        <b>{b.cliente ?? (b.titulo || TIPO[b.tipo])}</b>
+                        <span>{b.local ? LOCAL[b.local] ?? b.local : b.sala ?? (b.tipo === 'training' ? 'Por definir' : TIPO[b.tipo])}</span>
+                        <b>{b.tipo === 'assessment' ? 'Avaliação' : b.estado === 'pending' ? 'Por confirmar' : p ? `${p.n}/${p.total}` : ''}</b>
+                      </button>
+                    );
+                  })}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </section>
+  );
+}
 
 /**
  * Horário (G-09 e G-10, Figma 66:154), F1a: sessões de PT, consultas e
@@ -53,6 +124,9 @@ export function Horario() {
   const [filtroSala, setFiltroSala] = useState<string | null>(null);
   const soPendentes = params.get('estado') === 'pendente';
   const [aberto, setAberto] = useState<MarcacaoEditavel | null>(null);
+  // Figma (201:108): filtrar por tipo de sessão no topo
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'online' | 'avaliacao'>('todos');
+  const [saldos, setSaldos] = useState<Map<string, SaldoPack[]>>(new Map());
   const [atual, setAtual] = useState<MarcacaoSemana | null>(null);
 
   const carregar = useCallback(() => {
@@ -82,7 +156,17 @@ export function Horario() {
   }, [params, setParams, novaBase]);
 
   const dias = vista === 'dia' ? [ancora] : Array.from({ length: 7 }, (_, i) => { const d = new Date(segunda); d.setUTCDate(d.getUTCDate() + i); return d; });
-  const visiveis = (lista ?? []).filter((b) => (filtroPt === 'todos' || b.membershipId === filtroPt) && (!filtroSala || b.salaId === filtroSala) && (!soPendentes || b.estado === 'pending'));
+  const visiveis = (lista ?? []).filter((b) => (filtroPt === 'todos' || b.membershipId === filtroPt) && (!filtroSala || b.salaId === filtroSala) && (!soPendentes || b.estado === 'pending')
+    && (filtroTipo === 'todos' || (filtroTipo === 'online' ? b.local === 'online' : b.tipo === 'assessment')));
+  // O pack de cada cliente da semana, para o "3/10" de cada bloco e o "Sessão 6 de 8" do painel
+  useEffect(() => {
+    const client = getSupabaseClient();
+    const ids = [...new Set((lista ?? []).filter((b) => b.tipo === 'training' && b.clienteId).map((b) => b.clienteId!))];
+    if (!client || !ids.length) return;
+    void Promise.all(ids.map((id) => fetchSaldo(client, id).then((sl): [string, SaldoPack[]] => [id, sl]).catch((): [string, SaldoPack[]] => [id, []])))
+      .then((pares) => setSaldos(new Map(pares)));
+  }, [lista]);
+  const posicoes = useMemo(() => posicoesNoPack(lista ?? [], saldos), [lista, saldos]);
   const local = (iso: string) => wallClock(new Date(iso), scope.timezone);
   const abrir = (b: MarcacaoSemana) => {
     const w = local(b.inicio);
@@ -104,9 +188,12 @@ export function Horario() {
 
   return (
     <CoachShell headStrong="Horário" headSub={semanaTxt} legado={false}
-      topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)' }}>
-        <Botao variante="secundario" onClick={() => navigate('/schedule/disponibilidade')}>Disponibilidade</Botao>
-        <Botao variante="secundario" onClick={() => navigate('/schedule/regras')}>Regras e lembretes</Botao>
+      topActions={<span style={{ display: 'flex', gap: 'var(--espaco-8)', alignItems: 'center' }}>
+        <span className="lg-clientes__chips" role="radiogroup" aria-label="Tipo">
+          <Chip role="radio" aria-checked={filtroTipo === 'todos'} ativo={filtroTipo === 'todos'} onClick={() => setFiltroTipo('todos')}>Todos os tipos</Chip>
+          <Chip role="radio" aria-checked={filtroTipo === 'online'} ativo={filtroTipo === 'online'} onClick={() => setFiltroTipo('online')}>Online</Chip>
+          <Chip role="radio" aria-checked={filtroTipo === 'avaliacao'} ativo={filtroTipo === 'avaliacao'} onClick={() => setFiltroTipo('avaliacao')}>Avaliação</Chip>
+        </span>
         <Botao icone={Plus} onClick={() => { setAtual(null); setAberto(novaBase()); }}>{novo(t('sessao'))}</Botao>
       </span>}>
       <div className="lv-root lg-ficha">
@@ -125,6 +212,10 @@ export function Horario() {
             {veTodos && equipa.filter((m) => m.id !== scope.membershipId).slice(0, 4).map((m) => <Chip key={m.id} ativo={filtroPt === m.id} onClick={() => setFiltroPt(m.id)}>{m.name.split(' ')[0]}</Chip>)}
             {salas.map((s) => <Chip key={s.id} ativo={filtroSala === s.id} onClick={() => setFiltroSala(filtroSala === s.id ? null : s.id)}>{s.nome}</Chip>)}
             <Chip ativo={soPendentes} onClick={() => setParams((p) => { if (soPendentes) p.delete('estado'); else p.set('estado', 'pendente'); return p; })}>Por confirmar</Chip>
+            <MenuAcoes rotulo="Mais do horário" acoes={[
+              { rotulo: 'Disponibilidade', onClick: () => navigate('/schedule/disponibilidade') },
+              { rotulo: 'Regras e lembretes', onClick: () => navigate('/schedule/regras') },
+            ]} />
           </div>
         </div>
         {erro ? <EstadoPagina tipo="erro" titulo="Não foi possível carregar o horário" texto={erro} acao={{ rotulo: 'Tentar de novo', onClick: carregar }} />
@@ -132,6 +223,8 @@ export function Horario() {
           : (
             <div className={`lg-horario${aberto ? ' lg-horario--aberto' : ''}`}>
               {vista === 'mes' ? <VistaMes inicio={inicioMes} lista={visiveis} hoje={hoje} tz={scope.timezone} onDia={(d) => { setAncora(d); setVista('dia'); }} />
+              : vista === 'semana' ? <VistaSemanaPT dias={dias} lista={visiveis} hoje={hoje} tz={scope.timezone} posicoes={posicoes} atualId={atual?.id ?? null}
+                  onAbrir={abrir} onNova={(dia, hora) => { setAtual(null); setAberto(novaBase(dia, hora)); }} />
               : vista === 'lista' ? <VistaLista lista={(lista ?? []).filter((b) => (filtroPt === 'todos' || b.membershipId === filtroPt) && (!filtroSala || b.salaId === filtroSala))} clientes={clientes} onAbrir={abrir} />
               : (
               <section className={`lv-lista lg-grade${vista === 'dia' ? ' lg-grade--dia' : ''}`} aria-label={vista === 'dia' ? 'Dia' : 'Semana'}>
@@ -172,7 +265,7 @@ export function Horario() {
               </section>
               )}
               {aberto && (
-                <Editor marcacao={aberto} atual={atual} equipa={equipa} salas={salas} clientes={clientes}
+                <Editor marcacao={aberto} atual={atual} equipa={equipa} salas={salas} clientes={clientes} posicao={atual ? posicoes.get(atual.id) ?? null : null}
                   onFechar={() => { setAberto(null); setAtual(null); }} onGuardado={() => { setAberto(null); setAtual(null); carregar(); }} onCancelar={setAlvoCancelar} />
               )}
             </div>
@@ -183,8 +276,9 @@ export function Horario() {
   );
 }
 
-function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado, onCancelar }: {
+function Editor({ marcacao, atual, equipa, salas, clientes, posicao, onFechar, onGuardado, onCancelar }: {
   marcacao: MarcacaoEditavel; atual: MarcacaoSemana | null; equipa: StaffLite[]; salas: { id: string; nome: string }[]; clientes: ClientRow[];
+  posicao: { n: number; total: number; restam: number; nome: string } | null;
   onFechar: () => void; onGuardado: () => void; onCancelar: (b: MarcacaoSemana) => void;
 }) {
   const scope = useScope();
@@ -237,13 +331,37 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
   };
   const set = (p: Partial<MarcacaoEditavel>) => setE((x) => ({ ...x, ...p }));
   return (
-    <aside className="lv-lista lg-horario__editor" aria-label={atual ? 'Editar sessão' : 'Nova sessão'}>
+    <aside className="lv-lista lg-horario__editor" aria-label={atual ? `Editar ${t('sessao')}` : novo(t('sessao'))}>
+      {/* G-10 do PT (Figma 201:108): foto em cima, o nome e onde vai no pack; depois dia, hora, local e tipo */}
+      <div className="lg-editor__foto" aria-hidden />
       <div className="lv-lista__cabeca">
-        <h2 className="lv-titulo-cartao">{atual ? (atual.cliente ?? atual.titulo ?? 'Sessão') : novo(t('sessao'))}</h2>
-        {atual && <Estado tom={ESTADO[atual.estado]?.tom ?? 'neutro'}>{ESTADO[atual.estado]?.texto ?? atual.estado}</Estado>}
+        <h2 className="lg-editor__nome">{atual ? (atual.cliente ?? atual.titulo ?? TIPO[atual.tipo]) : novo(t('sessao'))}</h2>
+        {atual && (posicao && atual.estado === 'confirmed'
+          ? <Estado tom="ok">{t('sessao', { maiuscula: true })} {posicao.n} de {posicao.total}</Estado>
+          : <Estado tom={ESTADO[atual.estado]?.tom ?? 'neutro'}>{ESTADO[atual.estado]?.texto ?? atual.estado}</Estado>)}
       </div>
-      <div role="radiogroup" aria-label="Tipo" className="lg-ficha__metricas">
-        {(['training', 'consultation', 'assessment', 'other'] as const).map((k) => <Chip key={k} role="radio" aria-checked={e.tipo === k} ativo={e.tipo === k} onClick={() => set({ tipo: k })}>{TIPO[k]}</Chip>)}
+      <div className="lg-conta__prefs">
+        <Campo rotulo="Dia" type="date" value={e.dia} onChange={(x) => set({ dia: x.target.value })} />
+        <Campo rotulo="Hora" type="time" value={e.hora} onChange={(x) => set({ hora: x.target.value })} />
+        <label className="lv-campo"><span className="lv-campo-rotulo">Local</span>
+          <select className="lv-campo-input" value={e.local?.tipo === 'online' ? 'online' : e.local?.texto ?? (atual?.local === 'online' ? 'online' : atual?.localTexto ?? '')}
+            onChange={(x) => { const v = x.target.value; const l = locais.find((y) => (y.morada ? `${y.nome}, ${y.morada}` : y.nome) === v);
+              set({ local: v === 'online' ? { tipo: 'online', texto: 'Online' } : l ? { tipo: l.tipo, texto: v } : null }); }}>
+            <option value="">{atual?.local ? LOCAL[atual.local] ?? 'Por definir' : 'Por definir'}</option>
+            {locais.filter((l) => l.tipo !== 'online').map((l) => { const v = l.morada ? `${l.nome}, ${l.morada}` : l.nome; return <option key={l.id} value={v}>{l.nome}</option>; })}
+            <option value="online">Online</option>
+          </select></label>
+        <label className="lv-campo"><span className="lv-campo-rotulo">Tipo</span>
+          <select className="lv-campo-input" value={e.tipo} onChange={(x) => set({ tipo: x.target.value as MarcacaoEditavel['tipo'] })}>
+            {(['training', 'assessment', 'consultation', 'other'] as const).map((k) => <option key={k} value={k}>{k === 'training' ? ((e.local?.tipo ?? atual?.local) === 'online' ? 'Online' : 'Presencial') : TIPO[k]}</option>)}
+          </select></label>
+        <Campo rotulo="Duração (min)" type="number" min={15} max={240} step={15} value={e.minutos} onChange={(x) => set({ minutos: Number(x.target.value) || 60 })} />
+        {salas.length > 0 && (
+          <label className="lv-campo"><span className="lv-campo-rotulo">Sala</span>
+            <select className="lv-campo-input" value={e.salaId ?? ''} onChange={(x) => set({ salaId: x.target.value || null })}>
+              <option value="">Sem sala</option>{salas.map((sa) => <option key={sa.id} value={sa.id}>{sa.nome}</option>)}
+            </select></label>
+        )}
       </div>
       <label className="lv-campo"><span className="lv-campo-rotulo">{vocab.pessoa({ maiuscula: true })}</span>
         <select className="lv-campo-input" value={e.clienteId ?? ''} onChange={(x) => set({ clienteId: x.target.value || null })}>
@@ -251,22 +369,13 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
           {clientes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>
       {!e.clienteId && <Campo rotulo="Título" value={e.titulo} onChange={(x) => set({ titulo: x.target.value })} />}
-      <div className="lg-conta__prefs">
-        <Campo rotulo="Dia" type="date" value={e.dia} onChange={(x) => set({ dia: x.target.value })} />
-        <Campo rotulo="Hora" type="time" value={e.hora} onChange={(x) => set({ hora: x.target.value })} />
-        <Campo rotulo="Duração (min)" type="number" min={15} max={240} step={15} value={e.minutos} onChange={(x) => set({ minutos: Number(x.target.value) || 60 })} />
-        <label className="lv-campo"><span className="lv-campo-rotulo">Sala</span>
-          <select className="lv-campo-input" value={e.salaId ?? ''} onChange={(x) => set({ salaId: x.target.value || null })}>
-            <option value="">Sem sala</option>{salas.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-          </select></label>
-      </div>
-      {locais.length > 0 && (
-        <div role="radiogroup" aria-label="Local" className="lg-ficha__metricas">
-          {locais.map((l) => {
-            const ativo = e.local?.tipo === l.tipo && e.local?.texto === (l.morada ? `${l.nome}, ${l.morada}` : l.nome);
-            return <Chip key={l.id} role="radio" aria-checked={ativo} ativo={ativo} onClick={() => set({ local: ativo ? null : { tipo: l.tipo, texto: l.morada ? `${l.nome}, ${l.morada}` : l.nome } })}>{l.nome}</Chip>;
-          })}
-        </div>
+      {posicao && e.tipo === 'training' && (
+        <div className="lv-campo"><span className="lv-campo-rotulo">Pack</span>
+          <span className="lg-editor__info">{posicao.nome} · {posicao.total - posicao.n === 0 ? `é ${g(t('sessao'), 'a última', 'o último')}` : `ficam ${posicao.total - posicao.n} depois ${g(t('sessao'), 'desta', 'deste')}`}</span></div>
+      )}
+      {atual?.serieId && (
+        <div className="lv-campo"><span className="lv-campo-rotulo">Repetição</span>
+          <span className="lg-editor__info">Todas as semanas · mudar aqui muda só esta</span></div>
       )}
       {equipa.length > 1 && (
         <label className="lv-campo"><span className="lv-campo-rotulo">{vocab.responsavel({ maiuscula: true })}</span>
@@ -281,8 +390,8 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
       <Campo rotulo="Notas" value={e.notas} onChange={(x) => set({ notas: x.target.value })} />
       {aviso && <Nota icone={Warning}>{aviso}</Nota>}
       {conflitos.length > 0 && <div className="lg-duplicado" role="alert"><Warning size={18} aria-hidden /><span>{conflitos.join(' · ')}</span></div>}
-      <div className="lg-import__acoes" style={{ padding: 0 }}>
-        <Botao variante="secundario" onClick={onFechar}>Fechar</Botao>
+      <div className="lg-bib__acoes">
+        {e.clienteId ? <Botao variante="secundario" onClick={() => navigate(`/clients/${e.clienteId}`)}>Ver ficha</Botao> : <Botao variante="secundario" onClick={onFechar}>Fechar</Botao>}
         <Botao aCarregar={aGravar} disabled={conflitos.length > 0 || (repetir && !e.repetirAte)} onClick={() => void guardar()}>Guardar</Botao>
       </div>
       {atual && (
@@ -299,7 +408,6 @@ function Editor({ marcacao, atual, equipa, salas, clientes, onFechar, onGuardado
         <Nota icone={Clock}>Confirmar até {new Date(atual.confirmarAte).toLocaleString('pt-PT', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}. Se ninguém confirmar, a hora fica livre e {atual.cliente ?? 'quem marcou'} é avisado.</Nota>
       )}
       {atual?.estado === 'cancelled' && atual.motivoCancelar && <Nota>Cancelada: {atual.motivoCancelar}</Nota>}
-      {atual?.serieId && <Nota icone={CalendarBlank}>Faz parte de uma série semanal; mudar aqui muda só esta.</Nota>}
       {atual && <HistoricoMarcacao id={atual.id} />}
     </aside>
   );
