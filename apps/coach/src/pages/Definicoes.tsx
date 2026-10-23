@@ -142,7 +142,7 @@ export function Seguranca() {
                         <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">{d.nome}</span><span className="lv-legenda">Obrigatório · ainda não ativou</span></span>
                       </div>
                     ))}
-                  <Nota icone={LockKey}>Quem gere ou vê saúde só entra com dois fatores; o pedido aparece na próxima entrada.</Nota>
+                  <Nota icone={LockKey}>Obrigatório para quem gere ou vê saúde; até os ativar, o detalhe de saúde não abre.</Nota>
                 </aside>
                 <Nota>O registo não se pode editar nem apagar, nem pela gerência.</Nota>
               </div>
