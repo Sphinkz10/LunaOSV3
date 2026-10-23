@@ -32,7 +32,10 @@ body { margin: 0; background: var(--cor-fundo); color: var(--cor-texto); font-fa
 .lc-escolha .lv-switch-wrap label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .lc-boasvindas {
   display: flex; flex-direction: column; justify-content: flex-end; gap: var(--espaco-8); min-height: 300px; padding: var(--espaco-24);
-  border-radius: var(--raio-cartao); background: var(--cor-destaque); color: var(--cor-sobre-destaque);
+  border-radius: var(--raio-cartao); color: var(--cor-sobre-destaque);
+  /* C-01 (82:52): foto a ocupar o cartão, com a cor do destaque a subir de baixo */
+  background: linear-gradient(to top, var(--cor-destaque) 25%, color-mix(in srgb, var(--cor-destaque) 50%, transparent) 50%, transparent 75%),
+    url('/media/boasvindas.jpg') center / cover no-repeat, var(--cor-destaque);
 }
 .lc-boasvindas__selo {
   align-self: flex-start; padding: var(--espaco-4) var(--espaco-12); border-radius: var(--raio-pilula);

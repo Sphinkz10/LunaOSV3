@@ -6,7 +6,7 @@ import {
   pedirEncarregado, registarConsentimento, signInWithPassword, type MinhaConta, type Partilha,
 } from '@luna/core';
 import { Botao, Campo, Interruptor, Nota } from '@luna/ui/v3';
-import { ArrowLeft } from '@luna/icons';
+import { ArrowLeft, Barbell, CalendarBlank } from '@luna/icons';
 import { getSupabaseClient } from '../lib/supabase';
 import { guardarPendente, lerPendente, limparPendente, useSessao } from '../sessao';
 import { PARQ } from '../parq';
@@ -52,6 +52,17 @@ export function BoasVindas() {
         {token && <span className="lc-boasvindas__selo">Recebeste um convite</span>}
         <h1 className="lc-boasvindas__titulo">Olá. Bem-vindo.</h1>
         <p style={{ margin: 0 }}>A tua conta fica pronta em 3 minutos.</p>
+      </section>
+      {/* C-01: o que a conta dá, como no Figma */}
+      <section className="lc-lista" aria-label="O que tens na app">
+        <div className="lc-lista__linha" style={{ cursor: 'default' }}>
+          <span className="lc-lista__icone"><Barbell size={18} aria-hidden /></span>
+          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Treino</span><span className="lv-legenda">O plano do teu {t('responsavel')} e o registo</span></span>
+        </div>
+        <div className="lc-lista__linha" style={{ cursor: 'default' }}>
+          <span className="lc-lista__icone"><CalendarBlank size={18} aria-hidden /></span>
+          <span className="lv-linha-lista__corpo"><span className="lv-linha-lista__titulo">Marcações</span><span className="lv-legenda">Marca e vê o que tens</span></span>
+        </div>
       </section>
       <Nota>Só os termos são obrigatórios. A partilha de saúde e as novidades são escolhas tuas, e podes mudar quando quiseres.</Nota>
       <div className="lc-passo__acao">
